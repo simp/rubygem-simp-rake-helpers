@@ -46,10 +46,15 @@ Gem::Specification.new do |s|
 
   s.files = Dir[
                 'Rakefile',
-                '{bin,lib,spec}/**/*',
-                'README*',
-                'LICENSE*',
-                'CONTRIBUTING*',
                 'CHANGELOG*',
+                'CONTRIBUTING*',
+                'LICENSE*',
+                'README*',
+                '{bin,lib,spec}/**/*',
+                'Gemfile',
+                'Guardfile',
+                '.gitignore',
+                '.rspec',
+                '.travis.yml',
                ] & `git ls-files -z .`.split("\0")
 end
