@@ -120,6 +120,12 @@ If you are space limited, set SIMP_RAKE_LIMIT_CPUS=1 at build time.
   - An Integer that limits builds to # processors
   - If set to '1', will only build in a single mock directory
 
+* SIMP_GIT_BRANCH=<Branch ID>
+  - If you are working in the supermodule and wish to perform a reset, but
+    retain your working branch at the supermodule level. You can set this to
+    ignore the current supermodule branch value.
+  - This is particularly valuable when using Jenkins.
+
 ********************
 EOM
 
