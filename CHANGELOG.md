@@ -1,6 +1,10 @@
+### 1.0.4 / 2015-06-22
+* Added support for reading information directly from RPMs as well as spec
+  files.
+
 ### 1.0.2 / 2105-04-02
 * Added support for snapshot_release, adds date and time to rpm release
-* version
+  version
 
 ### 1.0.1 / 2015-02-03
 * Added the top level rake and rpm files to the Manifest

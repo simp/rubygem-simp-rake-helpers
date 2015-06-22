@@ -7,24 +7,23 @@ module Simp
     @@gpg_keys = Hash.new
     attr_accessor :basename, :version, :release, :full_version, :name, :sources, :verbose
 
-    if Gem.loaded_specs['rake'].version >= Gem::Version.new('0.9') then
+    if Gem.loaded_specs['rake'].version >= Gem::Version.new('0.9')
       def self.sh(args)
         system args
       end
     end
 
-    # Constructs a new Simp::RPM object. Requires the path to the spec file that
-    # will be used to create the package.
+    # Constructs a new Simp::RPM object. Requires the path to the spec file
+    # from which information will be gathered.
     #
-    # The following information will be retreived from the spec file:
+    # The following information will be retreived:
     # [basename] The name of the package (as it would be queried in yum)
-    #            (extracted from the basename of the spec file)
     # [version] The version of the package
     # [release] The release version of the package
     # [full_version] The full version of the package: [version]-[release]
     # [name] The full name of the package: [basename]-[full_version]
-    def initialize(specfile)
-      info = Simp::RPM.get_info(specfile)
+    def initialize(rpm_source)
+      info = Simp::RPM.get_info(rpm_source)
       @basename = info[:name]
       @version = info[:version]
       @release = info[:release]
@@ -38,7 +37,7 @@ module Simp
     # src:: a pattern given to find(1) to match against the desired files to copy
     # dest:: the destination directory to receive the copies
     def self.copy_wo_vcs(start_dir, src, dest, dereference=true)
-      if dereference.nil? || dereference then
+      if dereference.nil? || dereference
         dereference = "--dereference"
       else
         dereference = ""
@@ -49,25 +48,30 @@ module Simp
       end
     end
 
-    # Parses information, such as the version, from the given specfile into a
-    # hash.
-    def self.get_info(specfile)
+    # Parses information, such as the version, from the given specfile or RPM
+    # into a hash.
+    def self.get_info(rpm_source)
       info = Hash.new
-      if File.readable?(specfile) then
-        File.open(specfile).each do |line|
-          if line =~ /^\s*Version:\s+(.*)\s*/ then
-            info[:version] = $1
-            next
-          elsif line =~ /^\s*Release:\s+(.*)\s*/ then
-            info[:release] = $1
-            next
-          elsif line =~ /^\s*Name:\s+(.*)\s*/ then
-            info[:name] = $1
-            next
+      if File.readable?(rpm_source)
+        if rpm_source.split('.').last == 'rpm'
+          rpm_info = %x(rpm -q --queryformat '%{NAME} %{VERSION} %{RELEASE}' -p #{rpm_source} 2>/dev/null)
+          info[:name],info[:version],info[:release] = rpm_info.split(' ')
+        else
+          File.open(rpm_source).each do |line|
+            if line =~ /^\s*Version:\s+(.*)\s*/
+              info[:version] = $1
+              next
+            elsif line =~ /^\s*Release:\s+(.*)\s*/
+              info[:release] = $1
+              next
+            elsif line =~ /^\s*Name:\s+(.*)\s*/
+              info[:name] = $1
+              next
+            end
           end
         end
       else
-        raise "Error: unable to read the spec file '#{specfile}'"
+        raise "Error: unable to read '#{rpm_source}'"
       end
 
       info[:full_version] = "#{info[:version]}-#{info[:release]}"
@@ -81,11 +85,11 @@ module Simp
     # for it.
     def self.load_key(gpg_key)
       keydir = gpg_key
-      File.directory?(keydir) or fail "Error: Could not find '#{keydir}'"
+      File.directory?(keydir) || fail("Error: Could not find '#{keydir}'")
 
       gpg_key = File.basename(gpg_key)
 
-      if @@gpg_keys[gpg_key] then
+      if @@gpg_keys[gpg_key]
           return @@gpg_keys[gpg_key]
       end
 
@@ -93,12 +97,12 @@ module Simp
       begin
         File.read("#{keydir}/gengpgkey").each_line do |ln|
           ln = ln.split(/^\s*Name-Email:/)
-          ln.length > 1 and gpg_name = ln.last.strip and break
+          ln.length > 1 && gpg_name = ln.last.strip && break
         end
       rescue Errno::ENOENT
       end
 
-      if gpg_name.nil? then
+      if gpg_name.nil?
         puts "Warning: Could not find valid e-mail address for use with GPG."
         puts "Please enter e-mail address to use:"
         gpg_name = $stdin.gets.strip
