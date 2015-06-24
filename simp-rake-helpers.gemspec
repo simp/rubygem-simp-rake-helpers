@@ -10,7 +10,7 @@ Gem::Specification.new do |s|
   EOF
   s.version     = Simp::Rake::Helpers::VERSION
   s.email       = 'simp@simp-project.org'
-  s.homepage    = 'https://github.com/NationalSecurityAgency/rubygem-simp-rake-helpers'
+  s.homepage    = 'https://github.com/simp/rubygem-simp-rake-helpers'
   s.license     = 'Apache-2.0'
   s.authors     = [
     "Chris Tessmer",
@@ -22,15 +22,13 @@ Gem::Specification.new do |s|
   # gem dependencies
   #   for the published gem
   # ensure the gem is built out of versioned files
-  s.add_runtime_dependency 'bundler'
+  s.add_runtime_dependency 'bundler',                   '~> 1'
   s.add_runtime_dependency 'rake',                      '~> 10'
   s.add_runtime_dependency 'coderay',                   '~> 1'
   s.add_runtime_dependency 'puppet',                    '~> 3'
   s.add_runtime_dependency 'puppet-lint',               '~> 1'
   s.add_runtime_dependency 'puppetlabs_spec_helper',    '~> 0'
   s.add_runtime_dependency 'parallel',                  '~> 1'
-#  REMOVE: hasn't been updated in 3 years, migrated to puppetlabs_spec_helper?
-#  s.add_runtime_dependency 'puppet_module_spec_helper'
 
   # for development
   s.add_development_dependency 'gitlog-md',   '~> 0' # To generate HISTORY.md
