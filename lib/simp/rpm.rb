@@ -94,10 +94,18 @@ module Simp
       end
 
       gpg_name = nil
+      gpg_password = nil
       begin
         File.read("#{keydir}/gengpgkey").each_line do |ln|
-          ln = ln.split(/^\s*Name-Email:/)
-          ln.length > 1 && gpg_name = ln.last.strip && break
+          name_line = ln.split(/^\s*Name-Email:/)
+          if name_line.length > 1
+            gpg_name = name_line.last.strip
+          end
+
+          passwd_line = ln.split(/^\s*Passphrase:/)
+          if passwd_line.length > 1
+            gpg_password = passwd_line.last.strip
+          end
         end
       rescue Errno::ENOENT
       end
@@ -108,17 +116,21 @@ module Simp
         gpg_name = $stdin.gets.strip
       end
 
-      begin
-        password = File.read("#{keydir}/password").chomp
-      rescue Errno::ENOENT
-        puts "Warning: Could not find a password in '#{keydir}/password'!"
-        puts "Please enter your GPG key password:"
-        system 'stty -echo'
-        password = $stdin.gets.strip
-        system 'stty echo'
+      if gpg_password.nil?
+        if File.exist?(%(#{keydir}/password))
+          gpg_password = File.read(%(#{keydir}/password)).chomp
+        end
+
+        if gpg_password.nil?
+          puts "Warning: Could not find a password in '#{keydir}/password'!"
+          puts "Please enter your GPG key password:"
+          system 'stty -echo'
+          gpg_password = $stdin.gets.strip
+          system 'stty echo'
+        end
       end
 
-      @@gpg_keys[gpg_key] = { :dir => keydir, :name => gpg_name, :password => password }
+      @@gpg_keys[gpg_key] = { :dir => keydir, :name => gpg_name, :password => gpg_password }
     end
 
     # Signs the given RPM with the given gpg_key (see Simp::RPM.load_key for

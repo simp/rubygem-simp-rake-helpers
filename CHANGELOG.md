@@ -1,6 +1,7 @@
 ### 1.0.5 / 2015-06-22
 * Cleanup gemspec
-
+* Fixed bugs in the RPM signing code regarding fetching the username and
+  password from the appropriate source.
 
 ### 1.0.4 / 2015-06-22
 * Added support for reading information directly from RPMs as well as spec
