@@ -1,4 +1,4 @@
-### 1.0.5 / 2015-06-22
+### 1.0.6 / 2015-06-24
 * Cleanup gemspec
 * Fixed bugs in the RPM signing code regarding fetching the username and
   password from the appropriate source.
