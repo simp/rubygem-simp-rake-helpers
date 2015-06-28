@@ -123,7 +123,7 @@ module Simp::Rake
 
           Dir.chdir(%(#{@base_dir}/..)) do
             Find.find(target_dir) do |path|
-              Find.prune if File.directory?(path)
+              next if File.directory?(path)
               Find.prune if path =~ /^\.git/
               Find.prune if path == "#{@pkg_name}/#{File.basename(@pkg_dir)}"
               Find.prune if @ignore_changes_list.include?(path)
