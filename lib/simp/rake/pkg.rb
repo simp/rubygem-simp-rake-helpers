@@ -123,11 +123,11 @@ module Simp::Rake
 
           Dir.chdir(%(#{@base_dir}/..)) do
             Find.find(target_dir) do |path|
-              next if File.directory?(path)
               Find.prune if path =~ /^\.git/
               Find.prune if path == "#{@pkg_name}/#{File.basename(@pkg_dir)}"
               Find.prune if @ignore_changes_list.include?(path)
-              unless uptodate?(@tar_dest,[path]) && (path == @pkg_name)
+              next if File.directory?(path)
+              unless uptodate?(@tar_dest,[path])
                 sh %Q(tar --owner 0 --group 0 --exclude-vcs --exclude=#{@exclude_list.join(' --exclude=')} --transform='s/^#{@pkg_name}/#{@dir_name}/' -cpzf "#{@tar_dest}" #{@pkg_name})
                 break
               end
