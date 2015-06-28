@@ -1,3 +1,8 @@
+### 1.0.7 / 2015-06-27
+* Ensure that the 'Release' variable doesn't pick up anything that's dynamic in
+  nature.
+* Optimized the build check code. Sped up pretty much everything.
+
 ### 1.0.6 / 2015-06-24
 * Cleanup gemspec
 * Fixed bugs in the RPM signing code regarding fetching the username and

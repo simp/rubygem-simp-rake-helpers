@@ -20,6 +20,8 @@ module Simp
     # [basename] The name of the package (as it would be queried in yum)
     # [version] The version of the package
     # [release] The release version of the package
+    #   * NOTE: If this is a 'spec' file, it will stop on the first '%'
+    #           encountered!
     # [full_version] The full version of the package: [version]-[release]
     # [name] The full name of the package: [basename]-[full_version]
     def initialize(rpm_source)
@@ -62,7 +64,8 @@ module Simp
               info[:version] = $1
               next
             elsif line =~ /^\s*Release:\s+(.*)\s*/
-              info[:release] = $1
+              # We don't want anything after the first '%'
+              info[:release] = $1.split('%').first
               next
             elsif line =~ /^\s*Name:\s+(.*)\s*/
               info[:name] = $1
