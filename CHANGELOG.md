@@ -1,3 +1,6 @@
+### 1.0.8 / 2015-07-06
+* Raise an error if the GPG signing command fails.
+
 ### 1.0.7 / 2015-06-27
 * Ensure that the 'Release' variable doesn't pick up anything that's dynamic in
   nature.

@@ -156,6 +156,8 @@ module Simp
           end
           Process.wait(pid)
         end
+
+        raise "Failure running #{signcommand}" unless $?.success?
       rescue Exception => e
         puts "Error occured while attempting to sign #{rpm}, skipping."
         puts e
