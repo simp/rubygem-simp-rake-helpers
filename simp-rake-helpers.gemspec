@@ -1,5 +1,4 @@
-$LOAD_PATH << File.expand_path( 'lib', File.dirname( __FILE__ ) )
-require 'simp/rake/helpers'
+require File.expand_path('lib/simp/rake/helpers.rb', File.dirname(__FILE__))
 
 Gem::Specification.new do |s|
   s.name        = 'simp-rake-helpers'
@@ -17,7 +16,7 @@ Gem::Specification.new do |s|
     "Trevor Vaughan"
   ]
   s.metadata = {
-                 'issue_tracker' => 'https://github.com/simp/rubygem-simp-rake-helpers/issues'
+                 'issue_tracker' => ' https://github.com/simp/rubygem-simp-rake-helpers'
                }
   # gem dependencies
   #   for the published gem
@@ -25,7 +24,7 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'bundler',                   '~> 1'
   s.add_runtime_dependency 'rake',                      '~> 10'
   s.add_runtime_dependency 'coderay',                   '~> 1'
-  s.add_runtime_dependency 'puppet',                    '~> 3'
+  s.add_runtime_dependency 'puppet',                    '>= 3'
   s.add_runtime_dependency 'puppet-lint',               '~> 1'
   s.add_runtime_dependency 'puppetlabs_spec_helper',    '~> 0'
   s.add_runtime_dependency 'parallel',                  '~> 1'
