@@ -142,6 +142,7 @@ module Simp
       gpgkey = load_key(gpg_key)
       signcommand = "rpm " +
           "--define '%_signature gpg' " +
+          "--define '%__gpg %{_bindir}/gpg' " +
           "--define '%_gpg_name #{gpgkey[:name]}' " +
           "--define '%_gpg_path #{gpgkey[:dir]}' " +
           "--resign #{rpm}"
