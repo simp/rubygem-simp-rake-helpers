@@ -1,3 +1,6 @@
+### 1.0.9 / 2015-07-15
+* Ensure that the GPG signing code works on Fedora 22 and RHEL7 and RHEL6
+
 ### 1.0.8 / 2015-07-06
 * Raise an error if the GPG signing command fails.
 
