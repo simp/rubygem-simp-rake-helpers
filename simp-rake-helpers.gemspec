@@ -16,7 +16,7 @@ Gem::Specification.new do |s|
     "Trevor Vaughan"
   ]
   s.metadata = {
-                 'issue_tracker' => ' https://github.com/simp/rubygem-simp-rake-helpers'
+                 'issue_tracker' => 'https://simp-project.atlassian.net'
                }
   # gem dependencies
   #   for the published gem

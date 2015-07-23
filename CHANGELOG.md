@@ -1,3 +1,6 @@
+### 1.0.10 / 2015-07-23
+* Relax dependency to allow puppet 3 or above
+
 ### 1.0.9 / 2015-07-15
 * Ensure that the GPG signing code works on Fedora 22 and RHEL7 and RHEL6
 
