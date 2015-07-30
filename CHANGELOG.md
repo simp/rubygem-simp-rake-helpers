@@ -1,3 +1,11 @@
+### 1.0.11 / 2015-07-30
+* Allow simp/rpm to be used independently of Rake
+* Ensure that packages are not re-signed that have already been signed by the
+  presented key.
+* Worked around an issue where rpm --resign will prompt more than once for the
+  GPG key using the latest GPG version. This happens on the command line as
+  well.
+
 ### 1.0.10 / 2015-07-23
 * Relax dependency to allow puppet 3 or above
 

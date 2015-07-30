@@ -133,35 +133,68 @@ module Simp
         end
       end
 
-      @@gpg_keys[gpg_key] = { :dir => keydir, :name => gpg_name, :password => gpg_password }
+      gpg_key_size = nil
+      gpg_key_id = nil
+      %x(gpg --homedir=#{keydir} --list-keys #{gpg_name} 2>&1).each_line do |line|
+        head,data = line.split(/\s+/)
+        if head == 'pub'
+          gpg_key_size,gpg_key_id = data.split('/')
+          break
+        end
+      end
+
+      if !gpg_key_size || !gpg_key_id
+        fail("Error getting GPG Key metadata")
+      end
+
+      @@gpg_keys[gpg_key] = {
+        :dir => keydir,
+        :name => gpg_name,
+        :key_id => gpg_key_id,
+        :key_size => gpg_key_size,
+        :password => gpg_password
+      }
     end
 
     # Signs the given RPM with the given gpg_key (see Simp::RPM.load_key for
     # details on the value of this parameter).
     def self.signrpm(rpm, gpg_key)
       gpgkey = load_key(gpg_key)
-      signcommand = "rpm " +
-          "--define '%_signature gpg' " +
-          "--define '%__gpg %{_bindir}/gpg' " +
-          "--define '%_gpg_name #{gpgkey[:name]}' " +
-          "--define '%_gpg_path #{gpgkey[:dir]}' " +
-          "--resign #{rpm}"
-      begin
-        PTY.spawn(signcommand) do |read, write, pid|
-          begin
-            read.expect(/Enter pass phrase: /) do |text|
-              write.print("#{gpgkey[:password]}\n")
-            end
-          rescue Errno::EIO
-            # This ALWAYS happens in Ruby 1.8.
-          end
-          Process.wait(pid)
-        end
 
-        raise "Failure running #{signcommand}" unless $?.success?
-      rescue Exception => e
-        puts "Error occured while attempting to sign #{rpm}, skipping."
-        puts e
+      gpg_sig = nil
+      %x(rpm -Kv #{rpm}).each_line do |line|
+        if line =~ /key\sID\s(.*):/
+          gpg_sig = $1.strip
+        end
+      end
+
+      unless gpg_sig == gpgkey[:key_id]
+        signcommand = "rpm " +
+            "--define '%_signature gpg' " +
+            "--define '%__gpg %{_bindir}/gpg' " +
+            "--define '%_gpg_name #{gpgkey[:name]}' " +
+            "--define '%_gpg_path #{gpgkey[:dir]}' " +
+            "--resign #{rpm}"
+        begin
+          PTY.spawn(signcommand) do |read, write, pid|
+            begin
+              while !read.eof? do
+                read.expect(/pass\s?phrase:.*/) do |text|
+                  write.puts(gpgkey[:password])
+                  write.flush
+                end
+              end
+            rescue Errno::EIO
+              # This ALWAYS happens in Ruby 1.8.
+            end
+            Process.wait(pid)
+          end
+  
+          raise "Failure running #{signcommand}" unless $?.success?
+        rescue Exception => e
+          puts "Error occured while attempting to sign #{rpm}, skipping."
+          puts e
+        end
       end
     end
   end
