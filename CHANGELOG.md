@@ -1,3 +1,6 @@
+### 1.0.11 / 2015-07-30
+* Allow simp/rpm to be used independently of Rake
+
 ### 1.0.10 / 2015-07-23
 * Relax dependency to allow puppet 3 or above
 

@@ -7,10 +7,19 @@ module Simp
     @@gpg_keys = Hash.new
     attr_accessor :basename, :version, :release, :full_version, :name, :sources, :verbose
 
-    if Gem.loaded_specs['rake'].version >= Gem::Version.new('0.9')
+    if Gem.loaded_specs['rake'] && (Gem.loaded_specs['rake'].version >= Gem::Version.new('0.9'))
       def self.sh(args)
         system args
       end
+    else
+      # Fake it to let this be used standalone
+      def simple_sh(args)
+        fail "You must pass arguments to simple_sh!" unless args
+
+        puts %x(#{args})
+      end
+
+      alias :sh :simple_sh
     end
 
     # Constructs a new Simp::RPM object. Requires the path to the spec file
@@ -30,6 +39,7 @@ module Simp
       @version = info[:version]
       @release = info[:release]
       @full_version = info[:full_version]
+      @summary = info[:summary]
       @name = "#{@basename}-#{@full_version}"
       @sources = Array.new
     end
@@ -56,8 +66,8 @@ module Simp
       info = Hash.new
       if File.readable?(rpm_source)
         if rpm_source.split('.').last == 'rpm'
-          rpm_info = %x(rpm -q --queryformat '%{NAME} %{VERSION} %{RELEASE}' -p #{rpm_source} 2>/dev/null)
-          info[:name],info[:version],info[:release] = rpm_info.split(' ')
+          rpm_info = %x(rpm -q --queryformat '%{NAME}___%{VERSION}___%{RELEASE}___%{SUMMARY}' -p #{rpm_source} 2>/dev/null)
+          info[:name],info[:version],info[:release],info[:summary] = rpm_info.split('___')
         else
           File.open(rpm_source).each do |line|
             if line =~ /^\s*Version:\s+(.*)\s*/
@@ -69,6 +79,9 @@ module Simp
               next
             elsif line =~ /^\s*Name:\s+(.*)\s*/
               info[:name] = $1
+              next
+            elsif line =~ /^\s*Summary:\s+(.*)\s*/
+              info[:summary] = $1
               next
             end
           end
