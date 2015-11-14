@@ -1,3 +1,7 @@
+### 1.0.12 / 2015-11-13
+* Ensure that openssl, openssl-devel, and vim-enhanced are installed in mock by
+  default
+
 ### 1.0.11 / 2015-07-30
 * Allow simp/rpm to be used independently of Rake
 * Ensure that packages are not re-signed that have already been signed by the

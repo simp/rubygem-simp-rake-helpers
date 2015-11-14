@@ -292,17 +292,31 @@ module Simp::Rake
       mock_cmd += " --uniqueext=#{unique_ext}" if unique
       mock_cmd += ' --offline'                 if mock_offline
 
-      initialized = is_mock_initialized( mock_cmd, chroot)
+      initialized = is_mock_initialized(mock_cmd, chroot)
 
       unless initialized && init
-        sh %Q(#{mock_cmd} --root #{chroot} --init ##{unique_ext} )
+        sh %Q(#{mock_cmd} --root #{chroot} --init #{unique_ext})
       else
         # Remove any old build cruft from the mock directory.
         # This is kludgy but WAY faster than rebuilding them all, even with a cache.
         sh %Q(#{mock_cmd} --root #{chroot} --chroot "/bin/rm -rf /builddir/build/BUILDROOT /builddir/build/*/*")
       end
 
-      mock_cmd + " --no-clean --no-cleanup-after --resultdir=#{@pkg_dir} --disable-plugin=package_state"
+      # Install useful stock packages
+      if ENV.fetch( 'SIMP_RAKE_MOCK_EXTRAS', 'yes' ) == 'yes'
+        pkgs = ['openssl', 'openssl-devel']
+
+        env_pkgs = ENV.fetch('SIMP_RAKE_MOCK_PKGS','')
+        unless env_pkgs.empty?
+          pkgs = pkgs + env_pkgs.split(',')
+        end
+
+        pkgs.each do |pkg|
+          sh %Q(#{mock_cmd} --root #{chroot} --install #{pkg})
+        end
+      end
+
+      return mock_cmd + " --no-clean --no-cleanup-after --resultdir=#{@pkg_dir} --disable-plugin=package_state"
     end
 
     def is_mock_initialized( mock_cmd, chroot )
