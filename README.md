@@ -1,5 +1,5 @@
 # simp-rake-helpers
-[![License](http://img.shields.io/:license-apache-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0.html) [![Build Status](https://travis-ci.org/simp/rubygems-simp-rake-helpers.svg?branch=master)](https://travis-ci.org/simp/rubygems-simp-rake-helpers)
+[![License](http://img.shields.io/:license-apache-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0.html) [![Build Status](https://travis-ci.org/simp/rubygems-simp-rake-helpers.svg?branch=master)](https://travis-ci.org/simp/rubygem-simp-rake-helpers)
 
 
 ## Work in Progress
@@ -32,8 +32,10 @@ This gem is part of (the build tooling for) the [System Integrity Management Pla
 
 
 ### Features
-* supports multithreaded mock operations
+* Supports multithreaded mock operations
 * RPM packaging and signing
+* Supports passing a SIMP_BUILD_VARIANT environment variable to RPM spec files
+  as a %{_variant} macro.
 
 
 ## Setup
