@@ -3,6 +3,7 @@ module Simp
   class Simp::RPM
     require 'expect'
     require 'pty'
+    require 'rake'
 
     @@gpg_keys = Hash.new
     attr_accessor :basename, :version, :release, :full_version, :name, :sources, :verbose
@@ -59,7 +60,7 @@ module Simp
           rpm_info = %x(rpm -q --queryformat '%{NAME} %{VERSION} %{RELEASE}' -p #{rpm_source} 2>/dev/null)
           info[:name],info[:version],info[:release] = rpm_info.split(' ')
         else
-          File.open(rpm_source).each do |line|
+          %x(rpmspec -P #{rpm_source}).each_line do |line|
             if line =~ /^\s*Version:\s+(.*)\s*/
               info[:version] = $1
               next

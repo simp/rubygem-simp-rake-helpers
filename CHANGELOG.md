@@ -1,3 +1,9 @@
+### 1.0.13 / 2016-02-26
+* Allow the use of a SIMP_BUILD_VARIANTS environment variable which, when set,
+  will provide a '_variant' define as an RPM spec macro.
+* Packages should use this variable to adjust for various installation scenarios.
+* Presently, pe, p4, and pe-2015 are supported.
+
 ### 1.0.12 / 2015-11-13
 * Ensure that openssl, openssl-devel, and vim-enhanced are installed in mock by
   default

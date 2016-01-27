@@ -32,8 +32,10 @@ This gem is part of (the build tooling for) the [System Integrity Management Pla
 
 
 ### Features
-* supports multithreaded mock operations
+* Supports multithreaded mock operations
 * RPM packaging and signing
+* Supports passing a SIMP_BUILD_VARIANT environment variable to RPM spec files
+  as a %{_variant} macro.
 
 
 ## Setup
