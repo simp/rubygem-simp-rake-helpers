@@ -4,14 +4,15 @@ Release:        0%{?dist}
 Summary:        a test package
 
 License:        Apache-2.0
-URL:
-Source0:
+URL:            http://this.is.a.test
+Source0:        %{name}-%{version}-%{release}.tar.gz
 
-BuildRequires:
-Requires:
+BuildRequires:  nothing
+Requires:       something
 
 %description
 
+A test package!
 
 %prep
 %setup -q
@@ -29,7 +30,6 @@ rm -rf $RPM_BUILD_ROOT
 
 %files
 %doc
-
 
 
 %changelog
