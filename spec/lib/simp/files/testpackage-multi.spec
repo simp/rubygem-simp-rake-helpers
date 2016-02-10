@@ -1,7 +1,7 @@
-Name:           testpackage
+Name:           testpackage-multi-1
 Version:        1
 Release:        0
-Summary:        dummy test package
+Summary:        dummy test package #2
 BuildArch:      noarch
 
 License:        Apache-2.0
@@ -25,6 +25,14 @@ exit 0
 
 %files
 %doc
+
+
+%package testpackage-multi-2
+Summary:        dummy test package #2
+License:        Apache-2.0
+
+%description testpackage-multi-2
+A dummy package used to test Simp::RPM methods
 
 
 %changelog
