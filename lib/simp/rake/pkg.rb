@@ -52,13 +52,6 @@ module Simp::Rake
 
        ::CLEAN.include( @clean_list )
 
-       @spec_info      = Pkg.get_info( @spec_file )
-       @chroot_name    = @chroot_name || "#{@spec_info[:name]}__#{ENV.fetch( 'USER', 'USER' )}"
-       @dir_name       = "#{@spec_info[:name]}-#{@spec_info[:version]}"
-       @mfull_pkg_name = "#{@dir_name}-#{@spec_info[:release]}"
-       @full_pkg_name  = @mfull_pkg_name.gsub("%{?snapshot_release}","")
-       @tar_dest = "#{@pkg_dir}/#{@full_pkg_name}.tar.gz"
-
        define
     end
 
@@ -77,6 +70,37 @@ module Simp::Rake
       self
     end
 
+    # Initialize the mock space if passed and retrieve the spec info from that
+    # space directly.
+    #
+    # Ensures that the correct file names are used across the board.
+    def initialize_spec_info(chroot, unique)
+      unless @spec_info
+        spec_file = @spec_file
+
+        # This gets the resting spec file and allows us to pull out the name
+        @spec_info   = Simp::RPM.get_info( spec_file )
+        @chroot_name = @chroot_name || "#{@spec_info[:name]}__#{ENV.fetch( 'USER', 'USER' )}"
+
+        if chroot
+          mock_cmd = mock_pre_check( chroot, @chroot_name, unique ) + " --root #{chroot}"
+
+          sh %Q(#{mock_cmd} --copyin #{spec_file} /tmp)
+          info_hash = {
+            :command    => %Q(#{mock_cmd} --shell),
+            :rpm_extras => %(--specfile /tmp/#{File.basename(spec_file)} )
+          }
+
+          @spec_info = Simp::RPM.get_info(spec_file, info_hash)
+        end
+
+        @dir_name       = "#{@spec_info[:name]}-#{@spec_info[:version]}"
+        @mfull_pkg_name = "#{@dir_name}-#{@spec_info[:release]}"
+        @full_pkg_name  = @mfull_pkg_name.gsub("%{?snapshot_release}","")
+        @tar_dest       = "#{@pkg_dir}/#{@full_pkg_name}.tar.gz"
+        @variants       = (ENV['SIMP_BUILD_VARIANTS'].to_s.split(',') + ['default'])
+      end
+    end
 
     def define_clean
       desc <<-EOM
@@ -86,8 +110,6 @@ module Simp::Rake
         # this is provided by 'rake/clean' and the ::CLEAN constant
       end
     end
-
-
 
     def define_clobber
       desc <<-EOM
@@ -105,13 +127,19 @@ module Simp::Rake
         # :pkg:tar
         # -----------------------------
         desc <<-EOM
-        Build the #{@pkg_name} tar package
+        Build the #{@pkg_name} tar package.
             * :snapshot_release - Add snapshot_release (date and time) to rpm
                                   version, rpm spec file must have macro for
                                   this to work.
         EOM
-        task :tar,[:snapshot_release] => [@pkg_dir] do |t,args|
+        task :tar,[:chroot,:unique,:snapshot_release] => [@pkg_dir] do |t,args|
           args.with_defaults(:snapshot_release => false)
+          args.with_defaults(:unique => false)
+          args.with_defaults(:chroot => nil)
+
+          if args.chroot
+            initialize_spec_info(args.chroot, args.unique)
+          end
 
           l_date = ''
           if args.snapshot_release == 'true'
@@ -140,13 +168,26 @@ module Simp::Rake
     def define_pkg_srpm
       namespace :pkg do
         desc <<-EOM
-        Build the #{@pkg_name} SRPM
+        Build the #{@pkg_name} SRPM.
           Building RPMs requires a working Mock setup (http://fedoraproject.org/wiki/Projects/Mock)
             * :chroot - The Mock chroot configuration to use. See the '--root' option in mock(1)."
             * :unique - Whether or not to build the SRPM in a unique Mock environment.
                         This can be very useful for parallel builds of all modules.
             * :snapshot_release - Add snapshot_release (date and time) to rpm version.
                         Rpm spec file must have macro for this to work.
+
+        Environment Variables
+          SIMP_BUILD_VARIANTS - A comma delimted list of the target versions of Puppet/PE to build toward.
+
+                     Currently supported are 'pe', 'p4', 'pe-2015'.
+
+                     These will build for Puppet Enterprise, Puppet 4, and
+                     Puppet Enterprise 2015+ respectively.
+
+                     Anything after a dash '-' will be considered a VERSION.
+
+                     NOTE: Different RPM spec files may have different
+                     behaviors based on the value passed.
         EOM
         task :srpm,[:chroot,:unique,:snapshot_release] => [:tar] do |t,args|
           args.with_defaults(:unique => false)
@@ -161,11 +202,20 @@ module Simp::Rake
 
           mock_cmd = mock_pre_check( args.chroot, @chroot_name, args.unique )
 
-          srpms = Dir.glob(%(#{@pkg_dir}/#{@full_pkg_name}#{l_date}.*src.rpm))
+          @variants.each do |variant|
+            if variant != 'default'
+              suffix = "-#{variant}"
+            end
 
-          if require_rebuild?(@tar_dest,srpms)
-            cmd = %Q(#{mock_cmd} --no-clean --root #{args.chroot} #{mocksnap} --buildsrpm --spec #{@spec_file} --source #{@pkg_dir})
-            sh cmd
+            srpms = Dir.glob(%(#{@pkg_dir}/#{@spec_info[:name]}#{suffix}-#{@spec_info[:version]}-#{@spec_info[:release]}#{l_date}.*.src.rpm))
+
+            if require_rebuild?(@tar_dest,srpms)
+              cmd = %Q(#{mock_cmd} --no-clean --root #{args.chroot} #{mocksnap} --buildsrpm --spec #{@spec_file} --source #{@pkg_dir})
+              if suffix
+                cmd += %( -D "_variant #{variant}")
+              end
+              sh cmd
+            end
           end
         end
       end
@@ -174,13 +224,26 @@ module Simp::Rake
     def define_pkg_rpm
       namespace :pkg do
         desc <<-EOM
-        Build the #{@pkg_name} RPM
+        Build the #{@pkg_name} RPM.
           Building RPMs requires a working Mock setup (http://fedoraproject.org/wiki/Projects/Mock)
             * :chroot - The Mock chroot configuration to use. See the '--root' option in mock(1)."
             * :unique - Whether or not to build the RPM in a unique Mock environment.
                         This can be very useful for parallel builds of all modules.
             * :snapshot_release - Add snapshot_release (date and time) to rpm version.
                         Rpm spec file must have macro for this to work.
+
+        Environment Variables
+          SIMP_BUILD_VARIANTS - A comma delimted list of the target versions of Puppet/PE to build toward.
+
+                     Currently supported are 'pe', 'p4', 'pe-2015'.
+
+                     These will build for Puppet Enterprise, Puppet 4, and
+                     Puppet Enterprise 2015+ respectively.
+
+                     Anything after a dash '-' will be considered a VERSION.
+
+                     NOTE: Different RPM spec files may have different
+                     behaviors based on the value passed.
         EOM
         task :rpm,[:chroot,:unique,:snapshot_release] do |t,args|
           args.with_defaults(:unique => false)
@@ -197,14 +260,23 @@ module Simp::Rake
 
           mock_cmd = mock_pre_check(args.chroot, @chroot_name, args.unique)
 
-          rpms = Dir.glob(%(#{@pkg_dir}/#{@full_pkg_name}#{l_date}*.rpm))
-          srpms = rpms.select{|x| x =~ /src\.rpm$/}
-          rpms = (rpms - srpms)
+          @variants.each do |variant|
+            if variant != 'default'
+              suffix = "-#{variant}"
+            end
 
-          srpms.each do |srpm|
-            if require_rebuild?(srpm,rpms)
-              cmd = %Q(#{mock_cmd} --root #{args.chroot} #{mocksnap} #{srpm})
-              sh cmd
+            rpms = Dir.glob(%(#{@pkg_dir}/#{@spec_info[:name]}#{suffix}-#{@spec_info[:version]}-#{@spec_info[:release]}#{l_date}.*.rpm))
+            srpms = rpms.select{|x| x =~ /src\.rpm$/}
+            rpms = (rpms - srpms)
+
+            srpms.each do |srpm|
+              if require_rebuild?(srpm,rpms)
+                cmd = %Q(#{mock_cmd} --root #{args.chroot} #{mocksnap} #{srpm})
+                if suffix
+                  cmd += %( -D "_variant #{variant}")
+                end
+                sh cmd
+              end
             end
           end
         end
@@ -216,7 +288,7 @@ module Simp::Rake
         # :pkg:scrub
         # -----------------------------
         desc <<-EOM
-        Scrub the #{@pkg_name} mock build directory
+        Scrub the #{@pkg_name} mock build directory.
         EOM
         task :scrub,[:chroot,:unique] do |t,args|
           args.with_defaults(:unique => false)
@@ -233,11 +305,6 @@ module Simp::Rake
     # ------------------------------------------------------------------------------
     # helper methods
     # ------------------------------------------------------------------------------
-    # Pull the main RPM information out of the package spec file.
-    def Pkg.get_info(specfile)
-      return Simp::RPM.get_info(specfile)
-    end
-
     # Get a list of all of the mock configs available on the system.
     def Pkg.get_mock_configs
       Dir.glob('/etc/mock/*.cfg').sort.map{ |x| x = File.basename(x,'.cfg')}
