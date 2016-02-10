@@ -3,6 +3,7 @@ module Simp
   class Simp::RPM
     require 'expect'
     require 'pty'
+    require 'rake'
 
     @@gpg_keys = Hash.new
     attr_accessor :basename, :version, :release, :full_version, :name, :sources, :verbose
@@ -52,27 +53,31 @@ module Simp
 
     # Parses information, such as the version, from the given specfile or RPM
     # into a hash.
-    def self.get_info(rpm_source)
-      info = Hash.new
+    #
+    # Can take an optional mock hash that should have the following structure:
+    # {
+    #   :command    => The actual mock command to run
+    #   :rpm_extras => Extra arguments to pass to RPM. This will probably be a
+    #                  reference to the spec file itself
+    # }
+    def self.get_info(rpm_source, mock_hash=nil)
+      info    = Hash.new
+      rpm_cmd = "rpm -q --queryformat '%{NAME} %{VERSION} %{RELEASE}'"
+
+      if mock_hash
+        rpm_cmd = mock_hash[:command] + ' ' + '"' + rpm_cmd + ' ' + mock_hash[:rpm_extras] + '"'
+      end
+
       if File.readable?(rpm_source)
         if rpm_source.split('.').last == 'rpm'
-          rpm_info = %x(rpm -q --queryformat '%{NAME} %{VERSION} %{RELEASE}' -p #{rpm_source} 2>/dev/null)
-          info[:name],info[:version],info[:release] = rpm_info.split(' ')
+          rpm_info = %x(#{rpm_cmd} -p #{rpm_source} 2>/dev/null)
+        elsif mock_hash
+          rpm_info = %x(#{rpm_cmd})
         else
-          File.open(rpm_source).each do |line|
-            if line =~ /^\s*Version:\s+(.*)\s*/
-              info[:version] = $1
-              next
-            elsif line =~ /^\s*Release:\s+(.*)\s*/
-              # We don't want anything after the first '%'
-              info[:release] = $1.split('%').first
-              next
-            elsif line =~ /^\s*Name:\s+(.*)\s*/
-              info[:name] = $1
-              next
-            end
-          end
+          rpm_info = %x(#{rpm_cmd} --specfile #{rpm_source} 2>/dev/null)
         end
+
+        info[:name],info[:version],info[:release] = rpm_info.split("\n").first.split(' ')
       else
         raise "Error: unable to read '#{rpm_source}'"
       end
@@ -189,7 +194,7 @@ module Simp
             end
             Process.wait(pid)
           end
-  
+
           raise "Failure running #{signcommand}" unless $?.success?
         rescue Exception => e
           puts "Error occured while attempting to sign #{rpm}, skipping."
