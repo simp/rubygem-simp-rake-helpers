@@ -1,35 +1,30 @@
 Name:           testpackage
 Version:        1
-Release:        0%{?dist}
-Summary:        a test package
+Release:        0
+Summary:        dummy test package
+BuildArch:      noarch
 
 License:        Apache-2.0
-URL:
-Source0:
-
-BuildRequires:
-Requires:
+URL:            http://foo.bar
 
 %description
-
+A dummy package used to test Simp::RPM methods
 
 %prep
-%setup -q
-
+exit 0
 
 %build
-%configure
-make %{?_smp_mflags}
+exit 0
 
 
 %install
-rm -rf $RPM_BUILD_ROOT
-%make_install
+exit 0
 
+%clean
+exit 0
 
 %files
 %doc
-
 
 
 %changelog

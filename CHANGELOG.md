@@ -1,3 +1,7 @@
+### 1.0.13 / 2016-02-10
+* Ensure that all rake tasks can run on EL6 systems
+* Update the processing of RPM spec files to properly handle macros in target builds
+
 ### 1.0.12 / 2015-11-13
 * Ensure that openssl, openssl-devel, and vim-enhanced are installed in mock by
   default
