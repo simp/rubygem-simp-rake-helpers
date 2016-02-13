@@ -12,3 +12,9 @@ gemspec
 if puppetversion
   gem 'puppet', puppetversion
 end
+
+group :test do
+  gem 'beaker' #, '= 2.29.0'
+  gem 'rspec-core'
+  gem 'beaker-rspec'
+end

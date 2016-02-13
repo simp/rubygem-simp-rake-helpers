@@ -1,3 +1,4 @@
 *.sw[pnoqst]
 Gemfile.lock
 dist/
+/log/
