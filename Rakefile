@@ -3,6 +3,8 @@
 require "rubygems"
 require 'rake/clean'
 require 'find'
+require 'rspec/core/rake_task'
+
 
 @package='simp-rake-helpers'
 @rakefile_dir=File.dirname(__FILE__)
@@ -10,6 +12,7 @@ require 'find'
 CLEAN.include "#{@package}-*.gem"
 CLEAN.include 'pkg'
 CLEAN.include 'dist'
+CLEAN.include 'spec/acceptance/files/testpackage/dist'
 Find.find( @rakefile_dir ) do |path|
   if File.directory? path
     CLEAN.include path if File.basename(path) == 'tmp'
@@ -25,12 +28,6 @@ task :chmod do
   spec.files.each do |file|
     FileUtils.chmod 'go=r', file
   end
-end
-
-desc 'run all RSpec tests'
-task :spec do
-  Dir.chdir @rakefile_dir
-  sh 'bundle exec rspec spec'
 end
 
 namespace :pkg do
@@ -53,4 +50,16 @@ namespace :pkg do
     end
   end
 end
+
+desc "Run acceptance tests"
+RSpec::Core::RakeTask.new(:acceptance) do |t|
+  t.pattern = 'spec/acceptance'
+end
+
+desc "Run spec tests"
+RSpec::Core::RakeTask.new(:spec) do |t|
+    t.rspec_opts = ['--color']
+    t.pattern = 'spec/lib/simp/**/*_spec.rb'
+end
+
 # vim: syntax=ruby

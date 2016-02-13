@@ -40,6 +40,9 @@ Gem::Specification.new do |s|
   s.add_development_dependency 'guard-shell', '~> 0'
   s.add_development_dependency 'guard-rspec', '~> 4'
 
+  s.add_development_dependency 'beaker',       '~> 2'
+  s.add_development_dependency 'beaker-rspec', '~> 5'
+  s.add_development_dependency 'rspec-core',   '~> 3'
 
   s.files = Dir[
                 'Rakefile',

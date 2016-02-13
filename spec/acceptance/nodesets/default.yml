@@ -1,0 +1,56 @@
+HOSTS:
+  container:
+    roles:
+      - default
+      - master
+      - agent
+    platform:    el-6-x86_64
+    hypervisor:  docker
+    image:       'centos:centos6.7'
+    docker_image_commands:
+      - "echo 'Defaults !requiretty' >> /etc/sudoers"
+      - 'yum install -y epel-release'
+      # simp build-deps
+      - 'yum install -y rpm-build augeas-devel createrepo genisoimage git gnupg2 libicu-devel libxml2 libxml2-devel libxslt libxslt-devel mock rpmdevtools clamav which'
+      # rvm build-deps
+      - 'yum install -y libyaml-devel glibc-headers autoconf gcc-c++ glibc-devel readline-devel libffi-devel openssl-devel automake libtool bison sqlite-devel'
+      - 'gpg2 --keyserver hkp://keys.gnupg.net --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3'
+      - 'echo export rvm_prefix="\$HOME" > /root/.rvmrc && echo export rvm_path="\$HOME/.rvm" >> /root/.rvmrc'
+      - '\curl -sSL https://get.rvm.io | bash -s stable --ruby=1.9.3'
+      - 'source ~/.rvm/scripts/rvm'
+    # NOTE: the './' syntax requires BKR-704
+    mount_folders:
+      folder1:
+        # must be an absolute path, seemingly
+        host_path: ./
+        container_path: /host_files
+    docker_preserve_image: true
+CONFIG:
+  log_level: verbose
+  type:      foss
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#      - 'sed -i "s/UsePAM.*/UsePAM yes/g" /etc/ssh/sshd_config'
+#      - 'sed -i "s/#UsePrivilegeSeparation.*/UsePrivilegeSeparation no/g" /etc/ssh/sshd_config'
+#      - "ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N ''"
+#      - "ssh-keygen -t ecdsa -f /etc/ssh/ssh_host_ecdsa_key -N ''"
+    #docker_cmd: '["/usr/sbin/sshd -e"]'
