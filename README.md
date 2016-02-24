@@ -45,10 +45,16 @@ gem 'simp-rake-helpers'
 
 
 ## Usage
-Within a project's Rakefile:
+### In a Rubygem
+Within the project's Rakefile:
 
 ```ruby
-require 'simp/rake/helpers'
+require 'simp/rake/rubygem'
+
+# e.g., "simp-rake-helpers"
+package = 'name-of-rubygem'
+Simp::Rake::Rubygem.new(package, File.direname(__FILE__)
+
 ```
 
 To see the extra rake tasks:

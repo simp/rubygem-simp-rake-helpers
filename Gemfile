@@ -12,3 +12,4 @@ gemspec
 if puppetversion
   gem 'puppet', puppetversion
 end
+

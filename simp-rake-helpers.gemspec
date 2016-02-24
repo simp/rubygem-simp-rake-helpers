@@ -1,4 +1,5 @@
-require File.expand_path('lib/simp/rake/helpers.rb', File.dirname(__FILE__))
+require 'rake/tasklib'
+require File.expand_path('lib/simp/rake/helpers/version.rb', File.dirname(__FILE__))
 
 Gem::Specification.new do |s|
   s.name        = 'simp-rake-helpers'
