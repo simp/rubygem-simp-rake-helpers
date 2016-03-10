@@ -1,3 +1,5 @@
+require 'rake/tasklib'
+
 module Simp; end
 module Simp::Rake
   class Fixtures < ::Rake::TaskLib
