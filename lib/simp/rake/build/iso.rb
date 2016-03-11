@@ -107,7 +107,7 @@ module Simp::Rake::Build
 
           tarfiles = File.directory?(tarball) ?
             Dir.glob("#{tarball}/*.tar.gz") : [tarball]
-          vermap = YAML::load_file("#{@base_dir}/rakefiles/vermap.yaml")
+          vermap = YAML::load_file( File.join( File.dirname(__FILE__), 'vermap.yaml'))
 
           tarfiles.each do |tarball|
             namepieces = File.basename(tarball,".tar.gz").split('-')

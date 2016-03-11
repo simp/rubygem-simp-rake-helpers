@@ -479,27 +479,27 @@ module Simp::Rake::Build
           end
 
           yum_conf_template = <<-EOF
-      [main]
-      keepcache=0
-      exactarch=1
-      obsoletes=1
-      gpgcheck=0
-      plugins=1
-      installonly_limit=5
+[main]
+keepcache=0
+exactarch=1
+obsoletes=1
+gpgcheck=0
+plugins=1
+installonly_limit=5
 
-      <% repo_files.each do |repo| -%>
-      include=file://<%= repo %>
-      <% end -%>
-          EOF
+<% repo_files.each do |repo| -%>
+include=file://<%= repo %>
+<% end -%>
+  EOF
 
           yum_repo_template = <<-EOF
-      [<%= repo_name %>]
-      name=<%= repo_name %>
-      baseurl=file://<%= repo_path %>
-      enabled=1
-      gpgcheck=0
-      protect=1
-          EOF
+[<%= repo_name %>]
+name=<%= repo_name %>
+baseurl=file://<%= repo_path %>
+enabled=1
+gpgcheck=0
+protect=1
+  EOF
 
           fail "#{args.target_dir} does not exist!" if not File.directory?(args.target_dir)
 
@@ -607,7 +607,7 @@ module Simp::Rake::Build
 
                 if build_module
                   unique_build = (get_cpu_limit != 1)
-                  sh %{rake pkg:rpm[#{chroot},unique_build,#{snapshot_release}]}
+                  %x{rake pkg:rpm[#{chroot},unique_build,#{snapshot_release}]}
 
                   # Glob all generated rpms, and add their metadata to a result array.
                   pkginfo = Hash.new
