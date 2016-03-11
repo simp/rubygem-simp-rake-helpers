@@ -244,6 +244,23 @@ module Simp::Rake::Build
 
           Rake::Task['iso:build'].invoke(tarball,staging_dir,do_prune)
 
+
+          _isos = Dir[ File.join(Dir.pwd,'SIMP-*.iso') ]
+          if _isos.size == 0
+            fail "ERROR: No SIMP ISOs found in '#{Dir.pwd}'"
+          elsif _isos.size > 1
+            warn "WARNING: More than one SIMP ISO found in '#{Dir.pwd}'"
+            _isos.each{ |i| warn i }
+          end
+
+          # NOTE: It is possible at this point (given the right
+          # `SIMP_BUILD_xxx=no` flags) that iso:build will not have set
+          # `@simp_output_iso`.  So, we look at the ISOs in the staging dir
+          # (there should only be one) and take our best guess.
+          if @simp_output_iso.nil?
+             @simp_output_iso = File.basename(_isos.first)
+          end
+
           output_file = full_iso_name ? full_iso_name : @simp_output_iso
           if iso_name_tag
             output_file.sub!(/\.iso$/i, "__#{iso_name_tag}.iso")
