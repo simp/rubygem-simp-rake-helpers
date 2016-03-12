@@ -189,9 +189,9 @@ module Simp::Rake::Build
             puts '='*80
             puts "#### Running tar:build in all repos"
             puts '='*80
-            @simp_tarballs = {}
+            $simp_tarballs = {}
             Rake::Task['tar:build'].invoke(target_data['mock'],key_name,do_docs)
-            tarball = @simp_tarballs.fetch(target_data['flavor'])
+            tarball = $simp_tarballs.fetch(target_data['flavor'])
           end
 
           # yum sync

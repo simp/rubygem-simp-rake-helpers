@@ -111,8 +111,8 @@ module Simp::Rake::Build
             end
           end
 
-          #Seeing race conditions when this is parallelized.
-          @simp_tarballs = {}
+          # FIXME: this is a horribad way of sharing with `build:auto`
+          $simp_tarballs = {}
           @target_dists.each do |dist|
             base_dir = "#{@dvd_dir}/#{dist}/staging"
             dvd_name = [ 'SIMP', 'DVD', dist, get_simp_version ]
@@ -123,7 +123,7 @@ module Simp::Rake::Build
             end
 
             puts "Package DVD: #{@dvd_dir}/#{dvd_tarball}"
-            @simp_tarballs[dist] = "#{@dvd_dir}/#{dvd_tarball}"
+            $simp_tarballs[dist] = "#{@dvd_dir}/#{dvd_tarball}"
             rm_rf(base_dir)
           end
         end
