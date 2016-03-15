@@ -236,6 +236,8 @@ module Simp::Rake::Build
             puts
           end
 
+          Dir.chdir repo_root_dir
+
           puts
           puts '='*80
           puts "#### iso:build[#{tarball}]"
@@ -255,15 +257,15 @@ module Simp::Rake::Build
 
           # NOTE: It is possible at this point (given the right
           # `SIMP_BUILD_xxx=no` flags) that iso:build will not have set
-          # `@simp_output_iso`.  So, we look at the ISOs in the staging dir
-          # (there should only be one) and take our best guess.
+          # `@simp_output_iso`.  In that case, look at the ISOs in the staging
+          # dir (there should only be one) and take our best guess.
           if @simp_output_iso.nil?
              @simp_output_iso = File.basename(_isos.first)
           end
 
           output_file = full_iso_name ? full_iso_name : @simp_output_iso
           if iso_name_tag
-            output_file.sub!(/\.iso$/i, "__#{iso_name_tag}.iso")
+            output_file = output_file.sub(/\.iso$/i, "__#{iso_name_tag}.iso")
           end
 
           puts
