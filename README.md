@@ -45,7 +45,7 @@ Within the project's Rakefile:
 ```ruby
 require 'simp/rake/pupmod/helpers'
 
-Simp::Rake::Rubygem.new(package, File.direname(__FILE__)
+Simp::Rake::Pupmod::Helpers.new(File.dirname(__FILE__))
 ```
 
 
