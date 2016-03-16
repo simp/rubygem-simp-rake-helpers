@@ -1,14 +1,6 @@
 # simp-rake-helpers
 [![License](http://img.shields.io/:license-apache-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0.html) [![Build Status](https://travis-ci.org/simp/rubygems-simp-rake-helpers.svg?branch=master)](https://travis-ci.org/simp/rubygems-simp-rake-helpers)
 
-
-## Work in Progress
-
-Please excuse us as we transition this code into the public domain.
-
-Downloads, discussion, and patches are still welcome!
-Common helper methods for SIMP Rakefiles
-
 #### Table of Contents
 
 1. [Overview](#overview)
@@ -16,6 +8,8 @@ Common helper methods for SIMP Rakefiles
   * [Features](#features)
 2. [Setup - The basics of getting started with iptables](#setup)
 3. [Usage - Configuration options and additional functionality](#usage)
+  * [In a Puppet Module](#in-a-puppet-module)
+  * [In a Ruby Gem](#in-a-ruby-gem)
 4. [Reference - An under-the-hood peek at what the gem is doing and how](#reference)
 5. [Limitations - OS compatibility, etc.](#limitations)
 6. [Development - Guide for contributing to the module](#development)
@@ -45,7 +39,18 @@ gem 'simp-rake-helpers'
 
 
 ## Usage
-### In a Rubygem
+### In a Puppet module
+Within the project's Rakefile:
+
+```ruby
+require 'simp/rake/pupmod/helpers'
+
+Simp::Rake::Rubygem.new(package, File.direname(__FILE__)
+```
+
+
+
+### In a Ruby Gem
 Within the project's Rakefile:
 
 ```ruby
