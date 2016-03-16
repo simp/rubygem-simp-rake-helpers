@@ -30,8 +30,9 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'puppetlabs_spec_helper',    '~> 0'
   s.add_runtime_dependency 'parallel',                  '~> 1'
   s.add_runtime_dependency 'simp-rspec-puppet-facts',   '~> 1.0'
-  s.add_runtime_dependency 'puppet-blacksmith',   '~> 3.3'
-  s.add_runtime_dependency 'simp-beaker-helpers',   '~> 1.0'
+  s.add_runtime_dependency 'puppet-blacksmith',         '~> 3.3'
+  s.add_runtime_dependency 'simp-beaker-helpers',       '~> 1.0'
+  s.add_runtime_dependency 'parallel_tests',            '~> 2.4'
 
   # for development
   s.add_development_dependency 'gitlog-md',   '~> 0' # To generate HISTORY.md
