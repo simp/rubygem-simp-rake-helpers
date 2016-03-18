@@ -7,6 +7,7 @@
   * [This gem is part of SIMP](#this-gem-is-part-of-simp)
   * [Features](#features)
 2. [Setup - The basics of getting started with iptables](#setup)
+   * [Gemfile](#gemfile)
 3. [Usage - Configuration options and additional functionality](#usage)
   * [In a Puppet Module](#in-a-puppet-module)
   * [In a Ruby Gem](#in-a-ruby-gem)
@@ -20,7 +21,6 @@
 ## Overview
 The `simp-rake-helpers` gem provides common Rake tasks to support the SIMP build process.
 
-
 ### This gem is part of SIMP
 This gem is part of (the build tooling for) the [System Integrity Management Platform](https://github.com/NationalSecurityAgency/SIMP), a compliance-management framework built on [Puppet](https://puppetlabs.com/).
 
@@ -31,10 +31,34 @@ This gem is part of (the build tooling for) the [System Integrity Management Pla
 
 
 ## Setup
-Within a project's Gemfile:
+
+### Gemfile
 
 ```ruby
-gem 'simp-rake-helpers'
+# Variables:
+#
+# SIMP_GEM_SERVERS | a space/comma delimited list of rubygem servers
+# PUPPET_VERSION   | specifies the version of the puppet gem to load
+puppetversion = ENV.key?('PUPPET_VERSION') ? "#{ENV['PUPPET_VERSION']}" : '~>3'
+gem_sources   = ENV.key?('SIMP_GEM_SERVERS') ? ENV['SIMP_GEM_SERVERS'].split(/[, ]+/) : ['https://rubygems.org']
+
+gem_sources.each { |gem_source| source gem_source }
+
+group :test do
+  gem 'puppet', puppetversion
+
+  # Something in the test suites has issues with Hiera 3.1+
+  # See https://tickets.puppetlabs.com/browse/HI-505
+  gem 'hiera', '~> 3.0.0'
+
+  # simp-rake-helpers does not suport puppet 2.7.X
+  if "#{ENV['PUPPET_VERSION']}".scan(/\d+/).first != '2' &&
+      # simp-rake-helpers and ruby 1.8.7 bomb Travis tests
+      # TODO: fix upstream deps (parallel in simp-rake-helpers)
+      RUBY_VERSION.sub(/\.\d+$/,'') != '1.8'
+    gem 'simp-rake-helpers'
+  end
+end
 ```
 
 
@@ -47,7 +71,6 @@ require 'simp/rake/pupmod/helpers'
 
 Simp::Rake::Pupmod::Helpers.new(File.dirname(__FILE__))
 ```
-
 
 
 ### In a Ruby Gem
