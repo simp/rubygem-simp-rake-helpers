@@ -222,11 +222,14 @@ module Simp::Rake::Build
             puts "     (skip with `SIMP_BUILD_unpack=no`)"
             puts '='*80
             puts
+
+            Dir.glob( File.join(staging_dir, "#{target_data['flavor']}*/") ).each do |f|
+              FileUtils.rm_f( f , :verbose => verbose )
+            end
+
             target_data['isos'].each do |iso|
-              puts "---- rake unpack[#{iso}]"
-              Dir.glob( File.join(staging_dir, "#{target_data['flavor']}*/") ).each do |f|
-                FileUtils.rm_f( f , :verbose => verbose )
-              end
+              puts "---- rake unpack[#{iso},#{do_merge},#{Dir.pwd},isoinfo,#{target_data['os_version']}]"
+              Rake::Task['unpack'].reenable
               Rake::Task['unpack'].invoke(iso,do_merge,Dir.pwd,'isoinfo',target_data['os_version'])
             end
           else
