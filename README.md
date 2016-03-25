@@ -46,10 +46,19 @@ gem_sources.each { |gem_source| source gem_source }
 
 group :test do
   gem 'puppet', puppetversion
+  gem 'beaker-rspec'
+  gem 'vagrant-wrapper'
 
-  # Something in the test suites has issues with Hiera 3.1+
-  # See https://tickets.puppetlabs.com/browse/HI-505
-  gem 'hiera', '~> 3.0.0'
+  # Puppet 4+ has issues with Hiera 3.1+
+   if puppetversion.to_s =~ />(\d+)/
+     pversion = $1
+     else
+     pversion = puppetversion
+   end
+
+   if Gem::Dependency.new('puppet', '~> 4.0').match?('puppet', pversion)
+     gem 'hiera', '~> 3.0.0'
+   end
 
   # simp-rake-helpers does not suport puppet 2.7.X
   if "#{ENV['PUPPET_VERSION']}".scan(/\d+/).first != '2' &&

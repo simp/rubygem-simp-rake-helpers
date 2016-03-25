@@ -106,7 +106,11 @@ end
 module Simp; end
 module Simp::Rake; end
 module Simp::Rake::Build
+
   class Deps < ::Rake::TaskLib
+    require 'pager'
+    include Pager
+
     def initialize( base_dir )
       @base_dir = base_dir
       define_tasks
@@ -137,6 +141,82 @@ module Simp::Rake::Build
         end
 
         desc <<-EOM
+        Provide a log of changes to all modules from the given top level Git reference.
+
+        Arguments:
+          * :ref => The git ref to use as the oldest point for all logs.
+        EOM
+        task :changelog, [:ref] do |t,args|
+          method = 'tracking'
+
+          git_logs = Hash.new
+
+          Dir.chdir(@base_dir) do
+
+            ref = args[:ref]
+            refdate = nil
+            begin
+              refdate = %x(git log -1 --format=%ai #{ref}).chomp
+              refdate = nil unless $?.success?
+            rescue Exception
+              #noop
+            end
+
+            fail("You must specify a valid reference") unless ref
+            fail("Could not find a Git log for #{ref}") unless refdate
+
+            fake_lp = FakeLibrarian.new("Puppetfile.#{method}")
+            mods_with_changes = {}
+
+            # Need to fake this one to run at the top level
+            base_module = {
+              'simp-core' => {
+                :git  => 'undef',
+                :ref  => ref,
+                :path => '.'
+              }
+            }
+
+            # Gather up the top level first
+            log_output = %x(git log --since='#{refdate}' --stat --reverse).chomp
+            git_logs['__SIMP CORE__'] = log_output unless log_output.strip.empty?
+
+            fake_lp.each_module do |environment, name, path|
+              unless File.directory?(path)
+                $stderr.puts("Warning: '#{path}' is not a module...skipping")
+                next
+              end
+
+              repo = Librarian::Puppet::Source::Git::Repository.new(environment,path)
+
+              if repo.path && File.directory?(repo.path)
+                Dir.chdir(repo.path) do
+                  log_output = %x(git log --since='#{refdate}' --stat --reverse).chomp
+
+                  git_logs[name] = log_output unless log_output.strip.empty?
+                end
+              end
+            end
+
+            if git_logs.empty?
+              puts "No changes found for any components since '#{refdate}'"
+            else
+              page
+
+              git_logs.keys.sort.each do |mod_name|
+                puts <<-EOM
+========
+#{mod_name}:
+
+#{git_logs[mod_name].gsub(/^/,'  ')}
+
+                EOM
+              end
+            end
+          end
+        end
+
+        desc <<-EOM
         Get the status of the project Git repositories
 
         Arguments:
@@ -146,7 +226,7 @@ module Simp::Rake::Build
         EOM
         task :status, [:method] do |t,args|
           args.with_defaults(:method => 'tracking')
-          Dir.chdir @base_dir
+          Dir.chdir(@base_dir)
           @dirty_repos = nil
 
           fake_lp = FakeLibrarian.new("Puppetfile.#{args[:method]}")
