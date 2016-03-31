@@ -33,6 +33,7 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'puppet-blacksmith',         '~> 3.3'
   s.add_runtime_dependency 'simp-beaker-helpers',       '~> 1.0'
   s.add_runtime_dependency 'parallel_tests',            '~> 2.4'
+  s.add_runtime_dependency 'r10k'                       '~> 2.2'
   s.add_runtime_dependency 'pager'
 
   # for development
