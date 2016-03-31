@@ -2,104 +2,162 @@
 
 require 'yaml'
 
-class FakeLibrarian
-  attr_reader :forge, :environment
+class R10KHelper
   attr_accessor :puppetfile
-  attr_writer :modules
+  attr_accessor :modules
+  attr_accessor :basedir
 
-  require 'librarian/puppet/util'
-  include Librarian::Puppet::Util
+  require 'r10k/puppetfile'
 
-  require 'librarian/puppet/environment'
-  require 'librarian/puppet/source/git'
+  # Horrible, but we need to be able to manipulate the cache
+  class R10K::Git::ShellGit::ThinRepository
+    def cache_repo
+      @cache_repo
+    end
+
+    # Return true if the repository has local modifications, false otherwise.
+    def dirty?
+      repo_status = false
+
+      return repo_status unless File.directory?(path)
+
+      Dir.chdir(path) do
+        %x(git update-index -q --ignore-submodules --refresh)
+        repo_status = "Could not update git index for '#{path}'" unless $?.success?
+
+        unless repo_status
+          %x(git diff-files --quiet --ignore-submodules --)
+          repo_status = "'#{path}' has unstaged changes" unless $?.success?
+        end
+
+        unless repo_status
+          %x(git diff-index --cached --quiet HEAD --ignore-submodules --)
+          repo_status = "'#{path}' has uncommitted changes" unless $?.success?
+        end
+
+        unless repo_status
+          untracked_files = %x(git ls-files -o -d --exclude-standard)
+
+          if $?.success?
+            unless untracked_files.empty?
+              untracked_files.strip!
+
+              if untracked_files.lines.count > 0
+                repo_status = "'#{path}' has untracked files"
+              end
+            end
+          else
+            # We should never get here
+            raise Error, "Failure running 'git ls-files -o -d --exclude-standard' at '#{path}'"
+          end
+        end
+      end
+
+      repo_status
+    end
+  end
 
   def initialize(puppetfile)
-    @environment = Librarian::Puppet::Environment.new
-    if puppetfile
-      @puppetfile = Pathname.new(puppetfile)
+    @modules = []
+    @basedir = File.dirname(File.expand_path(puppetfile))
 
-      unless @puppetfile.absolute?
-        @puppetfile = File.expand_path(@puppetfile,@environment.project_path)
+    Dir.chdir(@basedir) do
+
+      R10K::Git::Cache.settings[:cache_root] = File.join(@basedir,'.r10k_cache')
+
+      unless File.directory?(R10K::Git::Cache.settings[:cache_root])
+        FileUtils.mkdir_p(R10K::Git::Cache.settings[:cache_root])
       end
-    end
-  end
 
-  def modules
-    @modules ||= {}
+      r10k = R10K::Puppetfile.new(Dir.pwd, nil, puppetfile).load!
 
-    if @modules.empty?
-      txt = File.readlines(@puppetfile)
-      eval(txt.join)
-    end
+      @modules = r10k.entries.collect do |mod|
+        mod_status = mod.repo.repo.dirty?
 
-    @modules
-  end
-
-  # Return a list of modules that are in the install path but not known to the
-  # Puppetfile
-  def unknown_modules
-    known_modules = []
-    all_modules = Dir.glob(File.join(@environment.install_path,'*')).map{|x| x = File.basename(x)}
-
-    relative_path = @environment.install_path.to_s.split(@environment.project_path.to_s).last
-    relative_path[0] = '' if relative_path[0].chr == File::SEPARATOR
-
-    unless all_modules.empty?
-      modules.each do |name,opts|
-        known_modules << module_name(name)
+        mod = {
+          :name        => mod.name,
+          :path        => mod.path.to_s,
+          :git_source  => mod.repo.repo.origin,
+          :git_ref     => mod.repo.head,
+          :module_dir  => mod.basedir,
+          :status      => mod_status ? mod_status : :known,
+          :r10k_module => mod,
+          :r10k_cache  => mod.repo.repo.cache_repo
+        }
       end
     end
 
-    module_list = (all_modules - known_modules).map do |x|
-      if File.exist?(File.join(@environment.install_path,x,'metadata.json'))
-        x = File.join(relative_path,x)
-      else
-        x = nil
-      end
+    module_dirs = @modules.collect do |mod|
+      mod = mod[:module_dir]
     end
 
-    module_list.compact
+    module_dirs.uniq!
+
+    module_dirs.each do |module_dir|
+      known_modules = @modules.select do |mod|
+        mod[:module_dir] == module_dir
+      end
+
+      known_modules.map! do |mod|
+        mod = mod[:name]
+      end
+
+      current_modules = Dir.glob(File.join(module_dir,'*')).map do |mod|
+        mod = File.basename(mod)
+      end
+
+      (current_modules - known_modules).each do |mod|
+        # Did we find random git repos in our module spaces?
+        if File.exist?(File.join(module_dir, mod, '.git'))
+          @modules << {
+            :name        => mod,
+            :path        => File.join(module_dir, mod),
+            :module_dir  => module_dir,
+            :status      => :unknown,
+          }
+        end
+      end
+    end
   end
 
   def puppetfile
-    str = StringIO.new
-    str.puts "forge '#{@forge}'\n\n" if @forge
-    modules.each do |name,opts|
-      str.puts "mod '#{name}',"
-      str.puts (opts.map{|k,v| "  :#{k} => '#{v}'"}).join(",\n") , ''
+    last_module_dir = nil
+    pupfile = Array.new
+
+    @modules.each do |mod|
+      module_dir = mod[:path].split(@basedir.to_s).last.split('/')[1..-2].join('/')
+
+      if last_module_dir != module_dir
+        pupfile << "moduledir '#{module_dir}'\n"
+        last_module_dir = module_dir
+      end
+
+      pupfile << "mod '#{mod[:git_source].split('/').last}',"
+      pupfile << "  :git => '#{mod[:git_source]}'},"
+      pupfile << "  :ref => '#{mod[:r10k_module].repo.head}'}\n"
     end
-    str.string
+
+    pupfile << '# vim: ai ts=2 sts=2 et sw=2 ft=ruby'
+
+    pupfile.join("\n")
   end
 
   def each_module(&block)
-    Dir.chdir(@environment.project_path) do
-      modules.each do |name,mod|
+    Dir.chdir(@basedir) do
+      @modules.each do |mod|
         # This works for Puppet Modules
-        path = File.expand_path(module_name(name),environment.install_path)
-        unless File.directory?(path)
-          # This works for everything else
-          if mod[:path]
-            path = File.expand_path(mod[:path],environment.project_path)
-          end
-        end
-        unless File.directory?(path)
-          $stderr.puts("Warning: Could not find path for module '#{name}'...skipping")
-          next
-        end
 
-        block.call(@environment,name,path)
+        block.call(mod)
       end
     end
   end
 
-  private
-
-  def mod(name,args)
-    @modules[name] = args
-  end
-
-  def forge(forge)
-    @forge = forge
+  def unknown_modules
+    @modules.select do |mod|
+      mod[:status] == :unknown
+    end.map do |mod|
+      mod = mod[:name]
+    end
   end
 end
 
@@ -116,13 +174,12 @@ module Simp::Rake::Build
       define_tasks
     end
 
-    # define rake tasks
     def define_tasks
       namespace :deps do
         desc <<-EOM
         Checks out all dependency repos.
 
-        This task runs 'librarian-puppet' and updates all dependencies.
+        This task used R10k to update all dependencies.
 
         Arguments:
           * :method  => The update method to use (Default => 'tracking')
@@ -132,86 +189,29 @@ module Simp::Rake::Build
         task :checkout, [:method] do |t,args|
           args.with_defaults(:method => 'tracking')
 
-          Dir.chdir @base_dir
-          FileUtils.ln_s( "Puppetfile.#{args[:method]}", 'Puppetfile', :force => true )
-          Bundler.with_clean_env do
-            sh 'bundle exec librarian-puppet-pr328 install --use-forge=false'
-          end
-          FileUtils.remove_entry_secure "Puppetfile"
-        end
+          r10k_helper = R10KHelper.new("Puppetfile.#{args[:method]}")
 
-        desc <<-EOM
-        Provide a log of changes to all modules from the given top level Git reference.
-
-        Arguments:
-          * :ref => The git ref to use as the oldest point for all logs.
-        EOM
-        task :changelog, [:ref] do |t,args|
-          method = 'tracking'
-
-          git_logs = Hash.new
-
-          Dir.chdir(@base_dir) do
-
-            ref = args[:ref]
-            refdate = nil
-            begin
-              refdate = %x(git log -1 --format=%ai #{ref}).chomp
-              refdate = nil unless $?.success?
-            rescue Exception
-              #noop
+          r10k_helper.each_module do |mod|
+            unless File.directory?(mod[:path])
+              FileUtils.mkdir_p(mod[:path])
             end
 
-            fail("You must specify a valid reference") unless ref
-            fail("Could not find a Git log for #{ref}") unless refdate
+            # Since r10k is destructive, we're enumerating all valid states
+            # here
+            if [:absent, :mismatched, :outdated].include?(mod[:r10k_module].status)
+              unless mod[:r10k_cache].synced?
+                mod[:r10k_cache].sync
+              end
 
-            fake_lp = FakeLibrarian.new("Puppetfile.#{method}")
-            mods_with_changes = {}
-
-            # Need to fake this one to run at the top level
-            base_module = {
-              'simp-core' => {
-                :git  => 'undef',
-                :ref  => ref,
-                :path => '.'
-              }
-            }
-
-            # Gather up the top level first
-            log_output = %x(git log --since='#{refdate}' --stat --reverse).chomp
-            git_logs['__SIMP CORE__'] = log_output unless log_output.strip.empty?
-
-            fake_lp.each_module do |environment, name, path|
-              unless File.directory?(path)
-                $stderr.puts("Warning: '#{path}' is not a module...skipping")
+              if mod[:status] == :known
+                mod[:r10k_module].sync
+              else
+                # If we get here, the module was dirty and should be skipped
+                puts "#{mod[:name]}: Skipping - #{mod[:status]}"
                 next
               end
-
-              repo = Librarian::Puppet::Source::Git::Repository.new(environment,path)
-
-              if repo.path && File.directory?(repo.path)
-                Dir.chdir(repo.path) do
-                  log_output = %x(git log --since='#{refdate}' --stat --reverse).chomp
-
-                  git_logs[name] = log_output unless log_output.strip.empty?
-                end
-              end
-            end
-
-            if git_logs.empty?
-              puts "No changes found for any components since '#{refdate}'"
             else
-              page
-
-              git_logs.keys.sort.each do |mod_name|
-                puts <<-EOM
-========
-#{mod_name}:
-
-#{git_logs[mod_name].gsub(/^/,'  ')}
-
-                EOM
-              end
+              puts "#{mod[:name]}: Skipping - Unknown status type #{mod[:r10k_module].status}"
             end
           end
         end
@@ -226,27 +226,26 @@ module Simp::Rake::Build
         EOM
         task :status, [:method] do |t,args|
           args.with_defaults(:method => 'tracking')
-          Dir.chdir(@base_dir)
           @dirty_repos = nil
 
-          fake_lp = FakeLibrarian.new("Puppetfile.#{args[:method]}")
+          r10k_helper = R10KHelper.new("Puppetfile.#{args[:method]}")
+
           mods_with_changes = {}
 
-          fake_lp.each_module do |environment, name, path|
-            unless File.directory?(path)
-              $stderr.puts("Warning: '#{path}' is not a module...skipping")
+          r10k_helper.each_module do |mod|
+            unless File.directory?(mod[:path])
+              $stderr.puts("Warning: '#{mod[:path]}' is not a module...skipping")
               next
             end
 
-            repo = Librarian::Puppet::Source::Git::Repository.new(environment,path)
-            if repo.dirty?
+            if mod[:status] != :known
               # Clean up the path a bit for printing
-              dirty_path = path.split(environment.project_path.to_s).last
+              dirty_path = mod[:path].split(r10k_helper.basedir.to_s).last
               if dirty_path[0].chr == File::SEPARATOR
                 dirty_path[0] = ''
               end
 
-              mods_with_changes[name] = dirty_path
+              mods_with_changes[mod[:name]] = dirty_path
             end
           end
 
@@ -260,28 +259,87 @@ module Simp::Rake::Build
             @dirty_repos = true
           end
 
-          unknown_mods = fake_lp.unknown_modules
+          unknown_mods = r10k_helper.unknown_modules
           unless unknown_mods.empty?
             puts "The following modules were unknown:"
             puts unknown_mods.map{|k,v| "  ? #{k}"}.join("\n")
           end
         end
 
-        desc 'Records the current dependencies into Puppetfile.stable.'
-        task :record do
-          fake_lp     = FakeLibrarian.new('Puppetfile.tracking')
-          modules     = fake_lp.modules
+        desc <<-EOM
+        Records the current dependencies into Puppetfile.stable.
 
-          fake_lp.each_module do |environment, name, path|
-            Dir.chdir(path) do
-              modules[name][:ref] = %x{git rev-parse --verify HEAD}.strip
+        Arguments:
+          * :source => The source Puppetfile to use (Default => 'tracking')
+        EOM
+        task :record, [:method] do |t,args|
+          args.with_defaults(:source => 'tracking')
+          r10k_helper = R10KHelper.new("Puppetfile.#{args[:source]}")
+
+          File.open('Puppetfile.stable','w'){|f| f.puts r10k_helper.puppetfile }
+        end
+
+        desc <<-EOM
+        Provide a log of changes to all modules from the given top level Git reference.
+
+        Arguments:
+          * :ref => The top level git ref to use as the oldest point for all logs.
+          * :source => The source Puppetfile to use (Default => 'tracking')
+        EOM
+        task :changelog, [:ref] do |t,args|
+          args.with_defaults(:source => 'tracking')
+
+          r10k_helper = R10KHelper.new("Puppetfile.#{args[:source]}")
+
+          git_logs = Hash.new
+
+          Dir.chdir(r10k_helper.basedir) do
+            ref = args[:ref]
+            refdate = nil
+            begin
+              refdate = %x(git log -1 --format=%ai '#{ref}')
+              refdate = nil unless $?.success?
+            rescue Exception
+              #noop
+            end
+
+            fail("You must specify a valid reference") unless ref
+            fail("Could not find a Git log for #{ref}") unless refdate
+
+            mods_with_changes = {}
+
+            log_output = %x(git log --since='#{refdate}' --stat --reverse).chomp
+            git_logs['__SIMP CORE__'] = log_output unless log_output.strip.empty?
+
+            r10k_helper.each_module do |mod|
+              if File.directory?(mod[:path])
+                Dir.chdir(mod[:path]) do
+                  log_output = %x(git log --since='#{refdate}' --stat --reverse).chomp
+                  git_logs[mod[:name]] = log_output unless log_output.strip.empty?
+                end
+              end
+            end
+
+            if git_logs.empty?
+              puts( "No changes found for any components since #{refdate}")
+            else
+              page
+
+              git_logs.keys.sort.each do |mod_name|
+                puts <<-EOM
+  ========
+  #{mod_name}:
+
+  #{git_logs[mod_name].gsub(/^/,'  ')}
+
+                EOM
+              end
             end
           end
-
-          fake_lp.modules = modules
-          File.open('Puppetfile.stable','w'){|f| f.puts fake_lp.puppetfile }
         end
       end
     end
   end
 end
+
+# vim: ai ts=2 sts=2 et sw=2 ft=ruby
