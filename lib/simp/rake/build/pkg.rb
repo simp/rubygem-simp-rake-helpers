@@ -41,7 +41,7 @@ module Simp::Rake::Build
               "#{@src_dir}/utils"
             ],
             :doc => "#{@src_dir}/doc",
-            :simp_cli => "#{@src_dir}/rubygems/simp-cli",
+            :simp_cli => "#{@src_dir}/rubygems/simp_cli",
             :simp => "#{@src_dir}",
           }
 
