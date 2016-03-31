@@ -40,10 +40,10 @@ module Simp::Rake::Build
           verbose = args.verbose == 'false' ? false : true
 
           # Grab all currently tracked submodules.
-          fake_lp = FakeLibrarian.new("Puppetfile.#{args[:method]}")
-          $modules     = fake_lp.modules
+          r10k = R10KHelper.new("Puppetfile.#{args[:method]}")
           mod_list =  []
-          fake_lp.each_module do |environment,name, path|
+          r10k.each_module do |mod|
+            path = mod[:path]
               if Dir.exists?(path)
                   mod_list.push(path)
               end
