@@ -196,22 +196,25 @@ module Simp::Rake::Build
               FileUtils.mkdir_p(mod[:path])
             end
 
-            # Since r10k is destructive, we're enumerating all valid states
-            # here
-            if [:absent, :mismatched, :outdated].include?(mod[:r10k_module].status)
-              unless mod[:r10k_cache].synced?
-                mod[:r10k_cache].sync
-              end
+            # Only for known modules...
+            unless mod[:status] == :unknown
+              # Since r10k is destructive, we're enumerating all valid states
+              # here
+              if [:absent, :mismatched, :outdated].include?(mod[:r10k_module].status)
+                unless mod[:r10k_cache].synced?
+                  mod[:r10k_cache].sync
+                end
 
-              if mod[:status] == :known
-                mod[:r10k_module].sync
+                if mod[:status] == :known
+                  mod[:r10k_module].sync
+                else
+                  # If we get here, the module was dirty and should be skipped
+                  puts "#{mod[:name]}: Skipping - #{mod[:status]}"
+                  next
+                end
               else
-                # If we get here, the module was dirty and should be skipped
-                puts "#{mod[:name]}: Skipping - #{mod[:status]}"
-                next
+                puts "#{mod[:name]}: Skipping - Unknown status type #{mod[:r10k_module].status}"
               end
-            else
-              puts "#{mod[:name]}: Skipping - Unknown status type #{mod[:r10k_module].status}"
             end
           end
         end

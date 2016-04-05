@@ -1,3 +1,6 @@
+### 2.0.1 / 2016-04-05
+* Fix a bug where deps:checkout failed on unknown repos being present
+
 ### 1.0.13 / 2016-02-10
 * Ensure that all rake tasks can run on EL6 systems
 * Update the processing of RPM spec files to properly handle macros in target builds
