@@ -172,18 +172,6 @@ module Simp::Rake::Build
             puts
             puts '-'*80
 
-            ver=target_data['os_version'].split('.').first
-            repo_pkglist_file = File.expand_path( "src/DVD/#{ver}-simp_pkglist.txt",
-                                                  repo_root_dir
-                                                )
-            if File.file? repo_pkglist_file
-              puts "#### setting SIMP_PKGLIST_FILE=#{repo_pkglist_file}"
-              ENV['SIMP_PKGLIST_FILE']=repo_pkglist_file
-            else
-              puts "#### WARNING: repo pkglist file not found:"
-              puts "              '#{repo_pkglist_file}'"
-              puts
-            end
           else
             puts
             puts '='*80

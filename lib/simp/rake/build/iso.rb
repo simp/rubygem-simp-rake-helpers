@@ -252,8 +252,33 @@ module Simp::Rake::Build
 
               # Do some sane chmod'ing and build ISO
               system("chmod -fR u+rwX,g+rX,o=g #{dir}")
-              @simp_output_iso = "SIMP-#{simpver}-#{baseos}-#{baseosver}-#{arch}.iso"
-              system("mkisofs -uid 0 -gid 0 -o #{@simp_output_iso} -b isolinux/isolinux.bin -c boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -r -m TRANS.TBL #{dir}")
+              simp_output_name = "SIMP-#{simpver}-#{baseos}-#{baseosver}-#{arch}"
+              @simp_output_iso = "#{simp_output_name}.iso"
+
+              mkisofs_cmd = [
+                'mkisofs',
+                "-A #{simp_output_name}",
+                "-o #{@simp_output_iso}",
+                #'-eltorito-alt-boot',
+                '-J',
+                '-T',
+                '-b isolinux/isolinux.bin',
+                '-boot-info-table',
+                '-boot-load-size 4',
+                '-c isolinux/boot.cat',
+                '-e images/efiboot.img',
+                '-gid 0',
+                '-joliet-long',
+                '-m TRANS.TBL',
+                '-no-emul-boot',
+                '-r',
+                '-uid 0',
+                '-v',
+                '-x ./lost+found',
+                dir
+              ]
+
+              system(mkisofs_cmd.join(' '))
             end
           end # End of tarfiles loop
         end

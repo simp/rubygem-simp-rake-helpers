@@ -1,3 +1,7 @@
+### 2.1.0 / 2016-04-15
+* ISOs will now build with EFI mode enabled
+* The pkglist file will be read from the tarball during build:auto
+
 ### 2.0.1 / 2016-04-05
 * Fix a bug where deps:checkout failed on unknown repos being present
 
