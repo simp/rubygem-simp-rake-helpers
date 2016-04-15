@@ -6,6 +6,7 @@ require 'puppet-lint/tasks/puppet-lint'
 require 'simp/rake/pkg'
 require 'simp/rake/beaker'
 require 'parallel_tests/cli'
+require 'simp/rake/fixtures'
 
 module Simp; end
 module Simp::Rake; end
@@ -47,6 +48,8 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
     PuppetLint::RakeTask.new :lint do |config|
       config.ignore_paths = PuppetLint.configuration.ignore_paths
     end
+
+    Simp::Rake::Fixtures.new( @base_dir )
 
     Simp::Rake::Pkg.new( @base_dir ) do | t |
       t.clean_list << "#{t.base_dir}/spec/fixtures/hieradata/hiera.yaml"

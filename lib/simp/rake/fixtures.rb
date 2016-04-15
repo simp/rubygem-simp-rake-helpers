@@ -3,7 +3,8 @@ require 'rake/tasklib'
 module Simp; end
 module Simp::Rake
   class Fixtures < ::Rake::TaskLib
-    def initialize
+    def initialize( dir )
+       @base_dir = dir
        ###::CLEAN.include( '.fixtures.yml.local' )
        define
     end
@@ -37,7 +38,7 @@ module Simp::Rake
 
         desc 'generate .fixtures.yml.local formm the entries in .fixtures.yml'
         task :generate do
-          pwd = File.expand_path(File.dirname(__FILE__))
+          pwd = File.expand_path(@base_dir)
           _f  = YAML.load_file(File.join(pwd,'.fixtures.yml'))
           _l  = fixtures_yml_local( _f )
           _o  = File.join(pwd,'.fixtures.yml.local')
@@ -50,8 +51,13 @@ module Simp::Rake
         desc "check for missing .fixture modules"
         task :diff do
           require 'yaml'
-          pwd = File.expand_path(File.dirname(__FILE__))
+          pwd = File.expand_path(@base_dir)
           _f  = YAML.load_file(File.join(pwd,'.fixtures.yml'))
+          
+          unless File.file?(File.join(pwd,'.fixtures.yml.local'))
+            fail "ERROR: Can't diff fixtures without a `.fixtures.yml.local` file"
+          end
+
           _fl = YAML.load_file(File.join(pwd,'.fixtures.yml.local'))
 
           # reduce modules
