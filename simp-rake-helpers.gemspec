@@ -46,6 +46,7 @@ Gem::Specification.new do |s|
   s.add_development_dependency 'guard',       '~> 2.0'
   s.add_development_dependency 'guard-shell', '~> 0.0'
   s.add_development_dependency 'guard-rspec', '~> 4.0'
+  s.add_development_dependency 'listen',      '~>3.0.6'
 
   s.add_development_dependency 'beaker',       '~> 2.0'
   s.add_development_dependency 'beaker-rspec', '~> 5.0'

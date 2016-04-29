@@ -1,3 +1,6 @@
+### 2.1.1 / 2016-04-29
+* Removed gem dependencies on ruby 2.2
+
 ### 2.1.0 / 2016-04-15
 * ISOs will now build with EFI mode enabled
 * The pkglist file will be read from the tarball during build:auto
