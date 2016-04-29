@@ -1,3 +1,6 @@
+### 2.1.2 / 2016-04-29
+* Fixed runtime dependencies
+
 ### 2.1.1 / 2016-04-29
 * Removed gem dependencies on ruby 2.2
 

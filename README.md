@@ -28,6 +28,7 @@ This gem is part of (the build tooling for) the [System Integrity Management Pla
 ### Features
 * supports multithreaded mock operations
 * RPM packaging and signing
+* Rubygem packaging
 
 
 ## Setup
