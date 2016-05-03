@@ -287,9 +287,10 @@ module Simp::Rake::Build
           puts "       '#{vars_file}'"
           puts '='*80
           puts
+          box_distro_release = "SIMP-#{target_release}-#{File.basename(target_data['isos'].first).sub(/\.iso$/,'').sub(/-x86_64/,'')}"
           packer_vars = {
             'box_simp_release'   => target_release,
-            'box_distro_release' => "SIMP-#{target_release}-#{target_data['isos'].first.sub(/\.iso$|-x86_64/,'')}",
+            'box_distro_release' => box_distro_release,
             'iso_url'            => iso,
             'iso_checksum'       => sum,
             'iso_checksum_type'  => 'sha256',
