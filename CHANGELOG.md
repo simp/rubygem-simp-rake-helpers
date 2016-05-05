@@ -1,3 +1,6 @@
+### 2.1.3 / 2016-05-02
+* Added simp-spec-helpers to runtime dependencies.
+
 ### 2.1.2 / 2016-04-29
 * Fixed runtime dependencies
 
