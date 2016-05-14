@@ -1,3 +1,4 @@
+require 'bundler'
 require 'simp/rake'
 require 'simp/rake/build/constants'
 
@@ -65,7 +66,7 @@ module Simp::Rake::Build
               end
               # Any ruby code that opens a subshell will automatically use the current Bundler environment.
               # Clean env will give bundler the environment present before Bundler is activated.
-              Bundler.with_clean_env do
+              ::Bundler.with_clean_env do
                 out = %x(bundle #{args.action} 2>&1)
                 status = $?.success?
                 puts out if verbose

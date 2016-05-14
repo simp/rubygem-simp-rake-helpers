@@ -23,7 +23,7 @@ Gem::Specification.new do |s|
   #   for the published gem
   # ensure the gem is built out of versioned files
   s.add_runtime_dependency 'bundler',                   '~> 1.0'
-  s.add_runtime_dependency 'rake',                      '~> 10.0'
+  s.add_runtime_dependency 'rake',                      '>= 10.0', '< 12.0'
   s.add_runtime_dependency 'coderay',                   '~> 1.0'
   s.add_runtime_dependency 'puppet',                    '>= 3.0'
   s.add_runtime_dependency 'puppet-lint',               '~> 1.0'
