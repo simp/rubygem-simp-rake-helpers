@@ -194,7 +194,7 @@ module Simp::Rake::Build
                       # This is a working version of gpg-agent, that means we need to
                       # connect to it to figure out what's going on
 
-                      gpg_agent_socket = %x(#{Dir.pwd}/S.gpg-agent)
+                      gpg_agent_socket = %(#{Dir.pwd}/S.gpg-agent)
                       gpg_agent_pid_info = %x(gpg-agent --homedir=#{Dir.pwd} /get serverpid).strip
                       gpg_agent_pid_info =~ %r(\[(\d+)\])
                       gpg_agent_pid = $1
