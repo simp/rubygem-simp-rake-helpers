@@ -39,23 +39,33 @@ module Simp::Rake
     attr_reader   :spec_info
 
     def initialize( base_dir, unique_name=nil )
-       @base_dir            = base_dir
-       @pkg_name            = File.basename(@base_dir)
-       @spec_file           = Dir.glob("#{@base_dir}/build/*.spec").first
-       @pkg_dir             = "#{@base_dir}/dist"
-       @exclude_list        = [ File.basename(@pkg_dir) ]
-       @clean_list          = []
-       @ignore_changes_list = []
-       @chroot_name         = unique_name
-       @mock_root_dir       = ENV.fetch('SIMP_BUILD_MOCK_root','/var/lib/mock')
+      @base_dir            = base_dir
+      @pkg_name            = File.basename(@base_dir)
+      @spec_file           = Dir.glob("#{@base_dir}/build/*.spec").first
+      @pkg_dir             = "#{@base_dir}/dist"
+      @exclude_list        = [ File.basename(@pkg_dir) ]
+      @clean_list          = []
+      @ignore_changes_list = []
+      @chroot_name         = unique_name
+      @mock_root_dir       = ENV.fetch('SIMP_BUILD_MOCK_root','/var/lib/mock')
 
-       ::CLEAN.include( @pkg_dir )
+      # The following are required to build successful RPMs using the new
+      # LUA-based RPM template
 
-       yield self if block_given?
+      @puppet_module_info_files = [
+        @spec_file,
+        %(#{@base_dir}/build),
+        %(#{@base_dir}/CHANGELOG),
+        %(#{@base_dir}/metadata.json)
+      ]
 
-       ::CLEAN.include( @clean_list )
+      ::CLEAN.include( @pkg_dir )
 
-       define
+      yield self if block_given?
+
+      ::CLEAN.include( @clean_list )
+
+      define
     end
 
     def define
@@ -79,22 +89,36 @@ module Simp::Rake
     # Ensures that the correct file names are used across the board.
     def initialize_spec_info(chroot, unique)
       unless @spec_info
-        spec_file = @spec_file
-
         # This gets the resting spec file and allows us to pull out the name
-        @spec_info   = Simp::RPM.get_info( spec_file )
+        @spec_info   = Simp::RPM.get_info( @spec_file )
+        @spec_info_dir = @base_dir
 
         if chroot
           @chroot_name = @chroot_name || "#{@spec_info[:name]}__#{ENV.fetch( 'USER', 'USER' )}"
           mock_cmd = mock_pre_check( chroot, @chroot_name, unique ) + " --root #{chroot}"
 
-          sh %Q(#{mock_cmd} --copyin #{spec_file} /tmp)
+          # Need to do this in case there is already a directory in /tmp
+          rand_dirname = (0...10).map { ('a'..'z').to_a[rand(26)] }.join
+          rand_tmpdir = %(/tmp/#{rand_dirname}_tmp)
+
+          sh %Q(#{mock_cmd} --chroot 'mkdir -p #{rand_tmpdir}')
+
+          @puppet_module_info_files .each do |copy_in|
+            if File.exist?(copy_in)
+              sh %Q(#{mock_cmd} --copyin #{copy_in} #{rand_tmpdir})
+            end
+          end
+
+          sh %Q(#{mock_cmd} --chroot 'chmod -R ugo+rwX #{rand_tmpdir}')
+
           info_hash = {
-            :command    => %Q(#{mock_cmd} --shell),
-            :rpm_extras => %(--specfile /tmp/#{File.basename(spec_file)} )
+            :command    => %Q(#{mock_cmd} --chroot --cwd='#{rand_tmpdir}'),
+            :rpm_extras => %(--specfile #{rand_tmpdir}/#{File.basename(@spec_file)} )
           }
 
-          @spec_info = Simp::RPM.get_info(spec_file, info_hash)
+          @spec_info = Simp::RPM.get_info(@spec_file, info_hash)
+
+          @spec_info_dir = rand_tmpdir
         end
 
         @dir_name       = "#{@spec_info[:name]}-#{@spec_info[:version]}"
@@ -127,6 +151,13 @@ module Simp::Rake
       namespace :pkg do
         directory @pkg_dir
 
+        task :initialize_spec_info,[:chroot,:unique] => [@pkg_dir] do |t,args|
+          args.with_defaults(:chroot => nil)
+          args.with_defaults(:unique => false)
+
+          initialize_spec_info(args.chroot, args.unique)
+        end
+
         # :pkg:tar
         # -----------------------------
         desc <<-EOM
@@ -135,14 +166,10 @@ module Simp::Rake
                                   version, rpm spec file must have macro for
                                   this to work.
         EOM
-        task :tar,[:chroot,:unique,:snapshot_release] => [@pkg_dir] do |t,args|
+        task :tar,[:chroot,:unique,:snapshot_release] => [:initialize_spec_info] do |t,args|
           args.with_defaults(:snapshot_release => false)
-          args.with_defaults(:unique => false)
           args.with_defaults(:chroot => nil)
-
-          if args.chroot
-            initialize_spec_info(args.chroot, args.unique)
-          end
+          args.with_defaults(:unique => false)
 
           l_date = ''
           if args.snapshot_release == 'true'
@@ -213,7 +240,7 @@ module Simp::Rake
             srpms = Dir.glob(%(#{@pkg_dir}/#{@spec_info[:name]}#{suffix}-#{@spec_info[:version]}-#{@spec_info[:release]}#{l_date}.*.src.rpm))
 
             if require_rebuild?(@tar_dest,srpms)
-              cmd = %Q(#{mock_cmd} --no-clean --root #{args.chroot} #{mocksnap} --buildsrpm --spec #{@spec_file} --source #{@pkg_dir})
+              cmd = %Q(#{mock_cmd} --no-clean --root #{args.chroot} #{mocksnap} --buildsrpm --spec #{@spec_file} --sources #{@pkg_dir})
               if suffix
                 cmd += %( -D "_variant #{variant}")
               end
@@ -345,9 +372,8 @@ module Simp::Rake
     # Returns a String that contains the appropriate mock command.
     def mock_pre_check( chroot, unique_ext, unique=false, init=true )
 
-      raise %Q(unique_ext must be a String ("#{unique_ext}" = #{unique_ext.class})) unless unique_ext.is_a? String
-
       mock = ENV['mock'] || '/usr/bin/mock'
+
       raise(Exception,"Could not find mock on your system, exiting") unless File.executable?(mock)
 
       mock_configs = Pkg.get_mock_configs
@@ -362,10 +388,12 @@ module Simp::Rake
         )
       end
 
+      raise %Q(unique_ext must be a String ("#{unique_ext}" = #{unique_ext.class})) unless unique_ext.is_a? String
+
       # if true, restrict yum to the chroot's local yum cache (defaults to false)
       mock_offline = ENV.fetch( 'SIMP_RAKE_MOCK_OFFLINE', 'N' ).chomp.index( %r{^(1|Y|true|yes)$} ) || false
 
-      mock_cmd =  "#{mock} --quiet"
+      mock_cmd =  "#{mock} -D 'pup_module_info_dir #{@spec_info_dir}' --quiet"
       mock_cmd += " --uniqueext=#{unique_ext}" if unique
       mock_cmd += ' --offline'                 if mock_offline
 

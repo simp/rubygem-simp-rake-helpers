@@ -1,3 +1,7 @@
+### 2.2.0 / 2016-06-03
+* Added support for the new LUA-based RPM spec files.
+* Fixed a few bugs in some of the internal state checks.
+
 ### 2.1.2 / 2016-04-29
 * Fixed runtime dependencies
 

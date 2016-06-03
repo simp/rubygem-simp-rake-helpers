@@ -70,11 +70,32 @@ module Simp
 
       if File.readable?(rpm_source)
         if rpm_source.split('.').last == 'rpm'
-          rpm_info = %x(#{rpm_cmd} -p #{rpm_source} 2>/dev/null)
+          rpm_info = %x(#{rpm_cmd} -p #{rpm_source} 2>/dev/null).strip
+
+          if rpm_info.empty?
+            raise <<-EOE
+            Error getting RPM info.
+            Run '#{rpm_cmd.gsub("\n",'\\n')} -p #{rpm_source}' to debug the issue.
+            EOE
+          end
         elsif mock_hash
-          rpm_info = %x(#{rpm_cmd})
+          rpm_info = %x(#{rpm_cmd}).strip
+
+          if rpm_info.empty?
+            raise <<-EOE
+            Error getting RPM info.
+            Run '#{rpm_cmd.gsub("\n",'\\n')}' to debug the issue.
+            EOE
+          end
         else
-          rpm_info = %x(#{rpm_cmd} --specfile #{rpm_source} 2>/dev/null)
+          rpm_info = %x(#{rpm_cmd} --specfile #{rpm_source} 2>/dev/null).strip
+
+          if rpm_info.empty?
+            raise <<-EOE
+            Error getting RPM info.
+            Run '#{rpm_cmd.gsub("\n",'\\n')} --specfile #{rpm_source}' to debug the issue.
+            EOE
+          end
         end
 
         info[:name],info[:version],info[:release] = rpm_info.split("\n").first.split(' ')
