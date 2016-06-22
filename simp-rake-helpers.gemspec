@@ -39,6 +39,8 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'beaker',                    '~> 2.0'
   s.add_runtime_dependency 'beaker-rspec',              '~> 5.0'
   s.add_runtime_dependency 'rspec-core',                '~> 3.0'
+  # Because guard...I hate guard
+  s.add_runtime_dependency 'listen',                    '~> 3.0.6' # 3.1 requires ruby 2.2+
 
   # for development
   s.add_development_dependency 'gitlog-md',   '~> 0' # To generate HISTORY.md
@@ -46,7 +48,6 @@ Gem::Specification.new do |s|
   s.add_development_dependency 'pry-doc',     '~> 0.0'
   s.add_development_dependency 'highline',    '~> 1.6', '> 1.6.1'  # 1.8 safe
 
-  s.add_development_dependency 'listen',      '~> 3.0.6' # 3.1 requires ruby 2.2+
   s.add_development_dependency 'guard',       '~> 2.0'
   s.add_development_dependency 'guard-shell', '~> 0.0'
   s.add_development_dependency 'guard-rspec', '~> 4.0'

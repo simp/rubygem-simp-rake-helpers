@@ -1,3 +1,7 @@
+### 2.3.0 / 2016-06-22
+* Move 'listen' into the runtime dependencies so that 'guard' stops trying to
+  yank it into a version that is not compatible with Ruby < 2.2.
+
 ### 2.2.0 / 2016-06-03
 * Added support for the new LUA-based RPM spec files.
 * Fixed a few bugs in some of the internal state checks.
