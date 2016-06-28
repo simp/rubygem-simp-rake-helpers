@@ -118,6 +118,9 @@ module Simp::Rake::Build
           # --------------------
           target_data = get_target_data(target_release, iso_paths, yaml_file, do_checksum, verbose )
 
+          # Quick map to match the filenames in the build structures
+          target_data['flavor'] = 'RHEL' if target_data['flavor'] == 'RedHat'
+
           # IDEA: check for prequisite build tools
 
           # check out subrepos

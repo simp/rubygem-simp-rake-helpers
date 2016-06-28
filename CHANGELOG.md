@@ -1,3 +1,6 @@
+### 2.3.1 / 2016-06-27
+* Translate 'RedHat' into 'RHEL' to match the file artifacts on disk.
+
 ### 2.3.0 / 2016-06-22
 * Move 'listen' into the runtime dependencies so that 'guard' stops trying to
   yank it into a version that is not compatible with Ruby < 2.2.
