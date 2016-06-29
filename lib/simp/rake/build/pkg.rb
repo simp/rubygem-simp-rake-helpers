@@ -559,7 +559,13 @@ protect=1
                 puts "     in path '#{Dir.pwd}'"
                 puts '-'*80
               end
-              sh cmd
+              repoclosure_output = %x(#{cmd})
+
+              if !$?.success? || (repoclosure_output =~ /unresolved deps/)
+                errmsg = ['Error: REPOCLOSURE FAILED:']
+                errmsg << [repoclosure_output]
+                fail(errmsg.join("\n"))
+              end
             end
           ensure
             remove_entry_secure temp_pkg_dir

@@ -1,3 +1,6 @@
+### 2.3.2 / 2016-06-29
+* Force a useful failure on repoclosure issues
+
 ### 2.3.1 / 2016-06-27
 * Translate 'RedHat' into 'RHEL' to match the file artifacts on disk.
 
