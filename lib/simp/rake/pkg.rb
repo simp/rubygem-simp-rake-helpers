@@ -7,6 +7,7 @@ require 'rake/tasklib'
 require 'fileutils'
 require 'find'
 require 'simp/rpm'
+require 'simp/rake/helpers/rpm_spec'
 
 module Simp; end
 module Simp::Rake
@@ -41,13 +42,27 @@ module Simp::Rake
     def initialize( base_dir, unique_name=nil )
       @base_dir            = base_dir
       @pkg_name            = File.basename(@base_dir)
-      @spec_file           = Dir.glob("#{@base_dir}/build/*.spec").first
-      @pkg_dir             = "#{@base_dir}/dist"
+      @pkg_dir             = File.join(@base_dir, 'dist')
+      @pkg_tmp_dir         = File.join(@pkg_dir, 'tmp')
       @exclude_list        = [ File.basename(@pkg_dir) ]
       @clean_list          = []
       @ignore_changes_list = []
       @chroot_name         = unique_name
       @mock_root_dir       = ENV.fetch('SIMP_BUILD_MOCK_root','/var/lib/mock')
+
+      local_spec = Dir.glob(File.join(@base_dir, 'build', '*.spec'))
+      unless local_spec.empty?
+        @spec_file = local_spec.first
+      else
+        FileUtils.mkdir_p(@pkg_tmp_dir) unless File.directory?(@pkg_tmp_dir)
+
+        @spec_tempfile = File.open(File.join(@pkg_tmp_dir, "#{@pkg_name}.spec"), 'w')
+        @spec_tempfile.write(Simp::Rake::Helpers::RPM_Spec.template)
+        @spec_tempfile.flush
+
+        @spec_file = @spec_tempfile.path
+        FileUtils.chmod(0640, @spec_file)
+      end
 
       # The following are required to build successful RPMs using the new
       # LUA-based RPM template
@@ -96,12 +111,17 @@ module Simp::Rake
         if chroot
           @chroot_name = @chroot_name || "#{@spec_info[:name]}__#{ENV.fetch( 'USER', 'USER' )}"
           mock_cmd = mock_pre_check( chroot, @chroot_name, unique ) + " --root #{chroot}"
-
           # Need to do this in case there is already a directory in /tmp
           rand_dirname = (0...10).map { ('a'..'z').to_a[rand(26)] }.join
           rand_tmpdir = %(/tmp/#{rand_dirname}_tmp)
 
+          # Hack to work around the fact that we have conflicting '-D' entries
+          # TODO: Refactor this
+          mock_cmd = mock_cmd.split(/-D '.*?'/).join
+          mock_cmd = "#{mock_cmd} -D 'pup_module_info_dir #{rand_tmpdir}'"
+
           sh %Q(#{mock_cmd} --chroot 'mkdir -p #{rand_tmpdir}')
+          sh %Q(#{mock_cmd} --chroot 'sed -i /pup_module_info_dir/d ~/.rpmmacros')
 
           @puppet_module_info_files .each do |copy_in|
             if File.exist?(copy_in)
@@ -125,6 +145,11 @@ module Simp::Rake
         @mfull_pkg_name = "#{@dir_name}-#{@spec_info[:release]}"
         @full_pkg_name  = @mfull_pkg_name.gsub("%{?snapshot_release}","")
         @tar_dest       = "#{@pkg_dir}/#{@full_pkg_name}.tar.gz"
+
+        if @tar_dest =~ /UNKNOWN/
+          fail("Error: Could not determine package information from 'metadata.json'. Got '#{File.basename(@tar_dest)}'")
+        end
+
         @variants       = (ENV['SIMP_BUILD_VARIANTS'].to_s.split(',') + ['default'])
       end
     end

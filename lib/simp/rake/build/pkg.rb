@@ -598,36 +598,18 @@ protect=1
 
             Dir.chdir(dir) do
               if File.exist?('Rakefile')
-                # Read the package metadata file and proceed accordingly.
-                module_metadata = default_metadata
-                if File.exist?('build/package_metadata.yaml')
-                  module_metadata.merge!(YAML.load(File.read('build/package_metadata.yaml')))
-                end
+                unique_build = (get_cpu_limit != 1)
+                %x{rake pkg:rpm[#{chroot},unique_build,#{snapshot_release}]}
 
-                # @simp_version should be set in the main Rakefile
-                build_module = false
-                Array(module_metadata['valid_versions']).each do |version_regex|
-                  build_module = Regexp.new("^#{version_regex}$").match(@simp_version)
-                  break if build_module
-                end
-
-                if build_module
-                  unique_build = (get_cpu_limit != 1)
-                  %x{rake pkg:rpm[#{chroot},unique_build,#{snapshot_release}]}
-
-                  # Glob all generated rpms, and add their metadata to a result array.
-                  pkginfo = Hash.new
-                  Dir.glob('dist/*.rpm') do |rpm|
-                    if not rpm =~ /.*.src.rpm/ then
-                      # get_info from each generated rpm, not the spec file, so macros in the
-                      # metadata have already been resolved in the mock chroot.
-                      pkginfo = Simp::RPM.get_info(rpm)
-                      result << [pkginfo,module_metadata]
-                    end
+                # Glob all generated rpms, and add their metadata to a result array.
+                pkginfo = Hash.new
+                Dir.glob('dist/*.rpm') do |rpm|
+                  if not rpm =~ /.*.src.rpm/ then
+                  # get_info from each generated rpm, not the spec file, so macros in the
+                  # metadata have already been resolved in the mock chroot.
+                  pkginfo = Simp::RPM.get_info(rpm)
+                  result << [pkginfo,module_metadata]
                   end
-                else
-                  puts "Warning: #{Simp::RPM.get_info(Dir.glob('build/*.spec').first)[:name]} is not \
-      valid against SIMP version #{@simp_version.gsub("%{?snapshot_release}","")} and will not be built."
                 end
               else
                 puts "Warning: Could not find Rakefile in '#{dir}'"

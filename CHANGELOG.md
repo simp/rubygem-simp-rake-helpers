@@ -1,3 +1,7 @@
+### 2.4.0 / 2016-06-29
+* Add a Lua-based RPM template to the build stack allowing us to build *any*
+  Puppet module as an RPM without forking.
+
 ### 2.3.2 / 2016-06-29
 * Force a useful failure on repoclosure issues
 
