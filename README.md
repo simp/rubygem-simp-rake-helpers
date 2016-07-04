@@ -6,11 +6,12 @@
 1. [Overview](#overview)
   * [This gem is part of SIMP](#this-gem-is-part-of-simp)
   * [Features](#features)
-2. [Setup - The basics of getting started with iptables](#setup)
+2. [Setup](#setup)
    * [Gemfile](#gemfile)
 3. [Usage - Configuration options and additional functionality](#usage)
   * [In a Puppet Module](#in-a-puppet-module)
   * [In a Ruby Gem](#in-a-ruby-gem)
+  * [RPM Generation](#rpm-generation)
 4. [Reference - An under-the-hood peek at what the gem is doing and how](#reference)
 5. [Limitations - OS compatibility, etc.](#limitations)
 6. [Development - Guide for contributing to the module](#development)
@@ -26,10 +27,9 @@ This gem is part of (the build tooling for) the [System Integrity Management Pla
 
 
 ### Features
-* supports multithreaded mock operations
+* Supports multithreaded mock operations
 * RPM packaging and signing
 * Rubygem packaging
-
 
 ## Setup
 
@@ -74,6 +74,7 @@ end
 
 ## Usage
 ### In a Puppet module
+
 Within the project's Rakefile:
 
 ```ruby
@@ -84,6 +85,7 @@ Simp::Rake::Pupmod::Helpers.new(File.dirname(__FILE__))
 
 
 ### In a Ruby Gem
+
 Within the project's Rakefile:
 
 ```ruby
@@ -100,6 +102,41 @@ To see the extra rake tasks:
 ```sh
 bunde exec rake -T
 ```
+
+### RPM Generation
+
+This Gem provides the ability to generate an RPM from *any* Puppet module.
+
+By default, the information for the RPM will be pulled from the Forge
+compatible [metadata.json](https://docs.puppet.com/puppet/latest/reference/modules_metadata.html).
+
+The `name` and `version` fields *must* be present and well formatted. The
+`license` field is also used if present.
+
+*NOTE*: The dependencies in `metadata.json` are *not* used to generate RPM
+dependencies!
+
+#### RPM Changelog
+
+The Changelog is pulled from a file called `CHANGELOG` at the top level of the
+project. If this file does not start with a well formatted RPM changelog
+string, it will be ignored.
+
+The Changelog is *not* fully checked before attempting to build the RPM. Your
+RPM build will fail if the Changelog entries are not valid per the RPM
+specification.
+
+#### RPM Dependencies
+
+It is likely that you will want to declare your dependencies in your RPM. To do
+this, you can create a `build/rpm_metadata` directory at the root of your
+project. A file named `requires` in the `build/rpm_metadata` directory will be
+used to declare the dependencies of the RPM.
+
+The following directives may be declared in the `requires` file:
+  * Provides
+  * Requires
+  * Obsoletes
 
 ## Reference
 
