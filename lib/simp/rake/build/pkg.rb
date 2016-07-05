@@ -605,10 +605,9 @@ protect=1
                 pkginfo = Hash.new
                 Dir.glob('dist/*.rpm') do |rpm|
                   if not rpm =~ /.*.src.rpm/ then
-                  # get_info from each generated rpm, not the spec file, so macros in the
-                  # metadata have already been resolved in the mock chroot.
-                  pkginfo = Simp::RPM.get_info(rpm)
-                  result << [pkginfo,module_metadata]
+                    # get_info from each generated rpm, not the spec file, so macros in the
+                    # metadata have already been resolved in the mock chroot.
+                    result << Simp::RPM.get_info(rpm)
                   end
                 end
               else
@@ -619,20 +618,21 @@ protect=1
             result
           end
 
-          metadata.each do |i|
+          metadata.each do |mod|
             # Each module could generate multiple rpms, each with its own metadata.
             # Iterate over them to add all built rpms to autorequires.
-            i.each do |module_pkginfo,module_metadata|
-              next unless (module_pkginfo and module_metadata)
+            mod.each do |module_pkginfo|
+              next unless (module_pkginfo)
 
               # Set up the autorequires
-              if add_to_autoreq and not module_metadata['optional']
+              if add_to_autoreq
                 # Register the package with the autorequires
                 mode = 'r+'
                 mode = 'w+' unless File.exist?("#{@src_dir}/build/autorequires")
                 autoreq_fh = File.open("#{@src_dir}/build/autorequires",mode)
 
                 begin
+                  # Reads the autorequires file, then empties it
                   autorequires = []
                   autorequires += autoreq_fh.read.split("\n")
                   autoreq_fh.rewind
