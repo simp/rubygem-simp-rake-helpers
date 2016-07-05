@@ -1,10 +1,10 @@
 module Simp; end
 module Simp::Rake; end
-module Simp::Rake::Helpers; end
-module Simp::Rake::Helpers::RPM_Spec
+class Simp::Rake::Helpers
+  module Simp::Rake::Helpers::RPM_Spec
 
-  def self.template
-    return <<-EOF
+    def self.template
+      return <<-EOF
 %{lua:
 
 --
@@ -295,6 +295,7 @@ else
   print((default_changelog:gsub('$(%w+)', default_lookup_table)))
 end
 }
-    EOF
+      EOF
+    end
   end
 end
