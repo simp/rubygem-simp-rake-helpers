@@ -65,7 +65,7 @@ module Simp
       rpm_cmd = "rpm -q --queryformat '%{NAME} %{VERSION} %{RELEASE}\n'"
 
       if mock_hash
-        rpm_cmd = mock_hash[:command] + ' ' + '"' + rpm_cmd + ' ' + mock_hash[:rpm_extras] + '"'
+        rpm_cmd = mock_hash[:command] + ' ' + '"' + rpm_cmd + ' ' + mock_hash[:rpm_extras] + ' 2>/dev/null "'
       end
 
       if File.readable?(rpm_source)
