@@ -1,3 +1,6 @@
+### 2.4.1 / 2016-07-05
+* Fixed a misnamed variable causing build failures
+
 ### 2.4.0 / 2016-06-29
 * Add a Lua-based RPM template to the build stack allowing us to build *any*
   Puppet module as an RPM without forking.
