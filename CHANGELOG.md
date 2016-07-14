@@ -1,3 +1,7 @@
+### 2.4.2 / 2016-07-13
+* Ensure that RPM names are properly structured between SIMP and non-SIMP RPMs
+* Make sure that the install path is proper
+
 ### 2.4.1 / 2016-07-05
 * Fixed a misnamed variable causing build failures
 

@@ -55,16 +55,23 @@ module_requires = ''
 
 local name_match = string.match(metadata, '"name":%s+"(.-)"%s*,')
 
+install_name = ''
+
 if name_match then
   local i = 0
   for str in string.gmatch(name_match,'[^-]+') do
-    if i ~= 0 then
-      if i == 1 then
-        module_name = str
+    if i == 0 then
+      if str ~= 'simp' then
+        module_name = ('pupmod-' .. str)
       else
-        module_name = (module_name .. '-' .. str)
+        module_name = 'pupmod'
       end
+    else
+      module_name = (module_name .. '-' .. str)
     end
+
+-- We want the last dash split item as our module path name
+    install_name = str
 
     i = i+1
   end
@@ -160,8 +167,8 @@ if req_file then
 end
 }
 
-%define module_name %{lua: print(module_name)}
-%define base_name pupmod-%{module_name}
+%define install_name %{lua: print(install_name)}
+%define base_name %{lua: print(module_name)}
 
 %{lua:
 -- Determine which Variant we are going to build
@@ -205,7 +212,7 @@ else
 end
 }
 
-Summary:   %{module_name} Puppet Module
+Summary:   %{install_name} Puppet Module
 %if 0%{?_variant:1}
 Name:      %{base_name}-%{_variant}
 %else
@@ -253,7 +260,7 @@ rm -rf log
 
 curdir=`pwd`
 dirname=`basename $curdir`
-cp -r ../$dirname %{buildroot}/%{prefix}/%{module_name}
+cp -r ../$dirname %{buildroot}/%{prefix}/%{install_name}
 
 %clean
 [ "%{buildroot}" != "/" ] && rm -rf %{buildroot}
@@ -262,7 +269,7 @@ mkdir -p %{buildroot}/%{prefix}
 
 %files
 %defattr(0640,root,%{puppet_user},0750)
-%{prefix}/%{module_name}
+%{prefix}/%{install_name}
 
 %changelog
 %{lua:
