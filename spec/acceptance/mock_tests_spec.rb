@@ -1,42 +1,67 @@
 require 'spec_helper_acceptance'
 
 
-describe 'rake pkg:rpm[epel-6-x86_64,true]' do
-  before :all do
-    on 'container', 'bash --login -c "cd /host_files/spec/acceptance/files/testpackage; \
-                     gem install bundler; \
-                     bundle"'
-  end
+describe 'rake pkg:rpm' do
 
-  context 'with SIMP_RAKE_MOCK_cleanup=no' do
-    before :each do
-      on 'container', 'mkdir -p -m 0755 /var/lib/mock'
-      on 'container', 'rm -rf /var/lib/mock/* /host_files/spec/acceptance/files/testpackage/dist',
-                      :accept_all_exit_codes => true
-    end
+  run_cmd = 'runuser build_user -l -c '
 
-    it 'should create an RPM and leave the mock directory' do
+  let(:pkg_output_dir) { '/host_files/spec/acceptance/files/testpackage' }
+  let(:pkg_dest) { File.join(pkg_output_dir, 'dist/pupmod-simp-testpackage-0.0.1-2016.noarch.rpm') }
 
-      test_name 'runs SIMP_RAKE_MOCK_cleanup=no pkg:rpm[epel-6-x86_64,true]'
-      on 'container', 'SIMP_RAKE_MOCK_cleanup=no bash --login -c "cd /host_files/spec/acceptance/files/testpackage;  bundle exec rake pkg:rpm[epel-6-x86_64,true]"'
+  dists = ['6', '7']
 
-      test_name 'produces RPM'
-      on 'container', 'test -f /host_files/spec/acceptance/files/testpackage/dist/testpackage-1-0.noarch.rpm'
+  hosts.each do |host|
+    context 'with SIMP_RAKE_MOCK_cleanup=no' do
+      before :each do
+        on host, 'mkdir -p -m 0755 /var/lib/mock'
+        on host, 'rm -rf /var/lib/mock/* /host_files/spec/acceptance/files/testpackage/dist',
+                        :accept_all_exit_codes => true
+      end
 
-      test_name 'keeps mock chroot when SIMP_RAKE_MOCK_cleanup=no'
-      on 'container', 'test -d /var/lib/mock/epel-6-x86_64-testpackage__$USER'
-    end
+      context 'prep' do
+        it 'should set up the Ruby gems' do
+          on host, %(#{run_cmd} "cd #{pkg_output_dir}; rvm use default; bundle update")
+        end
+      end
 
-    it 'should create an RPM and leave the mock directory' do
+      dists.each do |dist|
+        context "on #{dist}" do
+          it "should create an RPM for #{dist} and leave the mock directory" do
 
-      test_name 'runs pkg:rpm'
-      on 'container', 'SIMP_RAKE_MOCK_cleanup=yes bash --login -c "cd /host_files/spec/acceptance/files/testpackage;  bundle exec rake pkg:rpm[epel-6-x86_64,true]"'
+            test_name %(runs SIMP_RAKE_MOCK_cleanup=no pkg:rpm[epel-#{dist}-x86_64,true])
+            on host, %(#{run_cmd} "cd #{pkg_output_dir}; SIMP_RAKE_MOCK_cleanup=no rake pkg:rpm[epel-#{dist}-x86_64,true]")
 
-      test_name 'produces RPM'
-      on 'container', 'test -f /host_files/spec/acceptance/files/testpackage/dist/testpackage-1-0.noarch.rpm'
+            test_name 'produces RPM'
+            on host, %(test -f #{pkg_dest})
 
-      test_name 'deletes mock chroot when SIMP_RAKE_MOCK_cleanup=yes'
-      on 'container', 'test -d /var/lib/mock/epel-6-x86_64-testpackage__$USER', {:acceptable_exit_codes => [1]}
+            test_name 'produces RPM with appropriate dependencies'
+            on host, %(rpm -qpR #{pkg_dest} | grep -q pupmod-simp-simplib)
+
+            test_name 'produces RPM with a sourced CHANGELOG'
+            on host, %(rpm --changelog -qp #{pkg_dest} | grep -q Stallman)
+
+            test_name 'keeps mock chroot when SIMP_RAKE_MOCK_cleanup=no'
+            on host, %(test -d /var/lib/mock/epel-#{dist}-x86_64-pupmod-simp-testpackage__build_user)
+          end
+
+          it 'should create an RPM and remove the mock directory' do
+            test_name 'runs pkg:rpm'
+            on host, %(#{run_cmd} "cd #{pkg_output_dir}; SIMP_RAKE_MOCK_cleanup=yes rake pkg:rpm[epel-#{dist}-x86_64,true]")
+
+            test_name 'produces RPM'
+            on host, %(test -f #{pkg_dest})
+
+            test_name 'deletes mock chroot when SIMP_RAKE_MOCK_cleanup=yes'
+            on host, %(test -d /var/lib/mock/epel-#{dist}-x86_64-pupmod-simp-testpackage__$USER), {:acceptable_exit_codes => [1]}
+          end
+        end
+      end
+
+      context 'cleanup' do
+        it 'should clean up after itself' do
+          on host, %(#{run_cmd} "cd #{pkg_output_dir}; rake clean")
+        end
+      end
     end
   end
 end
