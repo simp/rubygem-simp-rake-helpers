@@ -26,12 +26,12 @@ end
 
 -- These UNKNOWN entries should break the build if something bad happens
 
-module_name = "UNKNOWN"
-module_version = "UNKNOWN"
+package_name = "UNKNOWN"
+package_version = "UNKNOWN"
 module_license = "UNKNOWN"
 
 -- Default to 0
-module_release = '0'
+package_release = '0'
 
 }
 
@@ -55,26 +55,28 @@ module_requires = ''
 
 local name_match = string.match(metadata, '"name":%s+"(.-)"%s*,')
 
-install_name = ''
+module_author = ''
+module_name = ''
 
 if name_match then
+  package_name = ('pupmod-' .. name_match)
+
   local i = 0
   for str in string.gmatch(name_match,'[^-]+') do
     if i == 0 then
-      if str ~= 'simp' then
-        module_name = ('pupmod-' .. str)
-      else
-        module_name = 'pupmod'
-      end
+      module_author = str
     else
-      module_name = (module_name .. '-' .. str)
+      if module_name == '' then
+        module_name = str
+      else
+        module_name = (module_name .. '-' .. str)
+      end
     end
-
--- We want the last dash split item as our module path name
-    install_name = str
 
     i = i+1
   end
+else
+  print("Error: Could not find valid package name in 'metadata.json'")
 end
 
 }
@@ -87,7 +89,7 @@ end
 local version_match = string.match(metadata, '"version":%s+"(.-)"%s*,')
 
 if version_match then
-  module_version = version_match
+  package_version = version_match
 end
 
 }
@@ -144,7 +146,7 @@ if rel_file then
     is_blank = string.match(line, "^%s*$")
 
     if not (is_comment or is_blank) then
-      module_release = line
+      package_release = line
       break
     end
   end
@@ -167,8 +169,8 @@ if req_file then
 end
 }
 
-%define install_name %{lua: print(install_name)}
-%define base_name %{lua: print(module_name)}
+%define module_name %{lua: print(module_name)}
+%define base_name %{lua: print(package_name)}
 
 %{lua:
 -- Determine which Variant we are going to build
@@ -212,15 +214,15 @@ else
 end
 }
 
-Summary:   %{install_name} Puppet Module
+Summary:   %{module_name} Puppet Module
 %if 0%{?_variant:1}
 Name:      %{base_name}-%{_variant}
 %else
 Name:      %{base_name}
 %endif
 
-Version:   %{lua: print(module_version)}
-Release:   %{lua: print(module_release)}
+Version:   %{lua: print(package_version)}
+Release:   %{lua: print(package_release)}
 License:   %{lua: print(module_license)}
 Group:     Applications/System
 Source:    %{base_name}-%{version}-%{release}.tar.gz
@@ -235,6 +237,11 @@ Requires: puppet
 %endif
 
 %{lua: print(module_requires)}
+
+Provides: pupmod-%{lua: print(module_name)} = %{lua: print(package_version)}
+Obsoletes: pupmod-%{lua: print(module_name)} < %{lua: print(package_version)}
+Provides: %{lua: print(module_author)}-%{lua: print(module_name)} = %{lua: print(package_version)}
+Obsoletes: %{lua: print(module_author)}-%{lua: print(module_name)} < %{lua: print(package_version)}
 
 Prefix: %{_sysconfdir}/environments/simp/modules
 
@@ -260,7 +267,7 @@ rm -rf log
 
 curdir=`pwd`
 dirname=`basename $curdir`
-cp -r ../$dirname %{buildroot}/%{prefix}/%{install_name}
+cp -r ../$dirname %{buildroot}/%{prefix}/%{module_name}
 
 %clean
 [ "%{buildroot}" != "/" ] && rm -rf %{buildroot}
@@ -269,7 +276,7 @@ mkdir -p %{buildroot}/%{prefix}
 
 %files
 %defattr(0640,root,%{puppet_user},0750)
-%{prefix}/%{install_name}
+%{prefix}/%{module_name}
 
 %changelog
 %{lua:
@@ -284,9 +291,9 @@ default_changelog = [===[
 
 default_lookup_table = {
   date = os.date("%a %b %d %Y"),
-  version = module_version,
-  release = module_release,
-  name = module_name
+  version = package_version,
+  release = package_release,
+  name = package_name
 }
 
 changelog = io.open(src_dir .. "/CHANGELOG","r")
