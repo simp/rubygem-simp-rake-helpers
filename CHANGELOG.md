@@ -1,3 +1,7 @@
+### 2.4.3 / 2016-07-22
+* Update all packages to use a consistent naming scheme and obsolete all that
+  came before.
+
 ### 2.4.2 / 2016-07-13
 * Ensure that RPM names are properly structured between SIMP and non-SIMP RPMs
 * Make sure that the install path is proper

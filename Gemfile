@@ -9,6 +9,8 @@ gem_sources.each { |gem_source| source gem_source }
 
 gemspec
 
+gem 'simp-beaker-helpers'
+
 if puppetversion
   gem 'puppet', puppetversion
 end

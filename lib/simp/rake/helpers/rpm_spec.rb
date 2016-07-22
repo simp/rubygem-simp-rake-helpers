@@ -26,12 +26,13 @@ end
 
 -- These UNKNOWN entries should break the build if something bad happens
 
-module_name = "UNKNOWN"
-module_version = "UNKNOWN"
+package_name = "UNKNOWN"
+package_version = "UNKNOWN"
 module_license = "UNKNOWN"
 
--- Default to 0
-module_release = '0'
+-- Default to 2016
+-- This was done due to the change in naming scheme across all of the modules.
+package_release = '2016'
 
 }
 
@@ -42,6 +43,13 @@ metadata = ''
 metadata_file = io.open(src_dir .. "/metadata.json","r")
 if metadata_file then
   metadata = metadata_file:read("*all")
+
+  -- Ignore the first curly brace
+  metadata = metadata:gsub("{}?", '|', 1)
+
+  -- Ignore all keys that are below the first level
+  metadata = metadata:gsub("{.-}", '')
+  metadata = metadata:gsub("%[.-%]", '')
 end
 
 -- This starts as an empty string so that we can build it later
@@ -55,26 +63,28 @@ module_requires = ''
 
 local name_match = string.match(metadata, '"name":%s+"(.-)"%s*,')
 
-install_name = ''
+module_author = ''
+module_name = ''
 
 if name_match then
+  package_name = ('pupmod-' .. name_match)
+
   local i = 0
   for str in string.gmatch(name_match,'[^-]+') do
     if i == 0 then
-      if str ~= 'simp' then
-        module_name = ('pupmod-' .. str)
-      else
-        module_name = 'pupmod'
-      end
+      module_author = str
     else
-      module_name = (module_name .. '-' .. str)
+      if module_name == '' then
+        module_name = str
+      else
+        module_name = (module_name .. '-' .. str)
+      end
     end
-
--- We want the last dash split item as our module path name
-    install_name = str
 
     i = i+1
   end
+else
+  print("Error: Could not find valid package name in 'metadata.json'")
 end
 
 }
@@ -87,7 +97,7 @@ end
 local version_match = string.match(metadata, '"version":%s+"(.-)"%s*,')
 
 if version_match then
-  module_version = version_match
+  package_version = version_match
 end
 
 }
@@ -144,7 +154,7 @@ if rel_file then
     is_blank = string.match(line, "^%s*$")
 
     if not (is_comment or is_blank) then
-      module_release = line
+      package_release = line
       break
     end
   end
@@ -167,8 +177,8 @@ if req_file then
 end
 }
 
-%define install_name %{lua: print(install_name)}
-%define base_name %{lua: print(module_name)}
+%define module_name %{lua: print(module_name)}
+%define base_name %{lua: print(package_name)}
 
 %{lua:
 -- Determine which Variant we are going to build
@@ -212,15 +222,15 @@ else
 end
 }
 
-Summary:   %{install_name} Puppet Module
+Summary:   %{module_name} Puppet Module
 %if 0%{?_variant:1}
 Name:      %{base_name}-%{_variant}
 %else
 Name:      %{base_name}
 %endif
 
-Version:   %{lua: print(module_version)}
-Release:   %{lua: print(module_release)}
+Version:   %{lua: print(package_version)}
+Release:   %{lua: print(package_release)}
 License:   %{lua: print(module_license)}
 Group:     Applications/System
 Source:    %{base_name}-%{version}-%{release}.tar.gz
@@ -229,12 +239,32 @@ BuildRoot: %{_tmppath}/%{base_name}-%{version}-%{release}-buildroot
 BuildArch: noarch
 
 %if "%{variant}" == "pe"
-Requires: pe-puppet
+Requires: pe-puppet >= 3.8.6
 %else
-Requires: puppet
+Requires: puppet >= 3.8.6
 %endif
+Requires: pupmod-simp-simplib >= 1.2.2
+Requires: pupmod-puppetlabs-stdlib >= 4.9.0
+Requires: pupmod-puppetlabs-stdlib < 6.0.0
 
 %{lua: print(module_requires)}
+
+Provides: pupmod-%{lua: print(module_name)} = %{lua: print(package_version .. "-" .. package_release)}
+Obsoletes: pupmod-%{lua: print(module_name)} < %{lua: print(package_version .. "-" .. package_release)}
+
+%{lua:
+
+  -- This is a workaround for the 'simp-rsync' real RPM conflict but is
+  -- required by some external modules.
+  -- This should be removed when SIMP 6 is stable
+
+  author_rpm_name = module_author .. "-" .. module_name
+
+  if author_rpm_name ~= 'simp-rsync' then
+    print("Provides: " .. author_rpm_name .. " = " .. package_version .. "-" .. package_release .. "\\n")
+    print("Obsoletes: " .. author_rpm_name .. " < " .. package_version .. "-" .. package_release ..  "\\n")
+  end
+}
 
 Prefix: %{_sysconfdir}/environments/simp/modules
 
@@ -260,7 +290,7 @@ rm -rf log
 
 curdir=`pwd`
 dirname=`basename $curdir`
-cp -r ../$dirname %{buildroot}/%{prefix}/%{install_name}
+cp -r ../$dirname %{buildroot}/%{prefix}/%{module_name}
 
 %clean
 [ "%{buildroot}" != "/" ] && rm -rf %{buildroot}
@@ -269,7 +299,7 @@ mkdir -p %{buildroot}/%{prefix}
 
 %files
 %defattr(0640,root,%{puppet_user},0750)
-%{prefix}/%{install_name}
+%{prefix}/%{module_name}
 
 %changelog
 %{lua:
@@ -284,9 +314,9 @@ default_changelog = [===[
 
 default_lookup_table = {
   date = os.date("%a %b %d %Y"),
-  version = module_version,
-  release = module_release,
-  name = module_name
+  version = package_version,
+  release = package_release,
+  name = package_name
 }
 
 changelog = io.open(src_dir .. "/CHANGELOG","r")
