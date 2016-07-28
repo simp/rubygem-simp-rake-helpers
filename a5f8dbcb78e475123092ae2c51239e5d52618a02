@@ -16,6 +16,24 @@
       "revId": "a5f8dbcb78e475123092ae2c51239e5d52618a02",
       "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
       "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "baa041b7_6e0ae37a",
+        "filename": "lib/simp/rake/helpers/rpm_spec.rb",
+        "patchSetId": 4
+      },
+      "lineNbr": 251,
+      "author": {
+        "id": 1005143
+      },
+      "writtenOn": "2016-07-28T05:00:25Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "baa041b7_59148ee7",
+      "revId": "a5f8dbcb78e475123092ae2c51239e5d52618a02",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
     }
   ]
 }
