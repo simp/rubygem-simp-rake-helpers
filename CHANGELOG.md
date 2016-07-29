@@ -1,3 +1,7 @@
+### 2.4.4 / 2016-07-29
+* Fixed a circular dependency potential in the requires for simplib and stdlib
+* Updated the spec tests to work more cleanly
+
 ### 2.4.3 / 2016-07-22
 * Update all packages to use a consistent naming scheme and obsolete all that
   came before.

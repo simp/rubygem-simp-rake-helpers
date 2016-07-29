@@ -243,9 +243,15 @@ Requires: pe-puppet >= 3.8.6
 %else
 Requires: puppet >= 3.8.6
 %endif
+
+%if ("%{base_name}" != "pupmod-simp-simplib") && ("%{base_name}" != "pupmod-puppetlabs-stdlib")
 Requires: pupmod-simp-simplib >= 1.2.6
+%endif
+
+%if "%{base_name}" != "pupmod-puppetlabs-stdlib"
 Requires: pupmod-puppetlabs-stdlib >= 4.9.0
 Requires: pupmod-puppetlabs-stdlib < 6.0.0
+%endif
 
 %{lua: print(module_requires)}
 
