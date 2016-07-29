@@ -5,7 +5,8 @@ describe 'rake pkg:rpm' do
 
   run_cmd = 'runuser build_user -l -c '
 
-  let(:pkg_output_dir) { '/host_files/spec/acceptance/files/testpackage' }
+  let(:pkg_input_dir) { '/host_files/spec/acceptance/files/testpackage' }
+  let(:pkg_output_dir) { '/home/build_user/host_files/spec/acceptance/files/testpackage' }
   let(:pkg_dest) { File.join(pkg_output_dir, 'dist/pupmod-simp-testpackage-0.0.1-2016.noarch.rpm') }
 
   dists = ['6', '7']
@@ -14,13 +15,20 @@ describe 'rake pkg:rpm' do
     context 'with SIMP_RAKE_MOCK_cleanup=no' do
       before :each do
         on host, 'mkdir -p -m 0755 /var/lib/mock'
-        on host, 'rm -rf /var/lib/mock/* /host_files/spec/acceptance/files/testpackage/dist',
-                        :accept_all_exit_codes => true
+        on host, 'rm -rf /var/lib/mock/*', :accept_all_exit_codes => true
       end
 
       context 'prep' do
+        it 'should have a local copy of the test directory' do
+          on host, %(#{run_cmd} "cp -a /host_files ~")
+        end
+
         it 'should set up the Ruby gems' do
           on host, %(#{run_cmd} "cd #{pkg_output_dir}; rvm use default; bundle update")
+        end
+
+        it 'should have a clean working environment' do
+          on host, %(#{run_cmd} "cd #{pkg_output_dir}; rake clean")
         end
       end
 
@@ -35,7 +43,9 @@ describe 'rake pkg:rpm' do
             on host, %(test -f #{pkg_dest})
 
             test_name 'produces RPM with appropriate dependencies'
+            on host, %(rpm -qpR #{pkg_dest} | grep -q pupmod-simp-foo)
             on host, %(rpm -qpR #{pkg_dest} | grep -q pupmod-simp-simplib)
+            on host, %(rpm -qpR #{pkg_dest} | grep -q pupmod-puppetlabs-stdlib)
             on host, %(rpm -qp --provides #{pkg_dest} | grep -q "^pupmod-testpackage = 0.0.1-2016$")
             on host, %(rpm -qp --provides #{pkg_dest} | grep -q "^simp-testpackage = 0.0.1-2016$")
             on host, %(rpm -qp --queryformat "[%{obsoletes}\\n]" #{pkg_dest} | grep -q "^pupmod-testpackage")
