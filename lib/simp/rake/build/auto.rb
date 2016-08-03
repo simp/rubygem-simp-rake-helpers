@@ -94,7 +94,7 @@ module Simp::Rake::Build
           do_merge         = ENV['SIMP_BUILD_unpack_merge'] != 'no'
           do_prune         = ENV['SIMP_BUILD_prune'] != 'no' ? 'true' : 'false'
           do_checkout      = ENV['SIMP_BUILD_checkout'] != 'no'
-          do_bundle        = ENV['SIMP_BUILD_bundle'] != 'no'
+          do_bundle        = ENV['SIMP_BUILD_bundle'] == 'yes' ? true : false
           do_unpack        = ENV['SIMP_BUILD_unpack'] != 'no'
           full_iso_name    = ENV.fetch('SIMP_BUILD_iso_name', false)
           iso_name_tag     = ENV.fetch('SIMP_BUILD_iso_tag', false)
