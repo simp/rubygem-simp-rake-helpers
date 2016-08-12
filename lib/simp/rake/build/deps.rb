@@ -69,9 +69,10 @@ class R10KHelper
         FileUtils.mkdir_p(R10K::Git::Cache.settings[:cache_root])
       end
 
-      r10k = R10K::Puppetfile.new(Dir.pwd, nil, puppetfile).load!
+      r10k = R10K::Puppetfile.new(Dir.pwd, nil, puppetfile)
+      r10k.load!
 
-      @modules = r10k.entries.collect do |mod|
+      @modules = r10k.modules.collect do |mod|
         mod_status = mod.repo.repo.dirty?
 
         mod = {
@@ -200,7 +201,7 @@ module Simp::Rake::Build
             unless mod[:status] == :unknown
               # Since r10k is destructive, we're enumerating all valid states
               # here
-              if [:absent, :mismatched, :outdated].include?(mod[:r10k_module].status)
+              if [:absent, :mismatched, :outdated, :insync].include?(mod[:r10k_module].status)
                 unless mod[:r10k_cache].synced?
                   mod[:r10k_cache].sync
                 end
