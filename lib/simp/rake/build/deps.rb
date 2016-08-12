@@ -69,9 +69,10 @@ class R10KHelper
         FileUtils.mkdir_p(R10K::Git::Cache.settings[:cache_root])
       end
 
-      r10k = R10K::Puppetfile.new(Dir.pwd, nil, puppetfile).load!
+      r10k = R10K::Puppetfile.new(Dir.pwd, nil, puppetfile)
+      r10k.load!
 
-      @modules = r10k.entries.collect do |mod|
+      @modules = r10k.modules.collect do |mod|
         mod_status = mod.repo.repo.dirty?
 
         mod = {
