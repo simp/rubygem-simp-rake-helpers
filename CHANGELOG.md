@@ -1,3 +1,6 @@
+### 2.4.6 / 2016-08-03
+* Fix a broken method call betweek `r10k` 2.4.0 and `R10KHelper.new()`
+
 ### 2.4.5 / 2016-08-03
 * No longer run the recursive Bundle by default
 
