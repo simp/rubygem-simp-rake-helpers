@@ -41,7 +41,7 @@ describe Simp::RPM do
       expect( info.fetch( :version ) ).to eq '1'
     end
 
-    it "extracts coreect information from the first entry from a multi-package .spec file" do
+    it "extracts correct information from the first entry from a multi-package .spec file" do
       info = Simp::RPM.get_info(@m_spec_file)
       expect( info.fetch( :name    ) ).to eq 'testpackage-multi-1'
       expect( info.fetch( :version ) ).to eq '1'

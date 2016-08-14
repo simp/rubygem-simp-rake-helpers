@@ -237,7 +237,7 @@ module Simp::Rake::Build
           mods_with_changes = {}
 
           r10k_helper.each_module do |mod|
-            unless File.directory?(mod[:path])
+            if File.exists?(mod[:path]) && !File.directory?(mod[:path])
               $stderr.puts("Warning: '#{mod[:path]}' is not a module...skipping")
               next
             end

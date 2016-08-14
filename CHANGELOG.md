@@ -1,4 +1,7 @@
-### 2.4.6 / 2016-08-03
+### 2.4.7 / 2016-08-14
+* Removed unecessary `deps:checkout` warnings from fresh (empty) checkouts
+
+### 2.4.6 / 2016-08-11
 * Fix a broken method call between `r10k` 2.4.0 and `R10KHelper.new()`
 * Add `:insync` status to acceptable module statuses for `deps:checkout`
 
