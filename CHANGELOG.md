@@ -1,3 +1,8 @@
+### 2.4.8 / 2016-08-18
+* If `SIMP_BUILD_skip_if_built` is true, Puppet module rpms which are built locally
+  (dist/) are no longer re-built during tar:build.
+* `SIMP_BUILD_skip_if_built` defaults to false.
+
 ### 2.4.7 / 2016-08-14
 * Removed unecessary `deps:checkout` warnings from fresh (empty) checkouts
 
