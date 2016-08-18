@@ -599,17 +599,38 @@ protect=1
             Dir.chdir(dir) do
               if File.exist?('Rakefile')
                 unique_build = (get_cpu_limit != 1)
-                %x{rake pkg:rpm[#{chroot},unique_build,#{snapshot_release}]}
 
-                # Glob all generated rpms, and add their metadata to a result array.
-                pkginfo = Hash.new
-                Dir.glob('dist/*.rpm') do |rpm|
-                  if not rpm =~ /.*.src.rpm/ then
-                    # get_info from each generated rpm, not the spec file, so macros in the
-                    # metadata have already been resolved in the mock chroot.
-                    result << Simp::RPM.get_info(rpm)
-                  end
+                ## TODO:
+                # 1. Document this env variable as a useful debugging tool for developers compiling the ISO.
+                # 2. Determine what to do when multiple rpms are built.
+
+                def dist_rpms
+                  rpms = Dir.glob('dist/*.rpm').delete_if{|x| x.end_with?('src.rpm')}
                 end
+
+                def ENV_map_to_bool(var)
+                  map = true
+                  map = false if %r{N|no|0|false}i.match(var) or var.nil?
+                  map
+                end
+
+                skip_if_built = ENV_map_to_bool(ENV.fetch( 'SIMP_BUILD_skip_if_built', 'no' ))
+
+                # Build the rpm if:
+                # 1. skip_if_built = false
+                # 2. skip_if_built = true, but the rpm does not exist
+                if (not skip_if_built) or (skip_if_built and dist_rpms.empty?)
+                  %x{rake pkg:rpm[#{chroot},unique_build,#{snapshot_release}]}
+                else
+                  puts "INFO: rpm(s) #{dist_rpms.join(', ')} found, skipping..."
+                end
+
+                # Use get_info to add rpm metadata to a result list.
+                dist_rpms.each do |rpm|
+                  result << Simp::RPM.get_info(rpm)
+                end
+
+              # If the Rakefile does not exist...
               else
                 puts "Warning: Could not find Rakefile in '#{dir}'"
               end
