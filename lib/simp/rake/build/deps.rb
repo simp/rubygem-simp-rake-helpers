@@ -201,7 +201,13 @@ module Simp::Rake::Build
             unless mod[:status] == :unknown
               # Since r10k is destructive, we're enumerating all valid states
               # here
-              if [:absent, :mismatched, :outdated, :insync].include?(mod[:r10k_module].status)
+              if [
+                  :absent,
+                  :mismatched,
+                  :outdated,
+                  :insync,
+                  :dirty
+              ].include?(mod[:r10k_module].status)
                 unless mod[:r10k_cache].synced?
                   mod[:r10k_cache].sync
                 end
@@ -237,7 +243,7 @@ module Simp::Rake::Build
           mods_with_changes = {}
 
           r10k_helper.each_module do |mod|
-            if File.exists?(mod[:path]) && !File.directory?(mod[:path])
+            unless File.directory?(mod[:path])
               $stderr.puts("Warning: '#{mod[:path]}' is not a module...skipping")
               next
             end

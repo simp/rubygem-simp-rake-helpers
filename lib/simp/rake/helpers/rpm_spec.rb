@@ -18,10 +18,18 @@ class Simp::Rake::Helpers
 -- Example:
 --   rpmbuild -D 'pup_module_info_dir /home/user/project/puppet_module' -ba SPECS/specfile.spec
 --
+-- If this is not found, we will look in %{_sourcedir} for the files and fall
+-- back to the current directory
+--
 
 src_dir = rpm.expand('%{pup_module_info_dir}')
+
 if string.match(src_dir, '^%%') or (posix.stat(src_dir, 'type') ~= 'directory') then
-  src_dir = './'
+  src_dir = rpm.expand('%{_sourcedir}')
+
+  if (posix.stat((src_dir .. "/metadata.json"), 'type') ~= 'regular') then
+    src_dir = './'
+  end
 end
 
 -- These UNKNOWN entries should break the build if something bad happens
@@ -30,8 +38,11 @@ package_name = "UNKNOWN"
 package_version = "UNKNOWN"
 module_license = "UNKNOWN"
 
+--
 -- Default to 2016
 -- This was done due to the change in naming scheme across all of the modules.
+--
+
 package_release = '2016'
 
 }
@@ -233,7 +244,22 @@ Version:   %{lua: print(package_version)}
 Release:   %{lua: print(package_release)}
 License:   %{lua: print(module_license)}
 Group:     Applications/System
-Source:    %{base_name}-%{version}-%{release}.tar.gz
+Source0:    %{base_name}-%{version}-%{release}.tar.gz
+Source1:   %{lua: print("metadata.json")}
+%{lua:
+  -- Include our sources as appropriate
+  changelog = io.open(src_dir .. "/CHANGELOG","r")
+  if changelog then
+    print("Source2: " .. "CHANGELOG")
+  end
+
+  if rel_file then
+    print("Source3: " .. "build/rpm_metadata/release")
+  end
+  if req_file then
+    print("Source4: " .. "build/rpm_metadata/requires")
+  end
+}
 URL:       %{lua: print(module_source)}
 BuildRoot: %{_tmppath}/%{base_name}-%{version}-%{release}-buildroot
 BuildArch: noarch
