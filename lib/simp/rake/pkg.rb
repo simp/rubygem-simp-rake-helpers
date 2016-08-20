@@ -58,9 +58,12 @@ module Simp::Rake
 
         @spec_tempfile = File.open(File.join(@pkg_tmp_dir, "#{@pkg_name}.spec"), 'w')
         @spec_tempfile.write(Simp::Rake::Helpers::RPM_Spec.template)
-        @spec_tempfile.flush
 
         @spec_file = @spec_tempfile.path
+
+        @spec_tempfile.flush
+        @spec_tempfile.close
+
         FileUtils.chmod(0640, @spec_file)
       end
 
@@ -105,7 +108,7 @@ module Simp::Rake
     def initialize_spec_info(chroot, unique)
       unless @spec_info
         # This gets the resting spec file and allows us to pull out the name
-        @spec_info   = Simp::RPM.get_info( @spec_file )
+        @spec_info   = Simp::RPM.get_info(@spec_file)
         @spec_info_dir = @base_dir
 
         if chroot
@@ -121,9 +124,8 @@ module Simp::Rake
           mock_cmd = "#{mock_cmd} -D 'pup_module_info_dir #{rand_tmpdir}'"
 
           sh %Q(#{mock_cmd} --chroot 'mkdir -p #{rand_tmpdir}')
-          sh %Q(#{mock_cmd} --chroot 'sed -i /pup_module_info_dir/d ~/.rpmmacros')
 
-          @puppet_module_info_files .each do |copy_in|
+          @puppet_module_info_files.each do |copy_in|
             if File.exist?(copy_in)
               sh %Q(#{mock_cmd} --copyin #{copy_in} #{rand_tmpdir})
             end
@@ -137,8 +139,6 @@ module Simp::Rake
           }
 
           @spec_info = Simp::RPM.get_info(@spec_file, info_hash)
-
-          @spec_info_dir = rand_tmpdir
         end
 
         @dir_name       = "#{@spec_info[:name]}-#{@spec_info[:version]}"
@@ -264,8 +264,15 @@ module Simp::Rake
 
             srpms = Dir.glob(%(#{@pkg_dir}/#{@spec_info[:name]}#{suffix}-#{@spec_info[:version]}-#{@spec_info[:release]}#{l_date}.*.src.rpm))
 
-            if require_rebuild?(@tar_dest,srpms)
-              cmd = %Q(#{mock_cmd} --no-clean --root #{args.chroot} #{mocksnap} --buildsrpm --spec #{@spec_file} --sources #{@pkg_dir})
+            if require_rebuild?(@tar_dest,srpms) || require_rebuild?("#{@base_dir}/metadata.json")
+
+              @puppet_module_info_files.each do |file|
+                tgt_file = File.join(@pkg_dir, File.basename(file))
+                FileUtils.rm_rf(tgt_file) if File.exist?(tgt_file)
+                FileUtils.cp_r(file, @pkg_dir) if File.exist?(file)
+              end
+
+              cmd = %Q(#{mock_cmd} --root #{args.chroot} #{mocksnap} --buildsrpm --spec #{@spec_file} --sources #{@pkg_dir})
               if suffix
                 cmd += %( -D "_variant #{variant}")
               end
@@ -387,7 +394,6 @@ module Simp::Rake
       require_rebuild
     end
 
-
     # Run some pre-checks to make sure that mock will work properly.
     #
     # chroot   = name of mock chroot to use
@@ -418,7 +424,8 @@ module Simp::Rake
       # if true, restrict yum to the chroot's local yum cache (defaults to false)
       mock_offline = ENV.fetch( 'SIMP_RAKE_MOCK_OFFLINE', 'N' ).chomp.index( %r{^(1|Y|true|yes)$} ) || false
 
-      mock_cmd =  "#{mock} -D 'pup_module_info_dir #{@spec_info_dir}' --quiet"
+      #mock_cmd =  "#{mock} -D 'pup_module_info_dir #{@spec_info_dir}' --quiet"
+      mock_cmd =  "#{mock} --quiet"
       mock_cmd += " --uniqueext=#{unique_ext}" if unique
       mock_cmd += ' --offline'                 if mock_offline
 
