@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "baa041b7_155554f9",
+        "filename": "lib/simp/rake/build/deps.rb",
+        "patchSetId": 2
+      },
+      "lineNbr": 246,
+      "author": {
+        "id": 1005143
+      },
+      "writtenOn": "2016-08-22T23:12:31Z",
+      "side": 1,
+      "message": "Was the `File.exists?(mod[:path])` check causing problems?",
+      "revId": "4816bad69eacd5f938aa0c1f976e50b718fb6051",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    }
+  ]
+}
