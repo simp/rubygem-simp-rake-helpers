@@ -371,6 +371,10 @@ module Simp::Rake::Build
 
         desc "Sign the RPMs."
         task :signrpms,[:key,:rpm_dir,:force] => [:prep,:key_prep,:mock_prep] do |t,args|
+          unless File.executable?('/usr/bin/rpmsign')
+            raise Exception, 'Could not find rpmsign on your system. Exiting.'
+          end
+
           args.with_defaults(:key => 'dev')
           args.with_defaults(:rpm_dir => "#{@build_dir}/SIMP/*RPMS")
           args.with_default(:force => false)
