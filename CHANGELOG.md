@@ -1,3 +1,7 @@
+### 2.5.2 / 2016-08-31
+* Sanity check pkg:rpmsign for executable availability
+* Update `mock_pre_check` sanity check to use `which()`
+
 ### 2.5.1 / 2016-08-30
 * Fixed the RPM spec template so that it properly picks up the requires and
   release files
