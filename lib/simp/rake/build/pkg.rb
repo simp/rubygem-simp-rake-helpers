@@ -371,6 +371,8 @@ module Simp::Rake::Build
 
         desc "Sign the RPMs."
         task :signrpms,[:key,:rpm_dir,:force] => [:prep,:key_prep,:mock_prep] do |t,args|
+          which('rpmsign') || raise(Exception, 'Could not find rpmsign on your system. Exiting.')
+
           args.with_defaults(:key => 'dev')
           args.with_defaults(:rpm_dir => "#{@build_dir}/SIMP/*RPMS")
           args.with_default(:force => false)
@@ -685,7 +687,7 @@ protect=1
         # FIXME: unique_name is never called
         # FIXME: which is fortunate, because PKGNAME is never defined
         def mock_pre_check(chroot,unique_name=false,init=true)
-          raise(Exception,"Could not find mock on your system, exiting") unless File.executable?('/usr/bin/mock')
+          which('mock') || raise(Exception, 'Could not find mock on your system, exiting')
 
           mock_configs = get_mock_configs
 
