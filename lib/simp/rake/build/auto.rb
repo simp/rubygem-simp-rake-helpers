@@ -27,16 +27,16 @@ module Simp::Rake::Build
 
         Arguments:
           * :release     => SIMP release to build (e.g., '5.1.X')
-          - :iso_paths   => path to source ISO(s) (colon-delimited list of files/directories) [Default: '.']
+          - :iso_paths   => path to source ISO(s) and/or directories  [Default: '.']
+                            NOTE: colon-delimited list
           - :tarball     => SIMP build tarball file; if given, skips tar build.  [Default: 'false']
           - :output_dir  => path to write SIMP ISO.   [Default: './SIMP_ISO']
           - :do_checksum => Use sha256sum checksum to compare each ISO.  [Default: 'false']
           - :key_name    => Key name to sign packages [Default: 'dev']
-          - :packer_vars => Write a packer vars.json to go with this ISO [Default: 'true']
-          - :verbose     => Enable verbose reporting. [Default: 'false']
 
         ENV vars:
-          - SIMP_BUILD_staging_dir    => Path to stage big build assets [Default: './SIMP_ISO_STAGING']
+          - SIMP_BUILD_staging_dir    => Path to stage big build assets
+                                         [Default: './SIMP_ISO_STAGING']
           - SIMP_BUILD_rm_staging_dir => 'yes' forcibly removes the staging dir before starting
           - SIMP_BUILD_force_dirty    => 'yes' tries to checks out subrepos even if dirty
           - SIMP_BUILD_docs           => 'yes' builds & includes documentation
@@ -47,6 +47,8 @@ module Simp::Rake::Build
           - SIMP_BUILD_prune          => 'no' passes :prune=>false to iso:build
           - SIMP_BUILD_iso_name       => Renames the output ISO filename [Default: false]
           - SIMP_BUILD_iso_tag        => Appended to the output ISO's filename [Default: false]
+          - SIMP_BUILD_verbose        => 'yes' enables verbose reporting. [Default: 'no']
+          - SIMP_BUILD_packer_vars    => Write a packer vars.json to go with this ISO [Default: 'yes']
 
         Notes:
           - To skip `tar:build` (including `pkg:build`), use the `tarball` argument
@@ -59,7 +61,7 @@ module Simp::Rake::Build
                       :do_checksum,
                       :key_name,
                       :packer_vars,
-                      :verbose] do |t, args|
+                     ] do |t, args|
           # set up data
           # --------------------------------------------------------------------------
 
@@ -69,8 +71,6 @@ module Simp::Rake::Build
             :output_dir  => '',
             :do_checksum => 'false',
             :key_name    => 'dev',
-            :packer_vars => 'true',
-            :verbose     => 'false',
           )
 
           # locals
@@ -82,8 +82,8 @@ module Simp::Rake::Build
           key_name         = args[:key_name]
           staging_dir      = ENV.fetch('SIMP_BUILD_staging_dir',
                                         File.expand_path( 'SIMP_ISO_STAGING', Dir.pwd ))
-          do_packer_vars   = (args.packer_vars == 'false' ? false : true)
-          verbose          = (args.verbose == 'false' ? false : true)
+          do_packer_vars   = ENV.fetch('SIMP_BUILD_packer_vars', 'yes') == 'yes'
+          verbose          = ENV.fetch('SIMP_BUILD_verbose',     'no') == 'yes'
 
           yaml_file        = File.expand_path('build/release_mappings.yaml', @base_dir)
           pwd              = Dir.pwd
@@ -238,6 +238,8 @@ module Simp::Rake::Build
           puts '='*80
           puts
 
+          ENV['SIMP_ISO_verbose'] = 'yes' if verbose
+          ENV['SIMP_PKG_verbose'] = 'yes' if verbose
           Rake::Task['iso:build'].invoke(tarball,staging_dir,do_prune)
 
 

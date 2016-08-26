@@ -40,18 +40,11 @@ module Simp::Rake::Build
 
           verbose = args.verbose == 'false' ? false : true
 
-          # Grab all currently tracked submodules.
-          r10k = R10KHelper.new("Puppetfile.#{args[:method]}")
-          mod_list =  []
-          r10k.each_module do |mod|
-            path = mod[:path]
-              if Dir.exists?(path)
-                  mod_list.push(path)
-              end
-          end
+          load_puppetfile(args.method)
 
+          # Grab all currently tracked submodules.
           failed_mods = Parallel.map(
-            mod_list,
+            module_paths,
             :in_processes => 1,
             :progress => t.name
           ) do |mod|
@@ -64,8 +57,11 @@ module Simp::Rake::Build
                 puts "Cleaning Gemfile.lock from #{mod}" if verbose
                 rm('Gemfile.lock')
               end
-              # Any ruby code that opens a subshell will automatically use the current Bundler environment.
-              # Clean env will give bundler the environment present before Bundler is activated.
+              # Any ruby code that opens a subshell will automatically use the
+              # current Bundler environment.
+              #
+              # Clean env will give bundler the environment present before
+              # Bundler is activated.
               ::Bundler.with_clean_env do
                 out = %x(bundle #{args.action} 2>&1)
                 status = $?.success?

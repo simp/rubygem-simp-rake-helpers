@@ -11,6 +11,28 @@ module Simp::Rake
   require 'simp/rpm'
   require 'simp/rake/pkg'
 
+  attr_reader(:puppetfile)
+  attr_reader(:module_paths)
+
+  def load_puppetfile(method='tracking')
+    unless @puppetfile
+
+      @puppetfile = R10KHelper.new("Puppetfile.#{method}")
+      @module_paths = []
+
+      @puppetfile.each_module do |mod|
+        path = mod[:path]
+        if Dir.exists?(path)
+          @module_paths.push(path)
+        end
+      end
+
+      if @module_paths.empty?
+        fail("Error: Could not find any module paths in 'Puppetfile.#{method}'")
+      end
+    end
+  end
+
   # Force the encoding to something that Ruby >= 1.9 is happy with
   def encode_line(line)
     if Gem::Version.new(RUBY_VERSION) < Gem::Version.new('1.9')
