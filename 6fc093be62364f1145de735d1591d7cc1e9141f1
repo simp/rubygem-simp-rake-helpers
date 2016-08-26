@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "baa041b7_e8c8ce58",
+        "filename": "lib/simp/rake/build/pkg.rb",
+        "patchSetId": 1
+      },
+      "lineNbr": 374,
+      "author": {
+        "id": 1004834
+      },
+      "writtenOn": "2016-08-26T02:34:30Z",
+      "side": 1,
+      "message": "The main rake.rb file has a \u0027which\u0027 command defined. If possible, use that instead of hard coding the path (yeah, I know we\u0027re not consistent across the board here but it would be nice to catch them as we can).\n\nI\u0027m OK with this as-is if this proves to be troublesome.",
+      "revId": "6fc093be62364f1145de735d1591d7cc1e9141f1",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    }
+  ]
+}
