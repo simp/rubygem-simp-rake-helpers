@@ -402,6 +402,7 @@ module Simp::Rake
     #
     # Returns a String that contains the appropriate mock command.
     def mock_pre_check( chroot, unique_ext, unique=false, init=true )
+      _verbose = ENV.fetch('SIMP_PKG_verbose','no') == 'yes'
 
       mock = ENV['mock'] || '/usr/bin/mock'
 
@@ -453,7 +454,9 @@ module Simp::Rake
         end
       end
 
-      return mock_cmd + " --no-clean --no-cleanup-after --resultdir=#{@pkg_dir} --disable-plugin=package_state"
+      mock_cmd += " --no-clean --no-cleanup-after --resultdir=#{@pkg_dir} --disable-plugin=package_state"
+      puts "------ pkg: mock cmd = `#{mock_cmd}`" if _verbose
+      return mock_cmd
     end
 
     def is_mock_initialized( mock_cmd, chroot )
