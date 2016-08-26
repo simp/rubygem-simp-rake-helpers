@@ -27,6 +27,8 @@ module Simp::Rake::Build
         # [:exclude_dirs] Array of directories to not remove any packages from
         # [:exclude_pkgs] Array of packages to not remove
         def prune_packages(from_dir,exclude_dirs,exclude_pkgs,mkrepo='createrepo -p',use_hack=true)
+          verbose = ENV.fetch('SIMP_ISO_verbose','no') == 'yes'
+
           $stderr.puts "Starting to prune..."
           Dir.chdir(from_dir) do
             prune_count = 0
@@ -57,7 +59,7 @@ module Simp::Rake::Build
                 end
 
                 unless exclude_pkgs.include?(pkg)
-                  rm(path)
+                  rm(path, :verbose => verbose)
                   prune_count += 1
                 end
               end
@@ -92,6 +94,9 @@ module Simp::Rake::Build
            directories. Default is the current directory.
        * :prune - Flag for whether unwanted packages should be pruned prior to
            building the ISO. Default is true.
+
+       ENV vars:
+         - Set `SIMP_ISO_verbose=yes` to report file operations as they happen.
            EOM
         task :build,[:tarball,:unpacked_dvds,:prune] do |t,args|
           args.with_defaults(:unpacked_dvds => "#{@run_dir}", :prune => 'true')
@@ -104,6 +109,8 @@ module Simp::Rake::Build
               fail("Error: Could not find tarball at '#{tarball}'!")
             end
           end
+
+          verbose = ENV.fetch('SIMP_ISO_verbose','no') == 'yes'
 
           tarfiles = File.directory?(tarball) ?
             Dir.glob("#{tarball}/*.tar.gz") : [tarball]
@@ -152,7 +159,7 @@ module Simp::Rake::Build
 
               @simp_dvd_dirs.each do |clean_dir|
                 if File.directory?("#{dir}/#{clean_dir}")
-                  rm_rf("#{dir}/#{clean_dir}")
+                  rm_rf("#{dir}/#{clean_dir}", :verbose => verbose)
                 elsif File.file?("#{dir}/#{clean_dir}")
                   fail("Error: #{dir}/#{clean_dir} is a file, expecting directory!")
                 end
@@ -223,7 +230,7 @@ module Simp::Rake::Build
                   target_file = File.join(rpm_arch,File.basename(rpm))
                   rm_f(target_file) if File.exist?(target_file)
 
-                  cp(rpm,rpm_arch)
+                  cp(rpm,rpm_arch, :verbose => verbose)
                 end
 
                 fail("Could not find architecture '#{arch}' in the SIMP distribution") unless File.directory?(arch)
@@ -239,7 +246,7 @@ module Simp::Rake::Build
                         next if Pathname.new(source_rpm).realpath == Pathname.new(link_target).realpath
                       end
 
-                      ln_sf(source_rpm,link_target)
+                      ln_sf(source_rpm,link_target, :verbose => verbose)
                     end
                   end
 
