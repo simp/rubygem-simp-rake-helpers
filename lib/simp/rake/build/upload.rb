@@ -1,5 +1,6 @@
 #!/usr/bin/rake -T
 require 'open3'
+require 'simp'
 require 'simp/rpm'
 require 'simp/rake/build/constants'
 
@@ -10,7 +11,10 @@ module Simp::Rake::Build
   class Upload < ::Rake::TaskLib
     include Simp::Rake::Build::Constants
 
+    attr_reader :log
+
     def initialize( base_dir )
+      @log = Logging.logger[self]
       init_member_vars( base_dir )
       @mock = ENV['mock'] || '/usr/bin/mock'
       define_tasks

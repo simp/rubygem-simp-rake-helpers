@@ -1,3 +1,4 @@
+require 'simp'
 require 'simp/rake'
 require 'simp/rake/build/constants'
 
@@ -9,7 +10,10 @@ module Simp::Rake::Build
     include Simp::Rake
     include Simp::Rake::Build::Constants
 
+    attr_reader :log
+
     def initialize( base_dir )
+      @log = Logging.logger[self]
       init_member_vars( base_dir )
       define_tasks
     end

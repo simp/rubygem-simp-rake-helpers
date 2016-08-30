@@ -6,6 +6,7 @@ require 'puppet-lint/tasks/puppet-lint'
 require 'simp/rake/pkg'
 require 'simp/rake/beaker'
 require 'parallel_tests/cli'
+require 'simp'
 require 'simp/rake/fixtures'
 
 module Simp; end
@@ -14,8 +15,11 @@ module Simp::Rake::Pupmod; end
 
 # Rake tasks for SIMP Puppet modules
 class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
+  attr_reader :log
+
   def initialize( base_dir = Dir.pwd )
     @base_dir = base_dir
+    @log      = Logging.logger[self]
     Dir[ File.join(File.dirname(__FILE__),'*.rb') ].each do |rake_file|
       next if rake_file == __FILE__
       require rake_file

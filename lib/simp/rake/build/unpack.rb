@@ -1,4 +1,5 @@
 require 'ruby-progressbar'
+require 'simp'
 require 'simp/rake/build/constants'
 
 module Simp; end
@@ -8,7 +9,10 @@ module Simp::Rake::Build
   class Unpack < ::Rake::TaskLib
     include Simp::Rake::Build::Constants
 
+    attr_reader :log
+
     def initialize( base_dir )
+      @log = Logging.logger[self]
       init_member_vars( base_dir )
       @mock = ENV['mock'] || '/usr/bin/mock'
       define_tasks
