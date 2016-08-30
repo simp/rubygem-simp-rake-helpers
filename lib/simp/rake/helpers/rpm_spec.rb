@@ -158,7 +158,13 @@ end
 
 -- First, the Release Number
 
-local rel_file = io.open(src_dir .. "/build/rpm_metadata/release", "r")
+rel_file = io.open(src_dir .. "/build/rpm_metadata/release", "r")
+
+if not rel_file then
+  -- Need this for the SRPM case
+  rel_file = io.open(src_dir .. "/release", "r")
+end
+
 if rel_file then
   for line in rel_file:lines() do
     is_comment = string.match(line, "^%s*#")
@@ -176,7 +182,13 @@ end
 %{lua:
 
 -- Next, the Requirements
-local req_file = io.open(src_dir .. "/build/rpm_metadata/requires", "r")
+req_file = io.open(src_dir .. "/build/rpm_metadata/requires", "r")
+
+if not req_file then
+  -- Need this for the SRPM case
+  req_file = io.open(src_dir .. "/requires", "r")
+end
+
 if req_file then
   for line in req_file:lines() do
     valid_line = (string.match(line, "^Requires: ") or string.match(line, "^Obsoletes: ") or string.match(line, "^Provides: "))
@@ -235,7 +247,7 @@ end
 
 Summary:   %{module_name} Puppet Module
 %if 0%{?_variant:1}
-Name:      %{base_name}-%{_variant}
+Name:      %{base_name}-%{variant}
 %else
 Name:      %{base_name}
 %endif
@@ -250,14 +262,14 @@ Source1:   %{lua: print("metadata.json")}
   -- Include our sources as appropriate
   changelog = io.open(src_dir .. "/CHANGELOG","r")
   if changelog then
-    print("Source2: " .. "CHANGELOG")
+    print("Source2: " .. "CHANGELOG\\n")
   end
 
   if rel_file then
-    print("Source3: " .. "build/rpm_metadata/release")
+    print("Source3: " .. "release\\n")
   end
   if req_file then
-    print("Source4: " .. "build/rpm_metadata/requires")
+    print("Source4: " .. "requires\\n")
   end
 }
 URL:       %{lua: print(module_source)}

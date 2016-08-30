@@ -267,9 +267,15 @@ module Simp::Rake
             if require_rebuild?(@tar_dest,srpms) || require_rebuild?("#{@base_dir}/metadata.json")
 
               @puppet_module_info_files.each do |file|
-                tgt_file = File.join(@pkg_dir, File.basename(file))
-                FileUtils.rm_rf(tgt_file) if File.exist?(tgt_file)
-                FileUtils.cp_r(file, @pkg_dir) if File.exist?(file)
+                next unless File.exist?(file)
+
+                Find.find(file) do |path|
+                  next if File.directory?(path)
+
+                  tgt_file = File.join(@pkg_dir, File.basename(path))
+                  FileUtils.rm_rf(tgt_file) if File.exist?(tgt_file)
+                  FileUtils.cp(path, @pkg_dir) if File.exist?(path)
+                end
               end
 
               cmd = %Q(#{mock_cmd} --root #{args.chroot} #{mocksnap} --buildsrpm --spec #{@spec_file} --sources #{@pkg_dir})

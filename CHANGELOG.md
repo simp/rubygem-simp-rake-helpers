@@ -1,3 +1,8 @@
+### 2.5.1 / 2016-08-30
+* Fixed the RPM spec template so that it properly picks up the requires and
+  release files
+* This is a bit of a mess and needs to be completely refactored in the future
+
 ### 2.4.7 / 2016-08-14
 * Removed unecessary `deps:checkout` warnings from fresh (empty) checkouts
 
