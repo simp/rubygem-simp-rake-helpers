@@ -756,6 +756,7 @@ protect=1
         # FIXME: unique_name is never called
         # FIXME: which is fortunate, because PKGNAME is never defined
         def mock_pre_check(chroot,unique_name=false,init=true)
+          _verbose = ENV.fetch('SIMP_PKG_verbose','no') == 'yes'
           raise(Exception,"Could not find mock on your system, exiting") unless File.executable?('/usr/bin/mock')
 
           mock_configs = get_mock_configs
@@ -778,6 +779,7 @@ protect=1
 
           if init and not initialized
             cmd = %{#{@mock} --root #{chroot} --init}
+            puts "==== build:pkg mock cmd = `#{cmd}`" if _verbose
             sh cmd
           end
 
