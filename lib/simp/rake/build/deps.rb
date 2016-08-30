@@ -1,6 +1,7 @@
 #!/usr/bin/rake -T
 
 require 'yaml'
+require 'simp'
 
 class R10KHelper
   attr_accessor :puppetfile
@@ -11,6 +12,9 @@ class R10KHelper
 
   # Horrible, but we need to be able to manipulate the cache
   class R10K::Git::ShellGit::ThinRepository
+    attr_reader :log
+    @log = Logging.logger[self]
+
     def cache_repo
       @cache_repo
     end
@@ -57,9 +61,12 @@ class R10KHelper
     end
   end
 
+  attr_reader :log
+
   def initialize(puppetfile)
     @modules = []
     @basedir = File.dirname(File.expand_path(puppetfile))
+    @log     = Logging.logger[self]
 
     Dir.chdir(@basedir) do
 
@@ -170,8 +177,11 @@ module Simp::Rake::Build
     require 'pager'
     include Pager
 
+    attr_reader :log
+
     def initialize( base_dir )
       @base_dir = base_dir
+      @log      = Logging.logger[self]
       define_tasks
     end
 

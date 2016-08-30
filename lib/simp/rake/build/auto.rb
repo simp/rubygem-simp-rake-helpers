@@ -1,5 +1,6 @@
 #!/usr/bin/rake -T
 
+require 'simp'
 require 'simp/rake'
 require 'json'
 include Simp::Rake
@@ -12,8 +13,11 @@ module Simp; end
 module Simp::Rake; end
 module Simp::Rake::Build
   class Auto < ::Rake::TaskLib
+    attr_reader :log
+
     def initialize( run_dir )
       @base_dir = run_dir
+      @log      = Logging.logger[self]
       define
     end
 

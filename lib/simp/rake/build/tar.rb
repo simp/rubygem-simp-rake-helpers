@@ -1,5 +1,6 @@
 #!/usr/bin/rake -T
 
+require 'simp'
 require 'simp/rake/build/constants'
 
 module Simp; end
@@ -9,7 +10,10 @@ module Simp::Rake::Build
   class Tar < ::Rake::TaskLib
     include Simp::Rake::Build::Constants
 
+    attr_reader :log
+
     def initialize( base_dir )
+      @log = Logging.logger[self]
       init_member_vars( base_dir )
       define_tasks
     end

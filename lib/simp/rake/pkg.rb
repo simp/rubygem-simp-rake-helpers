@@ -6,6 +6,7 @@ require 'rake/clean'
 require 'rake/tasklib'
 require 'fileutils'
 require 'find'
+require 'simp'
 require 'simp/rpm'
 require 'simp/rake/helpers/rpm_spec'
 
@@ -39,6 +40,8 @@ module Simp::Rake
 
     attr_reader   :spec_info
 
+    attr_reader   :log
+
     def initialize( base_dir, unique_name=nil )
       @base_dir            = base_dir
       @pkg_name            = File.basename(@base_dir)
@@ -49,6 +52,7 @@ module Simp::Rake
       @ignore_changes_list = []
       @chroot_name         = unique_name
       @mock_root_dir       = ENV.fetch('SIMP_BUILD_MOCK_root','/var/lib/mock')
+      @log                 = Logging.logger[self]
 
       local_spec = Dir.glob(File.join(@base_dir, 'build', '*.spec'))
       unless local_spec.empty?
