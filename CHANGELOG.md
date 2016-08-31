@@ -1,3 +1,6 @@
+### 2.5.3 / 2016-08-31
+* Bumped the requirement for puppet-lint to >= 1.0 and < 3.0
+
 ### 2.5.2 / 2016-08-31
 * Sanity check pkg:rpmsign for executable availability
 * Update `mock_pre_check` sanity check to use `which()`
@@ -8,7 +11,7 @@
 * This is a bit of a mess and needs to be completely refactored in the future
 
 ### 2.4.7 / 2016-08-14
-* Removed unecessary `deps:checkout` warnings from fresh (empty) checkouts
+* Removed unnecessary `deps:checkout` warnings from fresh (empty) checkouts
 
 ### 2.4.6 / 2016-08-11
 * Fix a broken method call between `r10k` 2.4.0 and `R10KHelper.new()`
