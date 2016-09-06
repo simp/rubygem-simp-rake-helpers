@@ -262,9 +262,9 @@ module Simp::Rake
               suffix = "-#{variant}"
             end
 
-            srpms = Dir.glob(%(#{@pkg_dir}/#{@spec_info[:name]}#{suffix}-#{@spec_info[:version]}-#{@spec_info[:release]}#{l_date}.*.src.rpm))
+            srpms = Dir.glob("#{@pkg_dir}/#{@spec_info[:name]}#{suffix}-#{@spec_info[:version]}-#{@spec_info[:release]}#{l_date}*.src.rpm")
 
-            if require_rebuild?(@tar_dest,srpms) || require_rebuild?("#{@base_dir}/metadata.json")
+            if require_rebuild?(@tar_dest,srpms) || require_rebuild?("#{@base_dir}/metadata.json",Array(@tar_dest))
 
               @puppet_module_info_files.each do |file|
                 next unless File.exist?(file)
@@ -333,7 +333,7 @@ module Simp::Rake
               suffix = "-#{variant}"
             end
 
-            rpms = Dir.glob(%(#{@pkg_dir}/#{@spec_info[:name]}#{suffix}-#{@spec_info[:version]}-#{@spec_info[:release]}#{l_date}.*.rpm))
+            rpms = Dir.glob(%(#{@pkg_dir}/#{@spec_info[:name]}#{suffix}-#{@spec_info[:version]}-#{@spec_info[:release]}#{l_date}*.rpm))
             srpms = rpms.select{|x| x =~ /src\.rpm$/}
             rpms = (rpms - srpms)
 
