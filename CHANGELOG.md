@@ -1,3 +1,7 @@
+### 2.5.4 / 2016-09-06
+* Fixed existing logic in pkg.rb so packages are no longer re-built every time;
+  if the tar/srpm/rpm are not out of date, they are not rebuilt.
+
 ### 2.5.3 / 2016-08-31
 * Bumped the requirement for puppet-lint to >= 1.0 and < 3.0
 
