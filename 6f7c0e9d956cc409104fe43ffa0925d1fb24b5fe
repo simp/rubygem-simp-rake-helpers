@@ -39,6 +39,52 @@
       "revId": "6f7c0e9d956cc409104fe43ffa0925d1fb24b5fe",
       "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
       "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "baa041b7_0c599f8e",
+        "filename": "lib/simp/logger.rb",
+        "patchSetId": 1
+      },
+      "lineNbr": 27,
+      "author": {
+        "id": 1005143
+      },
+      "writtenOn": "2016-09-06T22:16:59Z",
+      "side": 1,
+      "message": "In Ruby 2.0.0, this returns a Thread instead of a Process::Waiter.",
+      "range": {
+        "startLine": 27,
+        "startChar": 15,
+        "endLine": 27,
+        "endChar": 30
+      },
+      "revId": "6f7c0e9d956cc409104fe43ffa0925d1fb24b5fe",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "baa041b7_acd513b8",
+        "filename": "spec/lib/simp/logger_spec.rb",
+        "patchSetId": 1
+      },
+      "lineNbr": 38,
+      "author": {
+        "id": 1005143
+      },
+      "writtenOn": "2016-09-06T22:16:59Z",
+      "side": 1,
+      "message": "This works as expected in Ruby 2.2.0, but returns a Thread and fails in Ruby 2.0.0.",
+      "range": {
+        "startLine": 38,
+        "startChar": 44,
+        "endLine": 38,
+        "endChar": 59
+      },
+      "revId": "6f7c0e9d956cc409104fe43ffa0925d1fb24b5fe",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
     }
   ]
 }
