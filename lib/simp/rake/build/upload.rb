@@ -1,6 +1,6 @@
 #!/usr/bin/rake -T
 require 'open3'
-require 'simp/rpm'
+require 'simp/utils/rpm'
 require 'simp/rake/build/constants'
 
 module Simp; end
@@ -80,9 +80,9 @@ module Simp::Rake::Build
                 pkg_info[file][:alias] = file
                 if file =~ /.spec$/ then
                   if script_format then
-                    pkg_info[file][:alias] = "#{@build_dir}/RPMS/#{Simp::RPM.new(file).name}*.rpm"
+                    pkg_info[file][:alias] = "#{@build_dir}/RPMS/#{Simp::Utils::RPM.new(file).name}*.rpm"
                   else
-                    pkg_info[file][:alias] = Simp::RPM.new(file).name
+                    pkg_info[file][:alias] = Simp::Utils::RPM.new(file).name
                   end
                 end
               rescue
