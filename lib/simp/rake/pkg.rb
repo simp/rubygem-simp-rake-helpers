@@ -380,7 +380,7 @@ module Simp::Rake
     # helper methods
     # ------------------------------------------------------------------------------
     # Get a list of all of the mock configs available on the system.
-    def Pkg.get_mock_configs
+    def Pkg.mock_configs
       Dir.glob('/etc/mock/*.cfg').sort.map{ |x| x = File.basename(x,'.cfg')}
     end
 
