@@ -6,8 +6,9 @@ require 'rake/clean'
 require 'rake/tasklib'
 require 'fileutils'
 require 'find'
-require 'simp/rpm'
+require 'simp/utils/rpm'
 require 'simp/rake/helpers/rpm_spec'
+require 'simp/build/mock'
 
 module Simp; end
 module Simp::Rake
@@ -37,7 +38,9 @@ module Simp::Rake
     # array of items to ignore when checking if the tarball needs to be rebuilt
     attr_accessor :ignore_changes_list
 
-    attr_reader   :spec_info
+    attr_accessor :spec_info
+
+    attr_accessor :variants
 
     def initialize( base_dir, unique_name=nil )
       @base_dir            = base_dir
@@ -108,37 +111,35 @@ module Simp::Rake
     def initialize_spec_info(chroot, unique)
       unless @spec_info
         # This gets the resting spec file and allows us to pull out the name
-        @spec_info   = Simp::RPM.get_info(@spec_file)
+        @spec_info   = Simp::Utils::RPM.get_info(@spec_file)
         @spec_info_dir = @base_dir
+
 
         if chroot
           @chroot_name = @chroot_name || "#{@spec_info[:name]}__#{ENV.fetch( 'USER', 'USER' )}"
-          mock_cmd = mock_pre_check( chroot, @chroot_name, unique ) + " --root #{chroot}"
           # Need to do this in case there is already a directory in /tmp
           rand_dirname = (0...10).map { ('a'..'z').to_a[rand(26)] }.join
           rand_tmpdir = %(/tmp/#{rand_dirname}_tmp)
 
-          # Hack to work around the fact that we have conflicting '-D' entries
-          # TODO: Refactor this
-          mock_cmd = mock_cmd.split(/-D '.*?'/).join
-          mock_cmd = "#{mock_cmd} -D 'pup_module_info_dir #{rand_tmpdir}'"
-
-          sh %Q(#{mock_cmd} --chroot 'mkdir -p #{rand_tmpdir}')
+          FileUtils.mkdir_p @pkg_dir
+          mock = Simp::Build::Mock.new( chroot, @pkg_dir, "#{@chroot_name}__#{unique}" )
+          mock.run( "mkdir -p '#{rand_tmpdir}'" )
 
           @puppet_module_info_files.each do |copy_in|
             if File.exist?(copy_in)
-              sh %Q(#{mock_cmd} --copyin #{copy_in} #{rand_tmpdir})
+               mock.copyin( copy_in, "#{rand_tmpdir}" )
             end
           end
 
-          sh %Q(#{mock_cmd} --chroot 'chmod -R ugo+rwX #{rand_tmpdir}')
+          mock.run "chmod -R ugo+rwX #{rand_tmpdir}/"
 
+          mock.extra_args = [ '-D', "'pup_module_info_dir #{rand_tmpdir}'" ]
           info_hash = {
-            :command    => %Q(#{mock_cmd} --chroot --cwd='#{rand_tmpdir}'),
+            :command    => mock.mock_cmd.join(' ') + " --chroot --cwd='#{rand_tmpdir}'",
             :rpm_extras => %(--specfile #{rand_tmpdir}/#{File.basename(@spec_file)} )
           }
 
-          @spec_info = Simp::RPM.get_info(@spec_file, info_hash)
+          @spec_info = Simp::Utils::RPM.get_info(@spec_file, info_hash)
         end
 
         @dir_name       = "#{@spec_info[:name]}-#{@spec_info[:version]}"
@@ -151,6 +152,96 @@ module Simp::Rake
         end
 
         @variants       = (ENV['SIMP_BUILD_VARIANTS'].to_s.split(',') + ['default'])
+      end
+    end
+
+    def srpm( chroot, unique, snapshot_release )
+      mock = Simp::Build::Mock.new( chroot, @pkg_dir, "#{@chroot_name}__#{unique}" )
+
+      l_date = ''
+      if snapshot_release == 'true'
+        l_date = ".#{TIMESTAMP}"
+        mock.extra_args = ['-D', "'snapshot_release #{l_date}"]
+        @tar_dest = "#{@pkg_dir}/#{@full_pkg_name}#{l_date}.tar.gz"
+      end
+
+      @variants.each do |variant|
+        if variant != 'default'
+          suffix = "-#{variant}"
+        end
+
+        srpms = Dir.glob(%(#{@pkg_dir}/#{@spec_info[:name]}#{suffix}-#{@spec_info[:version]}-#{@spec_info[:release]}#{l_date}.*.src.rpm))
+
+        if require_rebuild?(@tar_dest,srpms) || require_rebuild?("#{@base_dir}/metadata.json")
+          @puppet_module_info_files.each do |file|
+            next unless File.exist?(file)
+            Find.find(file) do |path|
+              next if File.directory?(path)
+              tgt_file = File.join(@pkg_dir, File.basename(path))
+              FileUtils.rm_rf(tgt_file)    if File.exist?(tgt_file)
+              FileUtils.cp(path, @pkg_dir) if File.exist?(path)
+            end
+          end
+
+          mock.extra_args += ['-D' "_variant #{variant}"] if suffix
+          mock.buildsrpm( @spec_file, @pkg_dir )
+        end
+      end
+    end
+
+    def rpm( chroot, unique, snapshot_release )
+      mock = Simp::Build::Mock.new( chroot, @pkg_dir, "#{@chroot_name}__#{unique}" )
+      l_mocksnap = []
+
+      l_date = ''
+      if snapshot_release == 'true'
+        l_date = ".#{TIMESTAMP}"
+        l_mocksnap = ['-D', "'snapshot_release #{l_date}"]
+        @tar_dest = "#{@pkg_dir}/#{@full_pkg_name}#{l_date}.tar.gz"
+      end
+
+      @variants.each do |variant|
+        suffix = "-#{variant}" unless variant == 'default'
+
+        rpms = Dir.glob(%(#{@pkg_dir}/#{@spec_info[:name]}#{suffix}-#{@spec_info[:version]}-#{@spec_info[:release]}#{l_date}.*.rpm))
+        srpms = rpms.select{|x| x =~ /src\.rpm$/}
+        rpms = (rpms - srpms)
+
+        srpms.each do |srpm|
+          if require_rebuild?(srpm,rpms)
+            mock.extra_args += l_mocksnap + ['-D' "_variant #{variant}"] if suffix
+            mock.buildrpm( srpm )
+          end
+        end
+      end
+
+      # remote chroot unless told not to (saves LOTS of space during ISO builds)
+      mock.clean unless ENV['SIMP_RAKE_MOCK_cleanup'] == 'no'
+    end
+
+
+    # Build a source tarball
+    # @param
+    def tar(snapshot_release, chroot, unique)
+      l_date = ''
+      if snapshot_release == 'true'
+        l_date = '.' + "#{TIMESTAMP}"
+        @tar_dest = "#{@pkg_dir}/#{@full_pkg_name}#{l_date}.tar.gz"
+      end
+
+      target_dir = File.basename(@base_dir)
+
+      Dir.chdir(%(#{@base_dir}/..)) do
+        Find.find(target_dir) do |path|
+          Find.pappropriateyrune if path =~ /^\.git/
+          Find.prune if path == "#{@pkg_name}/#{File.basename(@pkg_dir)}"
+          Find.prune if @ignore_changes_list.include?(path)
+          next if File.directory?(path)
+          unless uptodate?(@tar_dest,[path])
+            sh %Q(tar --owner 0 --group 0 --exclude-vcs --exclude=#{@exclude_list.join(' --exclude=')} --transform='s/^#{@pkg_name}/#{@dir_name}/' -cpzf "#{@tar_dest}" #{@pkg_name})
+            break
+          end
+        end
       end
     end
 
@@ -179,7 +270,6 @@ module Simp::Rake
         task :initialize_spec_info,[:chroot,:unique] => [@pkg_dir] do |t,args|
           args.with_defaults(:chroot => nil)
           args.with_defaults(:unique => false)
-
           initialize_spec_info(args.chroot, args.unique)
         end
 
@@ -195,28 +285,9 @@ module Simp::Rake
           args.with_defaults(:snapshot_release => false)
           args.with_defaults(:chroot => nil)
           args.with_defaults(:unique => false)
-
-          l_date = ''
-          if args.snapshot_release == 'true'
-            l_date = '.' + "#{TIMESTAMP}"
-            @tar_dest = "#{@pkg_dir}/#{@full_pkg_name}#{l_date}.tar.gz"
-          end
-
-          target_dir = File.basename(@base_dir)
-
-          Dir.chdir(%(#{@base_dir}/..)) do
-            Find.find(target_dir) do |path|
-              Find.prune if path =~ /^\.git/
-              Find.prune if path == "#{@pkg_name}/#{File.basename(@pkg_dir)}"
-              Find.prune if @ignore_changes_list.include?(path)
-              next if File.directory?(path)
-              unless uptodate?(@tar_dest,[path])
-                sh %Q(tar --owner 0 --group 0 --exclude-vcs --exclude=#{@exclude_list.join(' --exclude=')} --transform='s/^#{@pkg_name}/#{@dir_name}/' -cpzf "#{@tar_dest}" #{@pkg_name})
-                break
-              end
-            end
-          end
+          tar(args.snapshot_release, args.chroot, args.unique)
         end
+
       end
     end
 
@@ -247,44 +318,7 @@ module Simp::Rake
         task :srpm,[:chroot,:unique,:snapshot_release] => [:tar] do |t,args|
           args.with_defaults(:unique => false)
           args.with_defaults(:snapshot_release => false)
-
-          l_date = ''
-          if args.snapshot_release == 'true'
-            l_date = '.' + "#{TIMESTAMP}"
-            mocksnap = "-D 'snapshot_release #{l_date}'"
-            @tar_dest = "#{@pkg_dir}/#{@full_pkg_name}#{l_date}.tar.gz"
-          end
-
-          mock_cmd = mock_pre_check( args.chroot, @chroot_name, args.unique )
-
-          @variants.each do |variant|
-            if variant != 'default'
-              suffix = "-#{variant}"
-            end
-
-            srpms = Dir.glob(%(#{@pkg_dir}/#{@spec_info[:name]}#{suffix}-#{@spec_info[:version]}-#{@spec_info[:release]}#{l_date}.*.src.rpm))
-
-            if require_rebuild?(@tar_dest,srpms) || require_rebuild?("#{@base_dir}/metadata.json")
-
-              @puppet_module_info_files.each do |file|
-                next unless File.exist?(file)
-
-                Find.find(file) do |path|
-                  next if File.directory?(path)
-
-                  tgt_file = File.join(@pkg_dir, File.basename(path))
-                  FileUtils.rm_rf(tgt_file) if File.exist?(tgt_file)
-                  FileUtils.cp(path, @pkg_dir) if File.exist?(path)
-                end
-              end
-
-              cmd = %Q(#{mock_cmd} --root #{args.chroot} #{mocksnap} --buildsrpm --spec #{@spec_file} --sources #{@pkg_dir})
-              if suffix
-                cmd += %( -D "_variant #{variant}")
-              end
-              sh cmd
-            end
-          end
+          srpm( args.chroot, args.unique, args.snapshot_release )
         end
       end
     end
@@ -317,42 +351,9 @@ module Simp::Rake
           args.with_defaults(:unique => false)
           args.with_defaults(:snapshot_release => false)
 
-          l_date = ''
-          if args.snapshot_release == 'true'
-            l_date = '.' + "#{TIMESTAMP}"
-            mocksnap = "-D 'snapshot_release #{l_date}'"
-            @tar_dest = "#{@pkg_dir}/#{@full_pkg_name}#{l_date}.tar.gz"
-          end
 
           Rake::Task['pkg:srpm'].invoke(args.chroot,args.unique,args.snapshot_release)
-
-          mock_cmd = mock_pre_check(args.chroot, @chroot_name, args.unique)
-
-          @variants.each do |variant|
-            if variant != 'default'
-              suffix = "-#{variant}"
-            end
-
-            rpms = Dir.glob(%(#{@pkg_dir}/#{@spec_info[:name]}#{suffix}-#{@spec_info[:version]}-#{@spec_info[:release]}#{l_date}.*.rpm))
-            srpms = rpms.select{|x| x =~ /src\.rpm$/}
-            rpms = (rpms - srpms)
-
-            srpms.each do |srpm|
-              if require_rebuild?(srpm,rpms)
-                cmd = %Q(#{mock_cmd} --root #{args.chroot} #{mocksnap} #{srpm})
-                if suffix
-                  cmd += %( -D "_variant #{variant}")
-                end
-                sh cmd
-              end
-            end
-          end
-
-          # remote chroot unless told not to (saves LOTS of space during ISO builds)
-          unless ENV['SIMP_RAKE_MOCK_cleanup'] == 'no'
-            cmd = %Q(#{mock_cmd} --root #{args.chroot} --clean)
-            sh cmd
-          end
+          rpm(args.chroot,args.unique,args.snapshot_release)
         end
       end
     end
@@ -366,24 +367,15 @@ module Simp::Rake
         EOM
         task :scrub,[:chroot,:unique] do |t,args|
           args.with_defaults(:unique => false)
-
-          mock_cmd = mock_pre_check( args.chroot, @chroot_name, args.unique, false )
-          cmd = %Q(#{mock_cmd} --scrub=all)
-          sh cmd
+          mock = Simp::Build::Mock.new( chroot, @pkg_dir, "#{@chroot_name}__#{unique}" )
+          mock.scrub
         end
-
       end
-
     end
 
     # ------------------------------------------------------------------------------
     # helper methods
     # ------------------------------------------------------------------------------
-    # Get a list of all of the mock configs available on the system.
-    def Pkg.get_mock_configs
-      Dir.glob('/etc/mock/*.cfg').sort.map{ |x| x = File.basename(x,'.cfg')}
-    end
-
     # Return True if any of the 'output_files' are older than the 'src_file'
     def require_rebuild?(src_file,output_files)
       require_rebuild = false
@@ -398,76 +390,6 @@ module Simp::Rake
       end
 
       require_rebuild
-    end
-
-    # Run some pre-checks to make sure that mock will work properly.
-    #
-    # chroot   = name of mock chroot to use
-    # unique_ext = TODO
-    # Pass init=false if you do not want the function to initialize.
-    #
-    # Returns a String that contains the appropriate mock command.
-    def mock_pre_check( chroot, unique_ext, unique=false, init=true )
-
-      mock = ENV['mock'] || '/usr/bin/mock'
-
-      raise(Exception,"Could not find mock on your system, exiting") unless File.executable?(mock)
-
-      mock_configs = Pkg.get_mock_configs
-      unless chroot
-        raise(Exception,
-          "Error: No mock chroot provided. Your choices are:\n  #{mock_configs.join("\n  ")}"
-        )
-      end
-      unless mock_configs.include?(chroot)
-        raise(Exception,
-          "Error: Invalid mock chroot provided. Your choices are:\n  #{mock_configs.join("\n  ")}"
-        )
-      end
-
-      raise %Q(unique_ext must be a String ("#{unique_ext}" = #{unique_ext.class})) unless unique_ext.is_a? String
-
-      # if true, restrict yum to the chroot's local yum cache (defaults to false)
-      mock_offline = ENV.fetch( 'SIMP_RAKE_MOCK_OFFLINE', 'N' ).chomp.index( %r{^(1|Y|true|yes)$} ) || false
-
-      #mock_cmd =  "#{mock} -D 'pup_module_info_dir #{@spec_info_dir}' --quiet"
-      mock_cmd =  "#{mock} --quiet"
-      mock_cmd += " --uniqueext=#{unique_ext}" if unique
-      mock_cmd += ' --offline'                 if mock_offline
-
-      initialized = is_mock_initialized(mock_cmd, chroot)
-
-      unless initialized && init
-        sh %Q(#{mock_cmd} --root #{chroot} --init #{unique_ext})
-      else
-        # Remove any old build cruft from the mock directory.
-        # This is kludgy but WAY faster than rebuilding them all, even with a cache.
-        sh %Q(#{mock_cmd} --root #{chroot} --chroot "/bin/rm -rf /builddir/build/BUILDROOT /builddir/build/*/*")
-      end
-
-      # Install useful stock packages
-      if ENV.fetch( 'SIMP_RAKE_MOCK_EXTRAS', 'yes' ) == 'yes'
-        pkgs = ['openssl', 'openssl-devel']
-
-        env_pkgs = ENV.fetch('SIMP_RAKE_MOCK_PKGS','')
-        unless env_pkgs.empty?
-          pkgs = pkgs + env_pkgs.split(',')
-        end
-
-        pkgs.each do |pkg|
-          sh %Q(#{mock_cmd} --root #{chroot} --install #{pkg})
-        end
-      end
-
-      return mock_cmd + " --no-clean --no-cleanup-after --resultdir=#{@pkg_dir} --disable-plugin=package_state"
-    end
-
-    def is_mock_initialized( mock_cmd, chroot )
-      %x{#{mock_cmd} --root #{chroot} --chroot "test -d /tmp" &> /dev/null }
-      initialized = $?.success?
-
-      # A simple test to see if the chroot is initialized.
-      initialized
     end
   end
 end

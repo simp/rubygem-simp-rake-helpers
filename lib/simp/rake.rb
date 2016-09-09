@@ -8,7 +8,7 @@ module Simp::Rake
   require 'shellwords'
   require 'parallel'
   require 'tempfile'
-  require 'simp/rpm'
+  require 'simp/utils/rpm'
   require 'simp/rake/pkg'
 
   attr_reader(:puppetfile)
