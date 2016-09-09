@@ -12,6 +12,7 @@ gemspec
 gem 'ruby-progressbar'
 gem 'simp-build-helpers'
 gem 'simp-beaker-helpers'
+gem 'thor'
 
 if puppetversion
   gem 'puppet', puppetversion
