@@ -1,3 +1,6 @@
+### 3.0.0 / 2016-09-19
+* Change install directory of module RPMs
+
 ### 2.5.6 / 2016-09-22
 * Added thread safe failure checks
 * Will raise an error when building the modules if one or more fails
