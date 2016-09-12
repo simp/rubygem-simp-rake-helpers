@@ -1,3 +1,6 @@
+### 3.0.0 / 2016-09-19
+* Change install directory of module RPMs
+
 ### 2.5.4 / 2016-09-12
 * Several fixes for building on systems that are connected to the Red Hat
   Network directly. Tested on AWS.

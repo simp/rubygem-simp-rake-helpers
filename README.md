@@ -131,7 +131,9 @@ specification.
 It is likely that you will want to declare your dependencies in your RPM. To do
 this, you can create a `build/rpm_metadata` directory at the root of your
 project. A file named `requires` in the `build/rpm_metadata` directory will be
-used to declare the dependencies of the RPM.
+used to declare the dependencies of the RPM. A file named `release` in the
+`build/rpm_metadata` directory will be used to declare the RPM release
+number.
 
 The following directives may be declared in the `requires` file:
   * Provides
