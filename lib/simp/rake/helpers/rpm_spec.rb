@@ -11,9 +11,18 @@ class Simp::Rake::Helpers
 -- When you build you must to pass this along so that we know how
 -- to get the preliminary information.
 -- This directory should hold the following items:
---   * 'build' directory
---   * 'CHANGELOG' <- The RPM formatted Changelog
---   * 'metadata.json'
+--   * 'build/rpm_metadata/requires' <- optional list of 'Requires', 'Provides',
+--      and 'Obsoletes' to supplement those auto-generated in this spec file
+--   * 'build/rpm_metadata/release' <- optional RPM release number to use in
+--      lieu of number hard-coded in this spec file
+--   * 'CHANGELOG' <- optional RPM formatted Changelog to use in lieu of minimal,
+--      changelog entry auto-generated in this spec file
+--   * 'metadata.json' <- required file that must contain the following metadata:
+--     - 'name' - package name
+--     - 'version' - package version
+--     - 'license' - package license
+--     - 'summary' - package summary
+--     - 'source' - package source
 --
 -- Example:
 --   rpmbuild -D 'pup_module_info_dir /home/user/project/puppet_module' -ba SPECS/specfile.spec
@@ -37,13 +46,7 @@ end
 package_name = "UNKNOWN"
 package_version = "UNKNOWN"
 module_license = "UNKNOWN"
-
---
--- Default to 2016
--- This was done due to the change in naming scheme across all of the modules.
---
-
-package_release = '2016'
+package_release = '1'
 
 }
 
@@ -61,6 +64,8 @@ if metadata_file then
   -- Ignore all keys that are below the first level
   metadata = metadata:gsub("{.-}", '')
   metadata = metadata:gsub("%[.-%]", '')
+else
+  error("Could not open 'metadata.json'", 0)
 end
 
 -- This starts as an empty string so that we can build it later
@@ -95,7 +100,7 @@ if name_match then
     i = i+1
   end
 else
-  print("Error: Could not find valid package name in 'metadata.json'")
+  error("Could not find valid package name in 'metadata.json'", 0)
 end
 
 }
@@ -103,12 +108,13 @@ end
 %{lua:
 
 -- Get the Module Version
--- This will not be processed at all
 
 local version_match = string.match(metadata, '"version":%s+"(.-)"%s*,')
 
 if version_match then
   package_version = version_match
+else
+  error("Could not find valid package version in 'metadata.json'", 0)
 end
 
 }
@@ -116,12 +122,13 @@ end
 %{lua:
 
 -- Get the Module License
--- This will not be processed at all
 
 local license_match = string.match(metadata, '"license":%s+"(.-)"%s*,')
 
 if license_match then
   module_license = license_match
+else
+  error("Could not find valid package license in 'metadata.json'", 0)
 end
 
 }
@@ -129,12 +136,13 @@ end
 %{lua:
 
 -- Get the Module Summary
--- This will not be processed at all
 
 local summary_match = string.match(metadata, '"summary":%s+"(.-)"%s*,')
 
 if summary_match then
   module_summary = summary_match
+else
+  error("Could not find valid package summary in 'metadata.json'", 0)
 end
 
 }
@@ -142,12 +150,13 @@ end
 %{lua:
 
 -- Get the Module Source line for the URL string
--- This will not be processed at all
 
 local source_match = string.match(metadata, '"source":%s+"(.-)"%s*,')
 
 if source_match then
   module_source = source_match
+else
+  error("Could not find valid package source in 'metadata.json'", 0)
 end
 
 }
@@ -201,62 +210,16 @@ end
 }
 
 %define module_name %{lua: print(module_name)}
-%define base_name %{lua: print(package_name)}
-
-%{lua:
--- Determine which Variant we are going to build
-
-local variant = rpm.expand("%{_variant}")
-local variant_version = nil
-
-local foo = ""
-
-local i = 0
-for str in string.gmatch(variant,'[^-]+') do
-  if i == 0 then
-    variant = str
-  elseif i == 1 then
-    variant_version = str
-  else
-    break
-  end
-
-  i = i+1
-end
-
-rpm.define("variant " .. variant)
-
-if variant == "pe" then
-  rpm.define("puppet_user pe-puppet")
-else
-  rpm.define("puppet_user puppet")
-end
-
-if variant == "pe" then
-  if variant_version and ( rpm.vercmp(variant_version,'4') >= 0 ) then
-    rpm.define("_sysconfdir /etc/puppetlabs/code")
-  else
-    rpm.define("_sysconfdir /etc/puppetlabs/puppet")
-  end
-elseif variant == "p4" then
-  rpm.define("_sysconfdir /etc/puppetlabs/code")
-else
-  rpm.define("_sysconfdir /etc/puppet")
-end
-}
+%define package_name %{lua: print(package_name)}
 
 Summary:   %{module_name} Puppet Module
-%if 0%{?_variant:1}
-Name:      %{base_name}-%{variant}
-%else
-Name:      %{base_name}
-%endif
+Name:      %{package_name}
 
 Version:   %{lua: print(package_version)}
 Release:   %{lua: print(package_release)}
 License:   %{lua: print(module_license)}
 Group:     Applications/System
-Source0:    %{base_name}-%{version}-%{release}.tar.gz
+Source0:    %{package_name}-%{version}-%{release}.tar.gz
 Source1:   %{lua: print("metadata.json")}
 %{lua:
   -- Include our sources as appropriate
@@ -273,20 +236,16 @@ Source1:   %{lua: print("metadata.json")}
   end
 }
 URL:       %{lua: print(module_source)}
-BuildRoot: %{_tmppath}/%{base_name}-%{version}-%{release}-buildroot
+BuildRoot: %{_tmppath}/%{package_name}-%{version}-%{release}-buildroot
 BuildArch: noarch
 
-%if "%{variant}" == "pe"
-Requires: pe-puppet >= 3.8.6
-%else
-Requires: puppet >= 3.8.6
-%endif
+Requires(pre,preun,post,postun): simp-adapter
 
-%if ("%{base_name}" != "pupmod-simp-simplib") && ("%{base_name}" != "pupmod-puppetlabs-stdlib")
+%if ("%{package_name}" != "pupmod-simp-simplib") && ("%{package_name}" != "pupmod-puppetlabs-stdlib")
 Requires: pupmod-simp-simplib >= 1.2.6
 %endif
 
-%if "%{base_name}" != "pupmod-puppetlabs-stdlib"
+%if "%{package_name}" != "pupmod-puppetlabs-stdlib"
 Requires: pupmod-puppetlabs-stdlib >= 4.9.0
 Requires: pupmod-puppetlabs-stdlib < 6.0.0
 %endif
@@ -310,13 +269,13 @@ Obsoletes: pupmod-%{lua: print(module_name)} < %{lua: print(package_version .. "
   end
 }
 
-Prefix: %{_sysconfdir}/environments/simp/modules
+Prefix: /usr/local/share/simp/modules
 
 %description
 %{lua: print(module_summary)}
 
 %prep
-%setup -q -n %{base_name}-%{version}
+%setup -q -n %{package_name}-%{version}
 
 %build
 
@@ -325,16 +284,15 @@ Prefix: %{_sysconfdir}/environments/simp/modules
 
 mkdir -p %{buildroot}/%{prefix}
 
-rm -rf .git
-rm -f *.lock
-rm -rf spec/fixtures/modules
-rm -rf dist
-rm -rf junit
-rm -rf log
-
 curdir=`pwd`
 dirname=`basename $curdir`
 cp -r ../$dirname %{buildroot}/%{prefix}/%{module_name}
+rm -rf %{buildroot}/%{prefix}/%{module_name}/.git
+rm -f %{buildroot}/%{prefix}/*.lock
+rm -rf %{buildroot}/%{prefix}/spec/fixtures/modules
+rm -rf %{buildroot}/%{prefix}/dist
+rm -rf %{buildroot}/%{prefix}/junit
+rm -rf %{buildroot}/%{prefix}/log
 
 %clean
 [ "%{buildroot}" != "/" ] && rm -rf %{buildroot}
@@ -342,8 +300,28 @@ cp -r ../$dirname %{buildroot}/%{prefix}/%{module_name}
 mkdir -p %{buildroot}/%{prefix}
 
 %files
-%defattr(0640,root,%{puppet_user},0750)
+%defattr(0640,root,root,0750)
 %{prefix}/%{module_name}
+
+# when $1 = 1, this is an install
+# when $1 = 2, this is an upgrade
+%pre
+/usr/local/sbin/simp_rpm_helper --rpm_dir=%{prefix}/%{module_name} --rpm_section=pre --rpm_status=$1
+
+# when $1 = 1, this is an install
+# when $1 = 2, this is an upgrade
+%post
+/usr/local/sbin/simp_rpm_helper --rpm_dir=%{prefix}/%{module_name} --rpm_section=post --rpm_status=$1
+
+# when $1 = 1, this is the uninstall of the previous version during an upgrade
+# when $1 = 0, this is the uninstall of the only version during an erase
+%preun
+/usr/local/sbin/simp_rpm_helper --rpm_dir=%{prefix}/%{module_name} --rpm_section=preun --rpm_status=$1
+
+# when $1 = 1, this is the uninstall of the previous version during an upgrade
+# when $1 = 0, this is the uninstall of the only version during an erase
+%postun
+/usr/local/sbin/simp_rpm_helper --rpm_dir=%{prefix}/%{module_name} --rpm_section=postun --rpm_status=$1
 
 %changelog
 %{lua:

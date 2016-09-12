@@ -1,3 +1,6 @@
+### 3.0.0 / 2016-09-19
+* Change install directory of module RPMs
+
 ### 2.5.5 / 2016-09-19
 * Fixed bugs in Puppetfile.stable generation.
 
