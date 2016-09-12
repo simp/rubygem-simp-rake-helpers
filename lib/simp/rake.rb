@@ -22,13 +22,7 @@ module Simp::Rake
 
       @puppetfile.each_module do |mod|
         path = mod[:path]
-        if Dir.exists?(path)
-          @module_paths.push(path)
-        end
-      end
-
-      if @module_paths.empty?
-        fail("Error: Could not find any module paths in 'Puppetfile.#{method}'")
+        @module_paths.push(path)
       end
     end
   end

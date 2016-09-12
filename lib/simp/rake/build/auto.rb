@@ -98,6 +98,14 @@ module Simp::Rake::Build
           do_unpack        = ENV['SIMP_BUILD_unpack'] != 'no'
           full_iso_name    = ENV.fetch('SIMP_BUILD_iso_name', false)
           iso_name_tag     = ENV.fetch('SIMP_BUILD_iso_tag', false)
+
+          # Skip a bunch of unnecessary stuff if we're passed a tarball
+          if tarball
+            do_docs = false
+            do_checkout = false
+            do_bundle = false
+          end
+
           @dirty_repos     = nil
           @simp_output_iso = nil
 

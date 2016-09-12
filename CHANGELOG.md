@@ -1,3 +1,7 @@
+### 2.5.4 / 2016-09-12
+* Several fixes for building on systems that are connected to the Red Hat
+  Network directly. Tested on AWS.
+
 ### 2.5.3 / 2016-08-31
 * Bumped the requirement for puppet-lint to >= 1.0 and < 3.0
 

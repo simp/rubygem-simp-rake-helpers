@@ -643,6 +643,9 @@ protect=1
               try_build = true
               while(try_build) do
                 begin
+
+                  fail("Could not find directory #{dir}") unless Dir.exist?(dir)
+
                   Dir.chdir(dir) do
                     if File.exist?('Rakefile')
                       unique_build = (get_cpu_limit != 1)

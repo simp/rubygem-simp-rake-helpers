@@ -50,6 +50,9 @@ module Simp::Rake::Build
           ) do |mod|
 
             status = true
+
+            fail("Could not find directory #{mod}") unless Dir.exist?(mod)
+
             next unless File.exists?(File.join(mod,'Gemfile'))
             puts "\n#{mod}\n" if verbose
             Dir.chdir(mod) do
@@ -182,7 +185,17 @@ module Simp::Rake::Build
               full_pkg = source.split('/').last
               unless File.exist?(full_pkg)
                 puts("Downloading: #{full_pkg}")
-                %x(curl -L --max-redirs 10 -s -o "#{full_pkg}" -k "#{source}")
+                unless @use_yumdownloader
+                  %x(curl -L --max-redirs 10 -s -o "#{full_pkg}" -k "#{source}")
+                  unless %x(file #{full_pkg}).include?('RPM')
+                    @use_yumdownloader = true
+                    FileUtils.rm(full_pkg)
+                  end
+                end
+
+                if @use_yumdownloader
+                  %x(yumdownloader -c #{yum_conf} #{File.basename(full_pkg,'.rpm')} 2>/dev/null )
+                end
 
                 unless $?.success?
                   raise(SIMPBuildException,"Could not download")
@@ -270,7 +283,7 @@ module Simp::Rake::Build
               end
             end
 
-            return yum_conf
+            return File.absolute_path(yum_conf)
           end
 
           def get_known_packages(target_dir=Dir.pwd)

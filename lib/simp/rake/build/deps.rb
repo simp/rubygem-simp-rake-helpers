@@ -244,7 +244,7 @@ module Simp::Rake::Build
 
           r10k_helper.each_module do |mod|
             unless File.directory?(mod[:path])
-              $stderr.puts("Warning: '#{mod[:path]}' is not a module...skipping")
+              $stderr.puts("Warning: '#{mod[:path]}' is not a module...skipping") if File.exist?(mod[:path])
               next
             end
 
