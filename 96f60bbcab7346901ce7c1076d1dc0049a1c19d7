@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "baa041b7_2a5d4eec",
+        "filename": "lib/simp/rake/helpers/rpm_spec.rb",
+        "patchSetId": 1
+      },
+      "lineNbr": 328,
+      "author": {
+        "id": 1004834
+      },
+      "writtenOn": "2016-09-13T18:32:22Z",
+      "side": 0,
+      "message": "If you want to be safe about this, you might want to move all of these down like you did the .git entry.",
+      "revId": "96f60bbcab7346901ce7c1076d1dc0049a1c19d7",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    }
+  ]
+}

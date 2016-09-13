@@ -1,0 +1,55 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "baa041b7_aa4a7e25",
+        "filename": "lib/simp/rake/helpers/rpm_spec.rb",
+        "patchSetId": 1
+      },
+      "lineNbr": 242,
+      "author": {
+        "id": 1004834
+      },
+      "writtenOn": "2016-09-13T18:32:22Z",
+      "side": 1,
+      "message": "Solidified on simp-adapter...",
+      "revId": "0a5973a165bbcc5644166176eb7efad976367577",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "baa041b7_ea5646cd",
+        "filename": "lib/simp/rake/helpers/rpm_spec.rb",
+        "patchSetId": 1
+      },
+      "lineNbr": 310,
+      "author": {
+        "id": 1004834
+      },
+      "writtenOn": "2016-09-13T18:32:22Z",
+      "side": 1,
+      "message": "This will be /usr/local/sbin/simp_rpm_helper",
+      "revId": "0a5973a165bbcc5644166176eb7efad976367577",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "baa041b7_ca5942ff",
+        "filename": "lib/simp/rake/helpers/version.rb",
+        "patchSetId": 1
+      },
+      "lineNbr": 5,
+      "author": {
+        "id": 1004834
+      },
+      "writtenOn": "2016-09-13T18:32:22Z",
+      "side": 1,
+      "message": "This is a breaking change and should bump this to 3.0.0",
+      "revId": "0a5973a165bbcc5644166176eb7efad976367577",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    }
+  ]
+}
