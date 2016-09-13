@@ -36,6 +36,23 @@
     },
     {
       "key": {
+        "uuid": "baa041b7_cae94281",
+        "filename": "lib/simp/rake/helpers/rpm_spec.rb",
+        "patchSetId": 1
+      },
+      "lineNbr": 310,
+      "author": {
+        "id": 1004834
+      },
+      "writtenOn": "2016-09-13T21:18:07Z",
+      "side": 1,
+      "message": "Need the full module path to be passed as the first argument.\n\nSo /usr/local/sbin/simp_rpm_helper %{prefix}/%{module_name} pre $1",
+      "revId": "0a5973a165bbcc5644166176eb7efad976367577",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "baa041b7_ca5942ff",
         "filename": "lib/simp/rake/helpers/version.rb",
         "patchSetId": 1
