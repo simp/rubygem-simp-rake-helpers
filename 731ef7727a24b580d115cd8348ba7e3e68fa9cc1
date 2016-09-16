@@ -1,0 +1,55 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "baa041b7_09184d74",
+        "filename": "lib/simp/logger.rb",
+        "patchSetId": 2
+      },
+      "lineNbr": 34,
+      "author": {
+        "id": 1008746
+      },
+      "writtenOn": "2016-09-16T14:18:41Z",
+      "side": 1,
+      "message": "Since this code does not use the block form of popen3(), per the Open3 docs, stdin (_) , stdout, and stderr should be explicitly closed.",
+      "revId": "731ef7727a24b580d115cd8348ba7e3e68fa9cc1",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "baa041b7_293431dc",
+        "filename": "lib/simp/logger.rb",
+        "patchSetId": 2
+      },
+      "lineNbr": 37,
+      "author": {
+        "id": 1008746
+      },
+      "writtenOn": "2016-09-16T14:18:41Z",
+      "side": 1,
+      "message": "out \u003d stdout.read.chomp\nerr \u003d stderr.read.chomp\n\nWant to chomp before checking for empty length.  In existing code, unless is executed before chomp.",
+      "revId": "731ef7727a24b580d115cd8348ba7e3e68fa9cc1",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "baa041b7_4e077b1d",
+        "filename": "lib/simp/logger.rb",
+        "patchSetId": 2
+      },
+      "lineNbr": 41,
+      "author": {
+        "id": 1008746
+      },
+      "writtenOn": "2016-09-16T14:18:41Z",
+      "side": 1,
+      "message": "Is there a reason this last line is not wait_thread.value, thereby returning the Process::Status?  Wouldn\u0027t most of the calls to log_run() be cases in which the caller waits for the results and would act on the exit status?",
+      "revId": "731ef7727a24b580d115cd8348ba7e3e68fa9cc1",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    }
+  ]
+}
