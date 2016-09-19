@@ -133,9 +133,9 @@ class R10KHelper
         last_module_dir = module_dir
       end
 
-      pupfile << "mod '#{mod[:git_source].split('/').last}',"
-      pupfile << "  :git => '#{mod[:git_source]}'},"
-      pupfile << "  :ref => '#{mod[:r10k_module].repo.head}'}\n"
+      pupfile << "mod '#{mod[:r10k_module].title}',"
+      pupfile << "  :git => '#{mod[:git_source]}',"
+      pupfile << "  :ref => '#{mod[:r10k_module].repo.head}'\n"
     end
 
     pupfile << '# vim: ai ts=2 sts=2 et sw=2 ft=ruby'

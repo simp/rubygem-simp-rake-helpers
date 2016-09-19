@@ -1,3 +1,6 @@
+### 2.5.5 / 2016-09-19
+* Fixed bugs in Puppetfile.stable generation.
+
 ### 2.5.4 / 2016-09-12
 * Several fixes for building on systems that are connected to the Red Hat
   Network directly. Tested on AWS.
