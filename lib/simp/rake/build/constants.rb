@@ -15,7 +15,7 @@ module Simp::Rake::Build::Constants
     @spec_dir      = "#{@src_dir}/build"
     @spec_file    = FileList["#{@spec_dir}/*.spec"]
     @target_dists  = ['CentOS','RHEL']  # The first item is the default build...
-    @simp_version  = Simp::RPM.get_info("#{@spec_dir}/simp.spec")[:full_version]
+    @simp_version  = Simp::Utils::RPM.get_info("#{@spec_dir}/simp.spec")[:full_version]
     @rhel_version  = ENV['rhel_version'] || '6'
     @simp_dvd_dirs = ["SIMP","ks","Config"]
   end

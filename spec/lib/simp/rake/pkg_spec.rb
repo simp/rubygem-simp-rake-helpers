@@ -10,6 +10,8 @@ describe Simp::Rake::Pkg do
   describe "#initialize" do
     it "initializes (smoke test)" do
       expect( @obj.class ).to eq Simp::Rake::Pkg
+
+          require 'pry'; binding.pry
     end
   end
 end
