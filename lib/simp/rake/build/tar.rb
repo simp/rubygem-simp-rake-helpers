@@ -25,6 +25,9 @@ module Simp::Rake::Build
           fail("Could not find simp main RPM in output directory!") unless simp_rpm
           simp_version = File.basename(simp_rpm).gsub(".noarch.rpm","").gsub("simp-","")
 
+          # For picking up the correct RPM template
+          ENV['SIMP_BUILD_version'] ||= simp_version
+
           return simp_version
         end
 

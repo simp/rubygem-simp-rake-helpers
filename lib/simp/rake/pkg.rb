@@ -31,9 +31,6 @@ module Simp::Rake
     # array of items to additionally clean
     attr_accessor :clean_list
 
-    # directory that contains all the mock chroots
-    attr_accessor :mock_root_dir
-
     # array of items to ignore when checking if the tarball needs to be rebuilt
     attr_accessor :ignore_changes_list
 
@@ -48,7 +45,6 @@ module Simp::Rake
       @clean_list          = []
       @ignore_changes_list = []
       @chroot_name         = unique_name
-      @mock_root_dir       = ENV.fetch('SIMP_BUILD_MOCK_root','/var/lib/mock')
 
       local_spec = Dir.glob(File.join(@base_dir, 'build', '*.spec'))
       unless local_spec.empty?
@@ -57,7 +53,7 @@ module Simp::Rake
         FileUtils.mkdir_p(@pkg_tmp_dir) unless File.directory?(@pkg_tmp_dir)
 
         @spec_tempfile = File.open(File.join(@pkg_tmp_dir, "#{@pkg_name}.spec"), 'w')
-        @spec_tempfile.write(Simp::Rake::Helpers::RPM_Spec.template)
+        @spec_tempfile.write(Simp::Rake::Helpers::RPMSpec.template)
 
         @spec_file = @spec_tempfile.path
 
@@ -149,8 +145,6 @@ module Simp::Rake
         if @tar_dest =~ /UNKNOWN/
           fail("Error: Could not determine package information from 'metadata.json'. Got '#{File.basename(@tar_dest)}'")
         end
-
-        @variants       = (ENV['SIMP_BUILD_VARIANTS'].to_s.split(',') + ['default'])
       end
     end
 
@@ -205,15 +199,27 @@ module Simp::Rake
           target_dir = File.basename(@base_dir)
 
           Dir.chdir(%(#{@base_dir}/..)) do
-            Find.find(target_dir) do |path|
-              Find.prune if path =~ /^\.git/
-              Find.prune if path == "#{@pkg_name}/#{File.basename(@pkg_dir)}"
-              Find.prune if @ignore_changes_list.include?(path)
-              next if File.directory?(path)
-              unless uptodate?(@tar_dest,[path])
-                sh %Q(tar --owner 0 --group 0 --exclude-vcs --exclude=#{@exclude_list.join(' --exclude=')} --transform='s/^#{@pkg_name}/#{@dir_name}/' -cpzf "#{@tar_dest}" #{@pkg_name})
-                break
+            require_rebuild = false
+            if File.exist?(@tar_dest)
+              Find.find(target_dir) do |path|
+                filename = File.basename(path)
+                Find.prune if filename =~ /^\./
+                Find.prune if ((filename == File.basename(@pkg_dir)) && File.directory?(path))
+                Find.prune if ((filename == 'spec') && File.directory?(path))
+                Find.prune if @ignore_changes_list.include?(path)
+
+                next if File.directory?(path)
+                unless uptodate?(@tar_dest,[path])
+                  require_rebuild = true
+                  break
+                end
               end
+            else
+              require_rebuild = true
+            end
+
+            if require_rebuild
+              sh %Q(tar --owner 0 --group 0 --exclude-vcs --exclude=#{@exclude_list.join(' --exclude=')} --transform='s/^#{@pkg_name}/#{@dir_name}/' -cpzf "#{@tar_dest}" #{@pkg_name})
             end
           end
         end
@@ -257,33 +263,25 @@ module Simp::Rake
 
           mock_cmd = mock_pre_check( args.chroot, @chroot_name, args.unique )
 
-          @variants.each do |variant|
-            if variant != 'default'
-              suffix = "-#{variant}"
+          srpms = Dir.glob(%(#{@pkg_dir}/#{@spec_info[:name]}-#{@spec_info[:version]}-#{@spec_info[:release]}#{l_date}.*src.rpm))
+
+          if require_rebuild?(srpms, @tar_dest)
+
+            @puppet_module_info_files.each do |file|
+              next unless File.exist?(file)
+
+              Find.find(file) do |path|
+                next if File.directory?(path)
+
+                tgt_file = File.join(@pkg_dir, File.basename(path))
+                FileUtils.rm_rf(tgt_file) if File.exist?(tgt_file)
+                FileUtils.cp(path, @pkg_dir) if File.exist?(path)
+              end
             end
 
-            srpms = Dir.glob(%(#{@pkg_dir}/#{@spec_info[:name]}#{suffix}-#{@spec_info[:version]}-#{@spec_info[:release]}#{l_date}.*.src.rpm))
+            cmd = %Q(#{mock_cmd} --root #{args.chroot} #{mocksnap} --buildsrpm --spec #{@spec_file} --sources #{@pkg_dir})
 
-            if require_rebuild?(@tar_dest,srpms) || require_rebuild?("#{@base_dir}/metadata.json")
-
-              @puppet_module_info_files.each do |file|
-                next unless File.exist?(file)
-
-                Find.find(file) do |path|
-                  next if File.directory?(path)
-
-                  tgt_file = File.join(@pkg_dir, File.basename(path))
-                  FileUtils.rm_rf(tgt_file) if File.exist?(tgt_file)
-                  FileUtils.cp(path, @pkg_dir) if File.exist?(path)
-                end
-              end
-
-              cmd = %Q(#{mock_cmd} --root #{args.chroot} #{mocksnap} --buildsrpm --spec #{@spec_file} --sources #{@pkg_dir})
-              if suffix
-                cmd += %( -D "_variant #{variant}")
-              end
-              sh cmd
-            end
+            sh cmd
           end
         end
       end
@@ -328,23 +326,18 @@ module Simp::Rake
 
           mock_cmd = mock_pre_check(args.chroot, @chroot_name, args.unique)
 
-          @variants.each do |variant|
-            if variant != 'default'
-              suffix = "-#{variant}"
-            end
+          rpms = Dir.glob(%(#{@pkg_dir}/#{@spec_info[:name]}-#{@spec_info[:version]}-#{@spec_info[:release]}#{l_date}.*rpm))
+          srpms = rpms.select{|x| x =~ /src\.rpm$/}
+          rpms = (rpms - srpms)
 
-            rpms = Dir.glob(%(#{@pkg_dir}/#{@spec_info[:name]}#{suffix}-#{@spec_info[:version]}-#{@spec_info[:release]}#{l_date}.*.rpm))
-            srpms = rpms.select{|x| x =~ /src\.rpm$/}
-            rpms = (rpms - srpms)
+          srpms.each do |srpm|
+            dirname = File.dirname(srpm)
+            basename = File.basename(srpm,'.src.rpm')
+            rpm = File.join(dirname, basename, 'rpm')
+            if require_rebuild?(rpm, srpm)
+              cmd = %Q(#{mock_cmd} --root #{args.chroot} #{mocksnap} #{srpm})
 
-            srpms.each do |srpm|
-              if require_rebuild?(srpm,rpms)
-                cmd = %Q(#{mock_cmd} --root #{args.chroot} #{mocksnap} #{srpm})
-                if suffix
-                  cmd += %( -D "_variant #{variant}")
-                end
-                sh cmd
-              end
+              sh cmd
             end
           end
 
@@ -384,20 +377,25 @@ module Simp::Rake
       Dir.glob('/etc/mock/*.cfg').sort.map{ |x| x = File.basename(x,'.cfg')}
     end
 
-    # Return True if any of the 'output_files' are older than the 'src_file'
-    def require_rebuild?(src_file,output_files)
+    # Return True if any of the 'old' Array are newer than the 'new' Array
+    def require_rebuild?(new, old)
       require_rebuild = false
-      require_rebuild = true if output_files.empty?
+      require_rebuild = true if ( Array(old).empty? || Array(new).empty?)
       unless require_rebuild
-        output_files.each do |outfile|
-          unless uptodate?(outfile,Array(src_file))
+        Array(new).each do |new_file|
+          unless File.exist?(new_file)
+            require_rebuild = true
+            break
+          end
+
+          unless uptodate?(new_file, Array(old))
             require_rebuild = true
             break
           end
         end
       end
 
-      require_rebuild
+      return require_rebuild
     end
 
     # Run some pre-checks to make sure that mock will work properly.
