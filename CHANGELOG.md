@@ -1,3 +1,6 @@
+### 3.0.0 / 2016-09-22
+* Updated the RPM spec template to handle the new SIMP 6 requirements
+
 ### 2.5.6 / 2016-09-22
 * Added thread safe failure checks
 * Will raise an error when building the modules if one or more fails

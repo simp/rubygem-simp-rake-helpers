@@ -1,3 +1,5 @@
+require 'securerandom'
+
 module Simp
   # Simp::RPM represents a single package that is built and packaged by the Simp team.
   class Simp::RPM
@@ -33,6 +35,7 @@ module Simp
       @full_version = info[:full_version]
       @name = "#{@basename}-#{@full_version}"
       @sources = Array.new
+      @verbose = false
     end
 
     # Copies specific content from one directory to another.
@@ -51,6 +54,30 @@ module Simp
       end
     end
 
+    # Executes a command and returns a hash with the exit status,
+    # stdout output and stderr output.
+    # cmd:: command to be executed
+    def self.execute(cmd)
+      #puts "Executing: [#{cmd}]"
+      outfile = File.join('/tmp', "#{ENV['USER']}_#{SecureRandom.hex}")
+      errfile = File.join('/tmp', "#{ENV['USER']}_#{SecureRandom.hex}")
+      pid = spawn(cmd, :out=>outfile, :err=>errfile)
+
+      begin
+        pid,status = Process.wait2(pid)
+      rescue Errno::ECHILD
+        # process exited before status could be determined
+      end
+
+      exit_status = status.nil? ? nil : status.exitstatus
+      stdout = IO.read(outfile)
+      stderr = IO.read(errfile)
+
+      { :exit_status => exit_status, :stdout => stdout, :stderr => stderr }
+    ensure
+      FileUtils.rm_f([outfile, errfile])
+    end
+
     # Parses information, such as the version, from the given specfile or RPM
     # into a hash.
     #
@@ -65,40 +92,36 @@ module Simp
       rpm_cmd = "rpm -q --queryformat '%{NAME} %{VERSION} %{RELEASE}\n'"
 
       if mock_hash
-        rpm_cmd = mock_hash[:command] + ' ' + '"' + rpm_cmd + ' ' + mock_hash[:rpm_extras] + ' 2>/dev/null "'
+        # Suppression of error messages is a hack for the following
+        # scenario:
+        # * The RPM spec file has an invalid date in its %changelog.
+        # * The 'bogus date' warning message from rpmbuild
+        #   is sent to stderr, while RPM name, version, and release
+        #   info is sent to stdout.
+        # * mock combines stdout and stderr in the command run.
+        # * The 'bogus date' warning message is parsed to generate
+        #   the RPM info, instead of the RPM info message.
+        rpm_cmd = mock_hash[:command] + ' ' + '"' + rpm_cmd + ' ' + mock_hash[:rpm_extras] + ' 2>/dev/null"'
       end
 
       if File.readable?(rpm_source)
         if rpm_source.split('.').last == 'rpm'
-          rpm_info = %x(#{rpm_cmd} -p #{rpm_source} 2>/dev/null).strip
-
-          if rpm_info.empty?
-            raise <<-EOE
-            Error getting RPM info.
-            Run '#{rpm_cmd.gsub("\n",'\\n')} -p #{rpm_source}' to debug the issue.
-            EOE
-          end
+          results = execute("#{rpm_cmd} -p #{rpm_source}")
         elsif mock_hash
-          rpm_info = %x(#{rpm_cmd}).strip
-
-          if rpm_info.empty?
-            raise <<-EOE
-            Error getting RPM info.
-            Run '#{rpm_cmd.gsub("\n",'\\n')}' to debug the issue.
-            EOE
-          end
+          results = execute("#{rpm_cmd}")
         else
-          rpm_info = %x(#{rpm_cmd} --specfile #{rpm_source} 2>/dev/null).strip
-
-          if rpm_info.empty?
-            raise <<-EOE
-            Error getting RPM info.
-            Run '#{rpm_cmd.gsub("\n",'\\n')} --specfile #{rpm_source}' to debug the issue.
-            EOE
-          end
+          results = execute("#{rpm_cmd} --specfile #{rpm_source}")
         end
 
-        info[:name],info[:version],info[:release] = rpm_info.split("\n").first.split(' ')
+        if results[:exit_status] != 0
+          raise <<-EOE
+#{indent('Error getting RPM info:', 2)}
+#{indent(results[:stderr].strip, 5)}
+#{indent("Run '#{rpm_cmd.gsub("\n",'\\n')} --specfile #{rpm_source}' to recreate the issue.", 2)}
+EOE
+        end
+
+        info[:name],info[:version],info[:release] = results[:stdout].strip.split("\n").first.split(' ')
       else
         raise "Error: unable to read '#{rpm_source}'"
       end
@@ -106,6 +129,10 @@ module Simp
       info[:full_version] = "#{info[:version]}-#{info[:release]}"
 
       return info
+    end
+
+    def self.indent(message, indent_length)
+       message.split("\n").map {|line| ' '*indent_length + line }.join("\n")
     end
 
     # Loads metadata for a GPG key. The GPG key is to be used to sign RPMs. The
