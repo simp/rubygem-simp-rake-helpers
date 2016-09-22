@@ -1,3 +1,9 @@
+### 2.5.6 / 2016-09-22
+* Added thread safe failure checks
+* Will raise an error when building the modules if one or more fails
+* Ensure that the packages.yaml file is 'human clean'
+* Made the repoclosure error detection more aggressive
+
 ### 2.5.5 / 2016-09-19
 * Fixed bugs in Puppetfile.stable generation.
 

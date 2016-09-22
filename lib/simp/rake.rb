@@ -37,6 +37,22 @@ module Simp::Rake
     end
   end
 
+  # Add a standard method for cleaning up strange YAML transations between
+  # versions of Ruby
+  #
+  # Assumes YAML string input
+  def clean_yaml(yaml_input)
+    yaml_output = yaml_input
+
+    # Had some issues with different versions of ruby giving different results
+    yaml_output.gsub!(%r(!ruby/sym(bol)? ), ':')
+
+    # Also, some versions appear to dump out trailing whitespace
+    yaml_output.gsub!(/\s+$/, '')
+
+    return yaml_output
+  end
+
   # by default, we use all processors - 1
   def get_cpu_limit
     cpus = Parallel.processor_count

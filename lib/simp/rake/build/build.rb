@@ -43,7 +43,10 @@ module Simp::Rake::Build
           load_puppetfile(args.method)
 
           # Grab all currently tracked submodules.
-          failed_mods = Parallel.map(
+          failed_mods = []
+          failed_mod_lock = Mutex.new
+
+          Parallel.map(
             module_paths,
             :in_processes => 1,
             :progress => t.name
@@ -69,13 +72,15 @@ module Simp::Rake::Build
                 out = %x(bundle #{args.action} 2>&1)
                 status = $?.success?
                 puts out if verbose
+                failed_mod_lock.synchronize do
+                  failed_mods << mod unless status
+                end
               end
-              mod unless status
             end
           end
 
           failed_mods.compact!
-          warn %(The following modules failed bundle #{args.action}:\n  * #{failed_mods.sort.join("\n  *")})
+          fail(%(The following modules failed bundle #{args.action}:\n  * #{failed_mods.sort.join("\n  *")})) unless failed_mods.empty?
         end
 
         namespace :yum do
@@ -444,10 +449,14 @@ module Simp::Rake::Build
                 known_package_hash.keys.sort.each do |k|
                   # Make sure we don't capture any legacy malformed info
                   if known_package_hash[k][:rpm_name][-4..-1] == '.rpm'
-                    sorted_packages[k] = known_package_hash[k]
+                    sorted_packages[k] ||= {}
+                    known_package_hash[k].keys.sort.each do |subk|
+                      sorted_packages[k][subk] = known_package_hash[k][subk]
+                    end
                   end
                 end
-                fh.puts(sorted_packages.to_yaml)
+
+                fh.puts(clean_yaml(sorted_packages.to_yaml))
               end
 
               if unknown_package_hash.empty?
@@ -457,9 +466,13 @@ module Simp::Rake::Build
                 File.open('unknown_packages.yaml','w') do |fh|
                   sorted_packages = {}
                   unknown_package_hash.keys.sort.each do |k|
-                    sorted_packages[k] = unknown_package_hash[k]
+                    sorted_packages[k] ||= {}
+                    unknown_package_hash[k].keys.sort.each do |subk|
+                      sorted_packages[k][subk] = unknown_package_hash[k][subk]
+                    end
                   end
-                  fh.puts(sorted_packages.to_yaml)
+
+                  fh.puts(clean_yaml(sorted_packages.to_yaml))
                 end
               end
 

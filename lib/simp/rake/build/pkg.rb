@@ -71,6 +71,10 @@ module Simp::Rake::Build
           end
         end
 
+        clean_failures = []
+        clean_failures_lock = Mutex.new
+        chroot_scrub_lock = Mutex.new
+
         task :clean,[:chroot] => [:prep] do |t,args|
           validate_in_mock_group?
           @build_dirs.each_pair do |k,dirs|
@@ -83,15 +87,23 @@ module Simp::Rake::Build
                 begin
                   rake_flags = Rake.application.options.trace ? '--trace' : ''
                   sh %{rake clean[#{args.chroot}] #{rake_flags}}
+                  clean_failures_lock.synchronize do
+                    clean_failures << dir unless $?.success?
+                  end
                 rescue Exception => e
+                  clean_failures_lock.synchronize do
+                    clean_failures << dir
+                  end
                   raise Parallel::Kill
                 end
-
               end
             end
           end
 
-          # FIXME: not thread-safe
+          unless clean_failures.empty?
+            fail(%(Error: The following directories had failures in #{task.name}:\n  * #{clean_failures.join("\n  * ")}))
+          end
+
           %x{mock -r #{args.chroot} --scrub=all} if args.chroot
         end
 
@@ -540,7 +552,7 @@ gpgcheck=0
 protect=1
   EOF
 
-          fail "#{args.target_dir} does not exist!" if not File.directory?(args.target_dir)
+          fail("#{args.target_dir} does not exist!") unless File.directory?(args.target_dir)
 
           begin
             temp_pkg_dir = Dir.mktmpdir
@@ -600,7 +612,7 @@ protect=1
               end
               repoclosure_output = %x(#{cmd})
 
-              if !$?.success? || (repoclosure_output =~ /unresolved deps/)
+              if (!$?.success? || (repoclosure_output =~ /nresolved/))
                 errmsg = ['Error: REPOCLOSURE FAILED:']
                 errmsg << [repoclosure_output]
                 fail(errmsg.join("\n"))

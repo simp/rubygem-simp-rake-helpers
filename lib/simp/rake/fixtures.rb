@@ -40,9 +40,9 @@ module Simp::Rake
         task :generate do
           pwd = File.expand_path(@base_dir)
           _f  = YAML.load_file(File.join(pwd,'.fixtures.yml'))
-          _l  = fixtures_yml_local( _f )
+          _l  = clean_yaml(fixtures_yml_local( _f ).to_yaml)
           _o  = File.join(pwd,'.fixtures.yml.local')
-          File.open( _o,'w'){|f| puts _l.to_yaml; f.puts _l.to_yaml}
+          File.open( _o,'w'){|f| puts _l; f.puts _l}
           puts
           puts "# written to '#{_o}'"
         end
