@@ -39,14 +39,18 @@ module Simp::Rake::Build
             :modules => get_module_dirs(args[:method]),
             :aux => [
               "#{@build_dir}/GPGKEYS",
-              "#{@src_dir}/puppet/bootstrap",
               "#{@src_dir}/rsync",
-              "#{@src_dir}/utils"
+              # Anything in here gets built!
+              "#{@src_dir}/assets/*"
             ],
             :doc => "#{@src_dir}/doc",
             :simp_cli => "#{@src_dir}/rubygems/simp_cli",
             :simp => "#{@src_dir}",
           }
+
+          @build_dirs[:aux].map!{|dir| dir = Dir.glob(dir)}
+          @build_dirs[:aux].flatten!
+          @build_dirs[:aux].delete_if{|f| !File.directory?(f)}
 
           @pkg_dirs = {
             :simp => "#{@build_dir}/SIMP",
@@ -86,7 +90,7 @@ module Simp::Rake::Build
               Dir.chdir(dir) do
                 begin
                   rake_flags = Rake.application.options.trace ? '--trace' : ''
-                  sh %{rake clean[#{args.chroot}] #{rake_flags}}
+                  %x{rake clean[#{args.chroot}] #{rake_flags}}
                   clean_failures_lock.synchronize do
                     clean_failures << dir unless $?.success?
                   end
@@ -292,12 +296,12 @@ module Simp::Rake::Build
 
           check_dvd_env
 
-          Rake::Task['pkg:modules'].invoke(args.chroot)
+          Rake::Task['pkg:simp_cli'].invoke(args.chroot)
           Rake::Task['pkg:aux'].invoke(args.chroot)
           if "#{args.docs}" == 'true'
             Rake::Task['pkg:doc'].invoke(args.chroot)
           end
-          Rake::Task['pkg:simp_cli'].invoke(args.chroot)
+          Rake::Task['pkg:modules'].invoke(args.chroot)
 
           # The main SIMP RPM must be built last!
           Rake::Task['pkg:simp'].invoke(args.chroot,args.snapshot_release)
@@ -326,8 +330,8 @@ module Simp::Rake::Build
                 out_dir = "#{output_dir}/SRPMS"
                 mkdir_p(out_dir, :verbose => _verbose) unless File.directory?(out_dir)
 
-                if not uptodate?("#{out_dir}/#{File.basename(srpm)}",[srpm])
-                  cp(srpm,out_dir, :verbose => _verbose)
+                unless uptodate?("#{out_dir}/#{File.basename(srpm)}",[srpm])
+                  cp(srpm, out_dir, :verbose => _verbose)
                 end
               end
 
@@ -335,8 +339,8 @@ module Simp::Rake::Build
                 out_dir = "#{output_dir}/RPMS/#{rpm.split('.')[-2]}"
                 mkdir_p(out_dir, :verbose => _verbose) unless File.directory?(out_dir)
 
-                if not uptodate?("#{out_dir}/#{File.basename(rpm)}",[rpm])
-                  cp(rpm,out_dir, :verbose => _verbose)
+                unless uptodate?("#{out_dir}/#{File.basename(rpm)}",[rpm])
+                  cp(rpm, out_dir, :verbose => _verbose)
                 end
               end
             end
@@ -516,6 +520,7 @@ module Simp::Rake::Build
 
             ENV vars:
               - Set `SIMP_PKG_verbose=yes` to report file operations as they happen.
+              - Set `SIMP_PKG_repoclose_pe=yes` to enable repoclosure on PE-related RPMs.
 
         EOM
         task :repoclosure,[:target_dir,:aux_dir] => [:prep] do |t,args|
@@ -528,6 +533,7 @@ module Simp::Rake::Build
           end
 
           _verbose = ENV.fetch('SIMP_PKG_verbose','no') == 'yes'
+          _repoclose_pe = ENV.fetch('SIMP_PKG_repoclose_pe','no') == 'yes'
 
           yum_conf_template = <<-EOF
 [main]
@@ -537,6 +543,9 @@ obsoletes=1
 gpgcheck=0
 plugins=1
 installonly_limit=5
+<% unless #{_repoclose_pe} -%>
+exclude=*-pe-*
+<% end -%>
 
 <% repo_files.each do |repo| -%>
 include=file://<%= repo %>
@@ -641,76 +650,62 @@ protect=1
           # Default package metadata for reference
           default_metadata = YAML.load(File.read("#{@src_dir}/build/package_metadata_defaults.yaml"))
 
-          failures = {}
-
           metadata = Parallel.map(
+            # Allow for shell globs
             Array(dirs),
             :in_processes => get_cpu_limit,
             :progress => task.name
           ) do |dir|
             result = []
 
-            begin
-              build_attempt = 0
-              try_build = true
-              while(try_build) do
+            fail("Could not find directory #{dir}") unless Dir.exist?(dir)
+
+            Dir.chdir(dir) do
+              if File.exist?('Rakefile')
+
+                unique_build = (get_cpu_limit != 1)
+
+                rake_flags = Rake.application.options.trace ? '--trace' : ''
+                cmd = %{rake pkg:rpm[#{chroot},unique_build,#{snapshot_release}] #{rake_flags} 2>&1}
                 begin
-
-                  fail("Could not find directory #{dir}") unless Dir.exist?(dir)
-
-                  Dir.chdir(dir) do
-                    if File.exist?('Rakefile')
-                      unique_build = (get_cpu_limit != 1)
-                      rake_flags = Rake.application.options.trace ? '--trace' : ''
-                      output = %x{rake pkg:rpm[#{chroot},unique_build,#{snapshot_release}] #{rake_flags} 2>&1}
-                      raise(output) unless $?.success?
-
-                      # Glob all generated rpms, and add their metadata to a result array.
-                      pkginfo = Hash.new
-                      Dir.glob('dist/*.rpm') do |rpm|
-                        if not rpm =~ /.*.src.rpm/ then
-                          # get_info from each generated rpm, not the spec file, so macros in the
-                          # metadata have already been resolved in the mock chroot.
-                          result << Simp::RPM.get_info(rpm)
-                        end
-                      end
-                    else
-                      puts "Warning: Could not find Rakefile in '#{dir}'"
-                    end
+                  if _verbose
+                    $stderr.puts("Running 'rake pkg:rpm'")
                   end
-                rescue Exception => e
-                  if build_attempt == 0
-                    # Run 'bundle' and try again
-                    ::Bundler.with_clean_env do
-                      out = %x(bundle install 2>&1)
-                      status = $?.success?
-                      puts out if _verbose
-                    end
-                  else
-                    build_attempt += 1
-                    try_build = false
-                    failures[dir] = e.to_s
-                    if _verbose
-                      stderr.puts(e.to_s)
-                    else
-                      stderr.puts("Error found in: #{File.basename(dir)}")
-                    end
+
+                  ::Bundler.with_clean_env do
+                    %x{#{cmd}}
+                  end
+                rescue
+                  if _verbose
+                    $stderr.puts("First 'rake pkg:rpm' attempt failed, running bundle and trying again.")
+                  end
+
+                  ::Bundler.with_clean_env do
+                    %x{bundle install}
+                    %x{#{cmd}}
                   end
                 end
 
-                try_build = false
-              end
+                tarballs = Dir.glob('dist/*.tar.gz')
+                srpms = Dir.glob('dist/*.src.rpm')
+                rpms = (Dir.glob('dist/*.rpm') - srpms)
 
-              result
-            ensure
-              unless failures.empty?
-                errmsg = ['Error: Failures found during module build']
-                failures.keys.each do |dir|
-                  errmsg << ('* ' + dir)
-                  errmsg << (failures[dir].lines.map{|ln| ln = "    #{ln}}"})
+                # Not all items generate tarballs
+                tarballs.each do |pkg|
+                  raise("Empty Tarball '#{pkg}' generated for #{dir}") if (File.stat(pkg).size == 0)
                 end
+                raise("No SRPMs generated for #{dir}") if srpms.empty?
+                raise("No RPMs generated for #{dir}") if rpms.empty?
 
-                raise errmsg
+                # Glob all generated rpms, and add their metadata to a result array.
+                pkginfo = Hash.new
+                rpms.each do |rpm|
+                  # get_info from each generated rpm, not the spec file, so macros in the
+                  # metadata have already been resolved in the mock chroot.
+                  result << Simp::RPM.get_info(rpm)
+                end
+              else
+                puts "Warning: Could not find Rakefile in '#{dir}'"
               end
             end
           end
@@ -719,7 +714,7 @@ protect=1
             # Each module could generate multiple rpms, each with its own metadata.
             # Iterate over them to add all built rpms to autorequires.
             mod.each do |module_pkginfo|
-              next unless (module_pkginfo)
+              next unless (module_pkginfo && module_pkginfo.is_a?(Hash))
 
               # Set up the autorequires
               if add_to_autoreq
