@@ -28,6 +28,9 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
     # on Travis with --without development
     begin
       require 'puppet_blacksmith/rake_tasks'
+      Blacksmith::RakeTask.new do |t|
+        t.tag_pattern = "%s" # Use tage format "X.Y.Z" instead of "vX.Y.Z"
+      end
     rescue LoadError
     end
 
