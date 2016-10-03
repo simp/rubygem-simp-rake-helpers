@@ -1,12 +1,14 @@
 module Simp
   # Simp::RPM represents a single package that is built and packaged by the Simp team.
   class Simp::RPM
+    require 'simp'
     require 'expect'
     require 'pty'
     require 'rake'
 
     @@gpg_keys = Hash.new
     attr_accessor :basename, :version, :release, :full_version, :name, :sources, :verbose
+    attr_reader :log
 
     if Gem.loaded_specs['rake'].version >= Gem::Version.new('0.9')
       def self.sh(args)
@@ -33,6 +35,7 @@ module Simp
       @full_version = info[:full_version]
       @name = "#{@basename}-#{@full_version}"
       @sources = Array.new
+      @log = Logging.logger[self]
     end
 
     # Copies specific content from one directory to another.

@@ -1,9 +1,14 @@
+require 'simp'
+
 module Simp; end
 module Simp::Rake
   class Rubygem < ::Rake::TaskLib
+    attr_reader :log
+
     def initialize( package, rakefile_dir = File.pwd )
       @package      = package
       @rakefile_dir = rakefile_dir
+      @log          = Logging.logger[self]
       define
     end
 

@@ -1,10 +1,14 @@
 require 'rake/tasklib'
+require 'simp'
 
 module Simp; end
 module Simp::Rake
   class Fixtures < ::Rake::TaskLib
+    attr_reader :log
+
     def initialize( dir )
        @base_dir = dir
+       @log      = Logging.logger[self]
        ###::CLEAN.include( '.fixtures.yml.local' )
        define
     end

@@ -8,11 +8,15 @@ module Simp::Rake
   require 'shellwords'
   require 'parallel'
   require 'tempfile'
+  require 'simp'
   require 'simp/rpm'
   require 'simp/rake/pkg'
 
   attr_reader(:puppetfile)
   attr_reader(:module_paths)
+  attr_reader(:log)
+
+  @log = Logging.logger[self]
 
   def load_puppetfile(method='tracking')
     unless @puppetfile
