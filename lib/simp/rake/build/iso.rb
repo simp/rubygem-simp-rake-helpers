@@ -145,7 +145,7 @@ module Simp::Rake::Build
 
               # NOTE: RHEL7 discs claim [general] section is deprecated.
               if sections.include?('general')
-                h = Hash[ ini.get_section('general').entries ]
+                h = Hash[ ini.get_section('general').entries.map{|k,v| [k,v]} ]
                 arch      = h.fetch('arch', arch).strip
                 baseosver = h.fetch('version', baseosver).strip
                 baseosver += '.0' if (baseosver.count('.') < 1)
@@ -153,7 +153,13 @@ module Simp::Rake::Build
               # ------------------------------------
 
               # Skip if SIMP version doesn't match target base OS version
-              next unless vermap[simpver.split('.').first].eql?(baseosver.split('.').first)
+              unless Array(vermap[simpver.split('.').first]).include?(baseosver.split('.').first)
+                if verbose
+                  warn("Could not find SIMP version mapping for #{simpver} for Base OS #{baseosver}")
+                end
+
+                next
+              end
 
               mkrepo = baseosver.split('.').first == '5' ? 'createrepo -s sha -p' : 'createrepo -p'
 
@@ -288,6 +294,9 @@ module Simp::Rake::Build
               system(mkisofs_cmd.join(' '))
             end
           end # End of tarfiles loop
+
+          # If we got here and didn't generate any ISOs, something went horribly wrong
+          fail('Error: No ISO was built!') unless @simp_output_iso
         end
 
         desc <<-EOM
