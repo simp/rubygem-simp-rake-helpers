@@ -1,3 +1,6 @@
+### 3.0.1 / 2016-10-28
+* Updated to provide backwards compatibility for SIMP 4 and 5
+
 ### 3.0.0 / 2016-09-22
 * Updated the RPM spec template to handle the new SIMP 6 requirements
 

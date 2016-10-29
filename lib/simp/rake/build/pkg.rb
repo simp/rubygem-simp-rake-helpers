@@ -41,7 +41,10 @@ module Simp::Rake::Build
               "#{@build_dir}/GPGKEYS",
               "#{@src_dir}/rsync",
               # Anything in here gets built!
-              "#{@src_dir}/assets/*"
+              "#{@src_dir}/assets/*",
+              # Legacy Compat
+              "#{@src_dir}/utils",
+              "#{@src_dir}/puppet/bootstrap"
             ],
             :doc => "#{@src_dir}/doc",
             :simp_cli => "#{@src_dir}/rubygems/simp_cli",
@@ -666,7 +669,8 @@ protect=1
                 unique_build = (get_cpu_limit != 1)
 
                 rake_flags = Rake.application.options.trace ? '--trace' : ''
-                cmd = %{rake pkg:rpm[#{chroot},unique_build,#{snapshot_release}] #{rake_flags} 2>&1}
+
+                cmd = %{SIMP_BUILD_version=#{@simp_version} rake pkg:rpm[#{chroot},unique_build,#{snapshot_release}] #{rake_flags} 2>&1}
                 begin
                   if _verbose
                     $stderr.puts("Running 'rake pkg:rpm'")
@@ -698,16 +702,23 @@ protect=1
                 raise("No RPMs generated for #{dir}") if rpms.empty?
 
                 # Glob all generated rpms, and add their metadata to a result array.
-                pkginfo = Hash.new
                 rpms.each do |rpm|
                   # get_info from each generated rpm, not the spec file, so macros in the
                   # metadata have already been resolved in the mock chroot.
-                  result << Simp::RPM.get_info(rpm)
+                  metadata = Simp::RPM.get_info(rpm)
+
+                  if File.exist?('build/package_metadata.yaml')
+                    metadata.merge!(YAML.load_file('build/package_metadata.yaml'))
+                  end
+
+                  result << metadata
                 end
               else
                 puts "Warning: Could not find Rakefile in '#{dir}'"
               end
             end
+
+            result
           end
 
           metadata.each do |mod|

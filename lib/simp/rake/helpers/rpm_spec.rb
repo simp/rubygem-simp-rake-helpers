@@ -2,8 +2,13 @@ module Simp; end
 module Simp::Rake; end
 class Simp::Rake::Helpers
   module Simp::Rake::Helpers::RPMSpec
+    require 'simp/rake/build/constants'
+
+    include Simp::Rake::Build::Constants
+
     def self.template
       simp_version = ENV.fetch('SIMP_BUILD_version', @simp_version)
+
       if simp_version
         simp_main_version = simp_version.split('.').first
       else
