@@ -36,7 +36,7 @@ module Simp::Rake
 
     attr_reader   :spec_info
 
-    def initialize( base_dir, unique_name=nil )
+    def initialize( base_dir, unique_name=nil, unique_namespace=nil )
       @base_dir            = base_dir
       @pkg_name            = File.basename(@base_dir)
       @pkg_dir             = File.join(@base_dir, 'dist')
@@ -79,7 +79,13 @@ module Simp::Rake
 
       ::CLEAN.include( @clean_list )
 
-      define
+      if unique_namespace
+        namespace unique_namespace.to_sym do
+          define
+        end
+      else
+        define
+      end
     end
 
     def define
@@ -109,7 +115,13 @@ module Simp::Rake
 
         if chroot
           @chroot_name = @chroot_name || "#{@spec_info[:name]}__#{ENV.fetch( 'USER', 'USER' )}"
+
+          if ENV['SIMP_PKG_rand_name'] && (ENV['SIMP_PKG_rand_name'] != 'no')
+            @chroot_name = @chroot_name + '__' + Time.now.strftime('%s%L')
+          end
+
           mock_cmd = mock_pre_check( chroot, @chroot_name, unique ) + " --root #{chroot}"
+
           # Need to do this in case there is already a directory in /tmp
           rand_dirname = (0...10).map { ('a'..'z').to_a[rand(26)] }.join
           rand_tmpdir = %(/tmp/#{rand_dirname}_tmp)
@@ -174,7 +186,7 @@ module Simp::Rake
           args.with_defaults(:chroot => nil)
           args.with_defaults(:unique => false)
 
-          initialize_spec_info(args.chroot, args.unique)
+          initialize_spec_info(args[:chroot], args[:unique])
         end
 
         # :pkg:tar
@@ -186,12 +198,12 @@ module Simp::Rake
                                   this to work.
         EOM
         task :tar,[:chroot,:unique,:snapshot_release] => [:initialize_spec_info] do |t,args|
-          args.with_defaults(:snapshot_release => false)
+          args.with_defaults(:snapshot_release => 'false')
           args.with_defaults(:chroot => nil)
-          args.with_defaults(:unique => false)
+          args.with_defaults(:unique => 'false')
 
           l_date = ''
-          if args.snapshot_release == 'true'
+          if args[:snapshot_release] == 'true'
             l_date = '.' + "#{TIMESTAMP}"
             @tar_dest = "#{@pkg_dir}/#{@full_pkg_name}#{l_date}.tar.gz"
           end
@@ -237,33 +249,18 @@ module Simp::Rake
             * :snapshot_release - Add snapshot_release (date and time) to rpm version.
                         Rpm spec file must have macro for this to work.
        EOM
-=begin
- This functionality has been (temporarily?) removed.
-        Environment Variables
-          SIMP_BUILD_VARIANTS - A comma delimted list of the target versions of Puppet/PE to build toward.
-
-                     Currently supported are 'pe', 'p4', 'pe-2015'.
-
-                     These will build for Puppet Enterprise, Puppet 4, and
-                     Puppet Enterprise 2015+ respectively.
-
-                     Anything after a dash '-' will be considered a VERSION.
-
-                     NOTE: Different RPM spec files may have different
-                     behaviors based on the value passed.
-=end
         task :srpm,[:chroot,:unique,:snapshot_release] => [:tar] do |t,args|
-          args.with_defaults(:unique => false)
-          args.with_defaults(:snapshot_release => false)
+          args.with_defaults(:unique => 'false')
+          args.with_defaults(:snapshot_release => 'false')
 
           l_date = ''
-          if args.snapshot_release == 'true'
+          if args[:snapshot_release] == 'true'
             l_date = '.' + "#{TIMESTAMP}"
             mocksnap = "-D 'snapshot_release #{l_date}'"
             @tar_dest = "#{@pkg_dir}/#{@full_pkg_name}#{l_date}.tar.gz"
           end
 
-          mock_cmd = mock_pre_check( args.chroot, @chroot_name, args.unique )
+          mock_cmd = mock_pre_check( args[:chroot], @chroot_name, args[:unique] )
 
           srpms = Dir.glob(%(#{@pkg_dir}/#{@spec_info[:name]}-#{@spec_info[:version]}-#{@spec_info[:release]}#{l_date}.*src.rpm))
 
@@ -281,7 +278,7 @@ module Simp::Rake
               end
             end
 
-            cmd = %Q(#{mock_cmd} --root #{args.chroot} #{mocksnap} --buildsrpm --spec #{@spec_file} --sources #{@pkg_dir})
+            cmd = %Q(#{mock_cmd} --root #{args[:chroot]} #{mocksnap} --buildsrpm --spec #{@spec_file} --sources #{@pkg_dir})
 
             sh cmd
           end
@@ -301,35 +298,18 @@ module Simp::Rake
                         Rpm spec file must have macro for this to work.
 
         EOM
-=begin
- This functionality has been (temporarily?) removed.
-        Environment Variables
-          SIMP_BUILD_VARIANTS - A comma delimted list of the target versions of Puppet/PE to build toward.
-
-                     Currently supported are 'pe', 'p4', 'pe-2015'.
-
-                     These will build for Puppet Enterprise, Puppet 4, and
-                     Puppet Enterprise 2015+ respectively.
-
-                     Anything after a dash '-' will be considered a VERSION.
-
-                     NOTE: Different RPM spec files may have different
-                     behaviors based on the value passed.
-=end
-        task :rpm,[:chroot,:unique,:snapshot_release] do |t,args|
-          args.with_defaults(:unique => false)
-          args.with_defaults(:snapshot_release => false)
+        task :rpm,[:chroot,:unique,:snapshot_release] => [:srpm] do |t,args|
+          args.with_defaults(:unique => 'false')
+          args.with_defaults(:snapshot_release => 'false')
 
           l_date = ''
-          if args.snapshot_release == 'true'
+          if args[:snapshot_release] == 'true'
             l_date = '.' + "#{TIMESTAMP}"
             mocksnap = "-D 'snapshot_release #{l_date}'"
             @tar_dest = "#{@pkg_dir}/#{@full_pkg_name}#{l_date}.tar.gz"
           end
 
-          Rake::Task['pkg:srpm'].invoke(args.chroot,args.unique,args.snapshot_release)
-
-          mock_cmd = mock_pre_check(args.chroot, @chroot_name, args.unique)
+          mock_cmd = mock_pre_check(args[:chroot], @chroot_name, args[:unique])
 
           rpms = Dir.glob(%(#{@pkg_dir}/#{@spec_info[:name]}-#{@spec_info[:version]}-#{@spec_info[:release]}#{l_date}.*rpm))
           srpms = rpms.select{|x| x =~ /src\.rpm$/}
@@ -340,7 +320,7 @@ module Simp::Rake
             basename = File.basename(srpm,'.src.rpm')
             rpm = File.join(dirname, basename, 'rpm')
             if require_rebuild?(rpm, srpm)
-              cmd = %Q(#{mock_cmd} --root #{args.chroot} #{mocksnap} #{srpm})
+              cmd = %Q(#{mock_cmd} --root #{args[:chroot]} #{mocksnap} #{srpm})
 
               sh cmd
             end
@@ -348,7 +328,7 @@ module Simp::Rake
 
           # remote chroot unless told not to (saves LOTS of space during ISO builds)
           unless ENV['SIMP_RAKE_MOCK_cleanup'] == 'no'
-            cmd = %Q(#{mock_cmd} --root #{args.chroot} --clean)
+            cmd = %Q(#{mock_cmd} --root #{args[:chroot]} --clean)
             sh cmd
           end
         end
@@ -365,7 +345,7 @@ module Simp::Rake
         task :scrub,[:chroot,:unique] do |t,args|
           args.with_defaults(:unique => false)
 
-          mock_cmd = mock_pre_check( args.chroot, @chroot_name, args.unique, false )
+          mock_cmd = mock_pre_check( args[:chroot], @chroot_name, args[:unique], false )
           cmd = %Q(#{mock_cmd} --scrub=all)
           sh cmd
         end
@@ -422,18 +402,18 @@ module Simp::Rake
           "Error: No mock chroot provided. Your choices are:\n  #{mock_configs.join("\n  ")}"
         )
       end
+
       unless mock_configs.include?(chroot)
         raise(Exception,
           "Error: Invalid mock chroot provided. Your choices are:\n  #{mock_configs.join("\n  ")}"
         )
       end
 
-      raise %Q(unique_ext must be a String ("#{unique_ext}" = #{unique_ext.class})) unless unique_ext.is_a? String
+      raise %Q(unique_ext must be a String ("#{unique_ext}" = #{unique_ext.class})) unless unique_ext.is_a?(String)
 
       # if true, restrict yum to the chroot's local yum cache (defaults to false)
       mock_offline = ENV.fetch( 'SIMP_RAKE_MOCK_OFFLINE', 'N' ).chomp.index( %r{^(1|Y|true|yes)$} ) || false
 
-      #mock_cmd =  "#{mock} -D 'pup_module_info_dir #{@spec_info_dir}' --quiet"
       mock_cmd =  "#{mock} --quiet"
       mock_cmd += " --uniqueext=#{unique_ext}" if unique
       mock_cmd += ' --offline'                 if mock_offline

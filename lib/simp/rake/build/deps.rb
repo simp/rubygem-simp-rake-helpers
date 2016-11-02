@@ -172,6 +172,7 @@ module Simp::Rake::Build
 
     def initialize( base_dir )
       @base_dir = base_dir
+      @verbose = ENV.fetch('SIMP_PKG_verbose','no') == 'yes'
       define_tasks
     end
 
@@ -192,37 +193,66 @@ module Simp::Rake::Build
 
           r10k_helper = R10KHelper.new("Puppetfile.#{args[:method]}")
 
-          r10k_helper.each_module do |mod|
-            unless File.directory?(mod[:path])
-              FileUtils.mkdir_p(mod[:path])
-            end
+          r10k_issues = Parallel.map(
+            Array(r10k_helper.modules),
+            :in_processes => get_cpu_limit,
+            :progress => 'Submodule Checkout'
+          ) do |mod|
+            issues = []
 
-            # Only for known modules...
-            unless mod[:status] == :unknown
-              # Since r10k is destructive, we're enumerating all valid states
-              # here
-              if [
-                  :absent,
-                  :mismatched,
-                  :outdated,
-                  :insync,
-                  :dirty
-              ].include?(mod[:r10k_module].status)
-                unless mod[:r10k_cache].synced?
-                  mod[:r10k_cache].sync
-                end
+            Dir.chdir(@base_dir) do
+              unless File.directory?(mod[:path])
+                FileUtils.mkdir_p(mod[:path])
+              end
 
-                if mod[:status] == :known
-                  mod[:r10k_module].sync
+              # Only for known modules...
+              unless mod[:status] == :unknown
+                # Since r10k is destructive, we're enumerating all valid states
+                if [
+                    :absent,
+                    :mismatched,
+                    :outdated,
+                    :insync,
+                    :dirty
+                ].include?(mod[:r10k_module].status)
+                  unless mod[:r10k_cache].synced?
+                    mod[:r10k_cache].sync
+                  end
+
+                  if mod[:status] == :known
+                    mod[:r10k_module].sync
+                  else
+                    # If we get here, the module was dirty and should be skipped
+                    issues << "#{mod[:name]}: Skipped - #{mod[:status]}"
+                    next
+                  end
                 else
-                  # If we get here, the module was dirty and should be skipped
-                  puts "#{mod[:name]}: Skipping - #{mod[:status]}"
-                  next
+                  issues << "#{mod[:name]}: Skipped - Unknown status type #{mod[:r10k_module].status}"
                 end
-              else
-                puts "#{mod[:name]}: Skipping - Unknown status type #{mod[:r10k_module].status}"
               end
             end
+
+            issues
+          end
+
+          r10k_issues.flatten!
+
+          unless r10k_issues.empty?
+            $stderr.puts('='*80)
+
+            unless @verbose
+              $stderr.puts('Warning: Some repositories were skipped!')
+              $stderr.puts('  * If this is a fresh build, this could be an issue')
+              $stderr.puts('  * This is expected if re-running a build')
+              $stderr.puts('  * Run with SIMP_PKG_verbose=yes for full details')
+            else
+              $stderr.puts("R10k Checkout Issues:")
+              r10k_issues.each do |issue|
+                $stderr.puts("  * #{issue}")
+              end
+            end
+
+            $stderr.puts('='*80)
           end
         end
 

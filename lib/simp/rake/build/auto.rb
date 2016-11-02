@@ -186,7 +186,7 @@ module Simp::Rake::Build
           else
             puts
             puts '='*80
-            puts "#### Running tar:build in all repos"
+            puts "#### Running tar:build"
             puts '='*80
             $simp_tarballs = {}
             Rake::Task['tar:build'].invoke(target_data['mock'],key_name,do_docs)

@@ -1,0 +1,11 @@
+# ------------------------------------------------------------------------------
+# Environment variables:
+#   SIMP_GEM_SERVERS | a space/comma delimited list of rubygem servers
+# ------------------------------------------------------------------------------
+# NOTE: SIMP Puppet rake tasks support ruby 2.0 and ruby 2.1
+# ------------------------------------------------------------------------------
+gem_sources   = ENV.key?('SIMP_GEM_SERVERS') ? ENV['SIMP_GEM_SERVERS'].split(/[, ]+/) : ['https://rubygems.org']
+
+gem_sources.each { |gem_source| source gem_source }
+
+gem 'simp-rake-helpers', '~> 3.0'
