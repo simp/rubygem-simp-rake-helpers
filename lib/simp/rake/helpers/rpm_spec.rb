@@ -6,8 +6,8 @@ class Simp::Rake::Helpers
 
     include Simp::Rake::Build::Constants
 
-    def self.template
-      simp_version = ENV.fetch('SIMP_BUILD_version', @simp_version)
+    def rpm_template(simp_version=nil)
+      simp_version = ENV.fetch('SIMP_BUILD_version', simp_version)
 
       if simp_version
         simp_main_version = simp_version.split('.').first
@@ -15,7 +15,7 @@ class Simp::Rake::Helpers
         simp_main_version = 'default'
       end
 
-      template_file = File.join(File.dirname(__FILE__), 'rpm_spec', 'assets', "simp#{simp_main_version}.spec")
+      template_file = File.join(File.dirname(__FILE__), 'assets', 'rpm_spec', "simp#{simp_main_version}.spec")
 
       raise "Error: Could not find template for SIMP version #{simp_version}" unless File.exist?(template_file)
 
