@@ -1,5 +1,6 @@
 #!/usr/bin/rake -T
 
+require 'simp/rake/pkg'
 require 'simp/rake/build/constants'
 
 module Simp; end
@@ -65,15 +66,55 @@ module Simp::Rake::Build
           chown_everything = ENV.fetch( 'SIMP_RAKE_CHOWN_EVERYTHING', 'Y' ).chomp.index( %r{^(1|Y|true|yes)$}i ) || false
 
           verbose(true) do
-            next if not chown_everything
-            # Set the permissions properly for mock to dig through your source
-            # directories.
-            chown_R(nil,'mock',@base_dir)
-            # Ruby >= 1.9.3 chmod_R('g+rXs',@base_dir)
+            next unless chown_everything
+
+            dirs_to_mod = []
+            files_to_mod = []
+
             Find.find(@base_dir) do |path|
+              Find.prune if File.symlink?(path)
+              Find.prune if (File.basename(path) == '.git')
+              Find.prune if (File.basename(path) =~ /^\..*cache/)
+
+              safe_path = Shellwords.escape(path)
+
+              mock_gid = Etc.getgrnam('mock').gid
+
+              file_stat = File.stat(path)
+
+              file_mode = file_stat.mode.to_s(2)[-12..-1].scan(/.{3}/)
+              file_group_perms = file_mode[-2]
+              file_group_read = (file_group_perms[0] == '1')
+              file_group_execute = (file_group_perms[2] == '1')
+              file_sgid = (file_mode[-4][1] == '1')
+
               if File.directory?(path)
-                %x{chmod g+rXs #{Shellwords.escape(path)}}
+                if (mock_gid != file_stat.gid) ||
+                    !file_group_read ||!file_group_execute || !file_sgid
+                  dirs_to_mod << safe_path
+                end
+              else
+                if (mock_gid != file_stat.gid) || !file_group_read
+                  files_to_mod << safe_path
+                end
               end
+            end
+
+            # Set the permissions properly for mock to dig through your source
+            Parallel.map(
+              dirs_to_mod,
+              :in_processes => get_cpu_limit,
+              :progress => 'Set "mock" dir perms'
+            ) do |dir|
+              %x{chgrp 'mock' #{dir} && chmod g+rXs #{dir}}
+            end
+
+            Parallel.map(
+              files_to_mod,
+              :in_processes => get_cpu_limit,
+              :progress => 'Set "mock" file perms'
+            ) do |file|
+              %x{chgrp 'mock' #{file} && chmod g+r #{file}}
             end
           end
         end
@@ -93,7 +134,7 @@ module Simp::Rake::Build
               Dir.chdir(dir) do
                 begin
                   rake_flags = Rake.application.options.trace ? '--trace' : ''
-                  %x{rake clean[#{args.chroot}] #{rake_flags}}
+                  %x{rake clean[#{args[:chroot]}] #{rake_flags}}
                   clean_failures_lock.synchronize do
                     clean_failures << dir unless $?.success?
                   end
@@ -111,7 +152,7 @@ module Simp::Rake::Build
             fail(%(Error: The following directories had failures in #{task.name}:\n  * #{clean_failures.join("\n  * ")}))
           end
 
-          %x{mock -r #{args.chroot} --scrub=all} if args.chroot
+          %x{mock -r #{args[:chroot]} --scrub=all} if args[:chroot]
         end
 
         task :clobber,[:chroot] => [:prep] do |t,args|
@@ -124,7 +165,7 @@ module Simp::Rake::Build
             ) do |dir|
               Dir.chdir(dir) do
                 rake_flags = Rake.application.options.trace ? '--trace' : ''
-                sh %{rake clobber[#{args.chroot}] #{rake_flags}}
+                sh %{rake clobber[#{args[:chroot]}] #{rake_flags}}
               end
             end
           end
@@ -147,7 +188,7 @@ module Simp::Rake::Build
 
           Dir.chdir("#{@build_dir}/build_keys") {
             if (args.key != 'dev')
-              fail("Could not find GPG keydir '#{args.key}' in '#{Dir.pwd}'") unless File.directory?(args.key)
+              fail("Could not find GPG keydir '#{args[:key]}' in '#{Dir.pwd}'") unless File.directory?(args[:key])
             end
 
             mkdir('dev') unless File.directory?('dev')
@@ -234,7 +275,7 @@ module Simp::Rake::Build
                       gpg_agent_socket = gpg_agent_info[0]
                       gpg_agent_pid = gpg_agent_info[1].strip.to_i
 
-                      if not File.exist? (%(#{Dir.pwd}/#{File.basename(gpg_agent_socket)})) then
+                      unless File.exist?(%(#{Dir.pwd}/#{File.basename(gpg_agent_socket)}))
                         ln_s(gpg_agent_socket,%(#{Dir.pwd}/#{File.basename(gpg_agent_socket)}))
                       end
                     end
@@ -257,7 +298,7 @@ module Simp::Rake::Build
               end
             }
 
-            Dir.chdir(args.key) {
+            Dir.chdir(args[:key]) {
               rpm_build_keys = Dir.glob('RPM-GPG-KEY-*')
               target_dir = '../../GPGKEYS'
 
@@ -293,21 +334,21 @@ module Simp::Rake::Build
           _verbose = ENV.fetch('SIMP_PKG_verbose','no') == 'yes'
 
           args.with_defaults(:key => 'dev')
-          args.with_defaults(:docs => true)
+          args.with_defaults(:docs => 'true')
 
           output_dir = @pkg_dirs[:simp]
 
           check_dvd_env
 
-          Rake::Task['pkg:simp_cli'].invoke(args.chroot)
-          Rake::Task['pkg:aux'].invoke(args.chroot)
+          Rake::Task['pkg:simp_cli'].invoke(args[:chroot])
+          Rake::Task['pkg:aux'].invoke(args[:chroot])
           if "#{args.docs}" == 'true'
-            Rake::Task['pkg:doc'].invoke(args.chroot)
+            Rake::Task['pkg:doc'].invoke(args[:chroot])
           end
-          Rake::Task['pkg:modules'].invoke(args.chroot)
+          Rake::Task['pkg:modules'].invoke(args[:chroot])
 
           # The main SIMP RPM must be built last!
-          Rake::Task['pkg:simp'].invoke(args.chroot,args.snapshot_release)
+          Rake::Task['pkg:simp'].invoke(args[:chroot],args[:snapshot_release])
 
           # Prepare for the build!
           rm_rf(output_dir, :verbose => _verbose)
@@ -349,13 +390,12 @@ module Simp::Rake::Build
             end
           end
 
-          Rake::Task['pkg:signrpms'].invoke(args.key)
+          Rake::Task['pkg:signrpms'].invoke(args[:key])
         end
 
         desc <<-EOM
           Build the Puppet module RPMs.
 
-            This also builds the simp-mit RPM due to its location.
             Building this environment requires a working Mock setup (http://fedoraproject.org/wiki/Projects/Mock)
 
             * :chroot - The Mock chroot configuration to use. See the '--root' option in mock(1).
@@ -365,7 +405,47 @@ module Simp::Rake::Build
               - Set `SIMP_PKG_verbose=yes` to report file operations as they happen.
         EOM
         task :modules,[:chroot,:method] => [:prep,:mock_prep] do |t,args|
-          build(args.chroot,@build_dirs[:modules],t)
+          build(args[:chroot],@build_dirs[:modules],t)
+        end
+
+        desc <<-EOM
+          Build a single Puppet Module RPM.
+
+            Building this environment requires a working Mock setup (http://fedoraproject.org/wiki/Projects/Mock)
+
+            * :name   - The path, or name, of the module to build. If a name is
+                        given, the Puppetfile.<method> will be used to find the
+                        module.
+                        Note: This is the *short* name. So, to build
+                        puppetlabs-stdlib, you would just enter 'stdlib'
+            * :chroot - The Mock chroot configuration to use. See the '--root' option in mock(1).
+            * :method - The Puppetfile from which the repository information should be read. Defaults to 'tracking'
+
+            ENV vars:
+              - Set `SIMP_PKG_verbose=yes` to report file operations as they happen.
+        EOM
+        task :single,[:name,:chroot,:method] => [:prep, :mock_prep] do |t,args|
+          fail("You must pass :name to '#{t.name}'") unless args[:name]
+
+          mod_path = File.absolute_path(args[:name])
+
+          if args[:name].include?('/')
+            fail("'#{args[:name]}' does not exist!") unless File.directory?(mod_path)
+          else
+            load_puppetfile(args[:method])
+            local_module = puppetfile.modules.select{|m| m[:name] == args[:name]}.first
+
+            unless local_module
+              fail("'#{args[:name]}' was not found in the Puppetfile")
+            end
+
+            mod_path = local_module[:path]
+          end
+
+          ENV['SIMP_PKG_rand_name'] = 'yes'
+          build(args[:chroot], Array(mod_path), t)
+
+          puts("Your packages can be found in '#{mod_path}/dist'")
         end
 
         desc <<-EOM
@@ -377,7 +457,7 @@ module Simp::Rake::Build
             - Set `SIMP_PKG_verbose=yes` to report file operations as they happen.
         EOM
         task :simp_cli,[:chroot] => [:prep,:mock_prep] do |t,args|
-          build(args.chroot,@build_dirs[:simp_cli],t)
+          build(args[:chroot], @build_dirs[:simp_cli], t)
         end
 
         desc <<-EOM
@@ -390,7 +470,7 @@ module Simp::Rake::Build
             * :chroot - The Mock chroot configuration to use. See the '--root' option in mock(1).
         EOM
         task :aux,[:chroot] => [:prep,:mock_prep]  do |t,args|
-          build(args.chroot,@build_dirs[:aux],t)
+          build(args[:chroot],@build_dirs[:aux],t)
         end
 
         desc <<-EOM
@@ -403,7 +483,7 @@ module Simp::Rake::Build
               - Set `SIMP_PKG_verbose=yes` to report file operations as they happen.
         EOM
         task :doc,[:chroot] => [:prep,:mock_prep] do |t,args|
-          build(args.chroot,@build_dirs[:doc],t)
+          build(args[:chroot],@build_dirs[:doc],t)
         end
 
         desc <<-EOM
@@ -417,7 +497,7 @@ module Simp::Rake::Build
               - Set `SIMP_PKG_verbose=yes` to report file operations as they happen.
         EOM
         task :simp,[:chroot,:snapshot_release] => [:prep,:mock_prep] do |t,args|
-          build(args.chroot,@build_dirs[:simp],t,false,args.snapshot_release)
+          build(args[:chroot],@build_dirs[:simp],t,false,args[:snapshot_release])
         end
 
         desc "Sign the RPMs."
@@ -426,11 +506,11 @@ module Simp::Rake::Build
 
           args.with_defaults(:key => 'dev')
           args.with_defaults(:rpm_dir => "#{@build_dir}/SIMP/*RPMS")
-          args.with_default(:force => false)
+          args.with_default(:force => 'false')
 
-          force = (args.force.to_s == 'false' ? false : true)
+          force = (args[:force].to_s == 'false' ? false : true)
 
-          rpm_dirs = Dir.glob(args.rpm_dir)
+          rpm_dirs = Dir.glob(args[:rpm_dir])
           to_sign = []
 
           rpm_dirs.each do |rpm_dir|
@@ -447,7 +527,7 @@ module Simp::Rake::Build
           ) do |rpm|
             rpminfo = %x{rpm -qip #{rpm} 2>/dev/null}.split("\n")
             if (force || !rpminfo.grep(/Signature\s+:\s+\(none\)/).empty?)
-              Simp::RPM.signrpm(rpm,"#{@build_dir}/build_keys/#{args.key}")
+              Simp::RPM.signrpm(rpm,"#{@build_dir}/build_keys/#{args[:key]}")
             end
           end
         end
@@ -464,9 +544,9 @@ module Simp::Rake::Build
             args.with_defaults(:rpm_dir => @pkg_dirs[:ext])
             args.with_defaults(:key_dir => "#{@build_dir}/GPGKEYS")
 
-            rpm_dirs = Dir.glob(args.rpm_dir)
+            rpm_dirs = Dir.glob(args[:rpm_dir])
 
-            fail("Could not find files at #{args.rpm_dir}!") if rpm_dirs.empty?
+            fail("Could not find files at #{args[:rpm_dir]}!") if rpm_dirs.empty?
 
             temp_gpg_dir = Dir.mktmpdir
 
@@ -475,7 +555,7 @@ module Simp::Rake::Build
             sh %{#{rpm_cmd} --initdb}
 
             # Only import thngs that look like GPG keys...
-            Dir.glob("#{args.key_dir}/*").each do |key|
+            Dir.glob("#{args[:key_dir]}/*").each do |key|
               next if File.directory?(key) or not File.readable?(key)
 
               File.read(key).each_line do |line|
@@ -529,7 +609,7 @@ module Simp::Rake::Build
         task :repoclosure,[:target_dir,:aux_dir] => [:prep] do |t,args|
           default_target = @pkg_dirs[:simp]
           args.with_defaults(:target_dir => default_target)
-          if args.target_dir == default_target
+          if args[:target_dir] == default_target
             args.with_defaults(:aux_dir => @pkg_dirs[:ext])
           else
             args.with_defaults(:aux_dir => '')
@@ -564,7 +644,7 @@ gpgcheck=0
 protect=1
   EOF
 
-          fail("#{args.target_dir} does not exist!") unless File.directory?(args.target_dir)
+          fail("#{args[:target_dir]} does not exist!") unless File.directory?(args[:target_dir])
 
           begin
             temp_pkg_dir = Dir.mktmpdir
@@ -573,7 +653,7 @@ protect=1
             mkdir_p("#{temp_pkg_dir}/repos/lookaside")
             mkdir_p("#{temp_pkg_dir}/repodata")
 
-            Dir.glob(args.target_dir).each do |base_dir|
+            Dir.glob(args[:target_dir]).each do |base_dir|
               Find.find(base_dir) do |path|
                 if (path =~ /.*\.rpm$/) and (path !~ /.*.src\.rpm$/)
                   sym_path = "#{temp_pkg_dir}/repos/base/#{File.basename(path)}"
@@ -582,7 +662,7 @@ protect=1
               end
             end
 
-            Dir.glob(args.aux_dir).each do |aux_dir|
+            Dir.glob(args[:aux_dir]).each do |aux_dir|
               Find.find(aux_dir) do |path|
                 if (path =~ /.*\.rpm$/) and (path !~ /.*.src\.rpm$/)
                   sym_path = "#{temp_pkg_dir}/repos/lookaside/#{File.basename(path)}"
@@ -648,10 +728,10 @@ protect=1
           validate_in_mock_group?
           _verbose = ENV.fetch('SIMP_PKG_verbose','no') == 'yes'
 
-          mock_pre_check(chroot)
-
           # Default package metadata for reference
           default_metadata = YAML.load(File.read("#{@src_dir}/build/package_metadata_defaults.yaml"))
+
+          reenable_lock = Mutex.new
 
           metadata = Parallel.map(
             # Allow for shell globs
@@ -664,21 +744,35 @@ protect=1
             fail("Could not find directory #{dir}") unless Dir.exist?(dir)
 
             Dir.chdir(dir) do
-              if File.exist?('Rakefile')
+              built_rpm = false
+              unique_build = (get_cpu_limit != 1).to_s
 
-                unique_build = (get_cpu_limit != 1)
+              if _verbose
+                $stderr.puts("Running 'rake pkg:rpm' on #{File.basename(dir)}")
+              end
+
+              # We're building a module, override anything down there
+              if File.exist?('metadata.json')
+                unique_namespace = (0...24).map{ (65 + rand(26)).chr }.join.downcase
+
+                Simp::Rake::Pkg.new(Dir.pwd, nil, unique_namespace)
+
+                Rake::Task["#{unique_namespace}:pkg:rpm"].invoke(chroot, unique_build, snapshot_release)
+
+                built_rpm = true
+
+              # We're building one of the extra assets and should honor its Rakefile
+              elsif File.exist?('Rakefile')
 
                 rake_flags = Rake.application.options.trace ? '--trace' : ''
 
-                cmd = %{SIMP_BUILD_version=#{@simp_version} rake pkg:rpm[#{chroot},unique_build,#{snapshot_release}] #{rake_flags} 2>&1}
+                cmd = %{SIMP_BUILD_version=#{@simp_version} rake pkg:rpm[#{chroot},#{unique_build},#{snapshot_release}] #{rake_flags} 2>&1}
                 begin
-                  if _verbose
-                    $stderr.puts("Running 'rake pkg:rpm'")
-                  end
-
                   ::Bundler.with_clean_env do
                     %x{#{cmd}}
                   end
+
+                  built_rpm = true
                 rescue
                   if _verbose
                     $stderr.puts("First 'rake pkg:rpm' attempt failed, running bundle and trying again.")
@@ -689,14 +783,20 @@ protect=1
                     %x{#{cmd}}
                   end
                 end
+              else
+                puts "Warning: '#{dir}' could not be built via Rake"
+              end
 
+              if built_rpm
                 tarballs = Dir.glob('dist/*.tar.gz')
                 srpms = Dir.glob('dist/*.src.rpm')
                 rpms = (Dir.glob('dist/*.rpm') - srpms)
 
                 # Not all items generate tarballs
                 tarballs.each do |pkg|
-                  raise("Empty Tarball '#{pkg}' generated for #{dir}") if (File.stat(pkg).size == 0)
+                  if (File.stat(pkg).size == 0)
+                    raise("Empty Tarball '#{pkg}' generated for #{dir}")
+                  end
                 end
                 raise("No SRPMs generated for #{dir}") if srpms.empty?
                 raise("No RPMs generated for #{dir}") if rpms.empty?
@@ -713,8 +813,10 @@ protect=1
 
                   result << metadata
                 end
-              else
-                puts "Warning: Could not find Rakefile in '#{dir}'"
+              end
+
+              if _verbose
+                $stderr.puts("Finshed 'rake pkg:rpm' on #{File.basename(dir)}")
               end
             end
 
@@ -763,51 +865,9 @@ protect=1
         # Return an Array of all puppet module directories
         def get_module_dirs(method='tracking')
           load_puppetfile(method)
-          module_paths.select{|x| File.basename(File.dirname(x)) == 'modules'}
-        end
-
-        # Get a list of all of the mock configs available on the system.
-        def get_mock_configs
-          Dir.glob('/etc/mock/*.cfg').sort.map{ |x| x = File.basename(x,'.cfg')}
-        end
-
-        # Run some pre-checks to make sure that mock will work properly.
-        # Pass init=false if you do not want the function to initialize.
-        #
-        # Returns 'true' if the space is already initialized.
-        # FIXME: unique_name doesn't work
-        # FIXME: unique_name is never called
-        # FIXME: which is fortunate, because PKGNAME is never defined
-        def mock_pre_check(chroot,unique_name=false,init=true)
-          which('mock') || raise(Exception, 'Could not find mock on your system, exiting')
-
-          mock_configs = get_mock_configs
-
-          if not chroot
-            fail("Error: No mock chroot provided. Your choices are:\n#{mock_configs.join("\n  ")}"
-            )
-          end
-          if not mock_configs.include?(chroot)
-            fail("Error: Invalid mock chroot provided. Your choices are:\n#{mock_configs.join("\n  ")}"
-            )
-          end
-
-          # Allow for building all modules in parallel.
-          @mock = "#{@mock} --uniqueext=#{PKGNAME}" if unique_name
-
-          # A simple test to see if the chroot is initialized
-          %x{#{@mock} -q --root #{chroot} --chroot "test -d /tmp" --quiet &> /dev/null}
-          initialized = $?.success?
-
-          if init and not initialized
-            cmd = %{#{@mock} --root #{chroot} --init}
-            sh cmd
-          end
-
-          initialized
+          module_paths.select{|x| File.basename(File.dirname(x)) == 'modules'}.sort
         end
       end
     end
   end
 end
-

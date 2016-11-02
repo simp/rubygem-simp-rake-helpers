@@ -15,7 +15,7 @@ class Simp::Rake::Helpers
         simp_main_version = 'default'
       end
 
-      template_file = File.join(File.dirname(__FILE__), 'rpm_spec', 'assets', "simp#{simp_main_version}.spec")
+      template_file = File.join(File.dirname(__FILE__), 'assets', 'rpm_spec', "simp#{simp_main_version}.spec")
 
       raise "Error: Could not find template for SIMP version #{simp_version}" unless File.exist?(template_file)
 

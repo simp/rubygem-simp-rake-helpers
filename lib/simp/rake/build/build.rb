@@ -38,9 +38,9 @@ module Simp::Rake::Build
           args.with_defaults(:verbose => 'false')
           args.with_defaults(:method => 'tracking')
 
-          verbose = args.verbose == 'false' ? false : true
+          verbose = args[:verbose] == 'false' ? false : true
 
-          load_puppetfile(args.method)
+          load_puppetfile(args[:method])
 
           # Grab all currently tracked submodules.
           failed_mods = []
@@ -69,7 +69,7 @@ module Simp::Rake::Build
               # Clean env will give bundler the environment present before
               # Bundler is activated.
               ::Bundler.with_clean_env do
-                out = %x(bundle #{args.action} 2>&1)
+                out = %x(bundle #{args[:action]} 2>&1)
                 status = $?.success?
                 puts out if verbose
                 failed_mod_lock.synchronize do
@@ -80,7 +80,7 @@ module Simp::Rake::Build
           end
 
           failed_mods.compact!
-          fail(%(The following modules failed bundle #{args.action}:\n  * #{failed_mods.sort.join("\n  *")})) unless failed_mods.empty?
+          fail(%(The following modules failed bundle #{args[:action]}:\n  * #{failed_mods.sort.join("\n  *")})) unless failed_mods.empty?
         end
 
         namespace :yum do
@@ -114,19 +114,19 @@ module Simp::Rake::Build
           # Return the target directory
           # Expects one argument wich is the 'arguments' hash to one of the tasks.
           def get_target_dir(args)
-            fail("Error: You must specify 'os'") unless args.os
-            fail("Error: You must specify 'os_version'") unless args.os_version
-            fail("Error: You must specify both major and minor version for the OS") unless args.os_version =~ /^.+\..+$/
-            fail("Error: You must specify 'simp_version'") unless args.simp_version
-            fail("Error: You must specify 'arch'") unless args.arch
+            fail("Error: You must specify 'os'") unless args[:os]
+            fail("Error: You must specify 'os_version'") unless args[:os_version]
+            fail("Error: You must specify both major and minor version for the OS") unless args[:os_version] =~ /^.+\..+$/
+            fail("Error: You must specify 'simp_version'") unless args[:simp_version]
+            fail("Error: You must specify 'arch'") unless args[:arch]
 
             # Yes, this is a kluge but the amount of variable passing that would need
             # to be done to support this is silly.
-            @build_arch = args.arch
+            @build_arch = args[:arch]
 
             return File.join(
               @base_dir,
-              "SIMP#{args.simp_version}_#{args.os}#{args.os_version}_#{args.arch}"
+              "SIMP#{args[:simp_version]}_#{args[:os]}#{args[:os_version]}_#{args[:arch]}"
             )
           end
 
@@ -692,19 +692,19 @@ module Simp::Rake::Build
             args.with_defaults(:simp_version => @simp_version.split('-').first)
             args.with_defaults(:arch => @build_arch)
 
-            fail("Error: You must specify 'pkg'") unless args.pkg
+            fail("Error: You must specify 'pkg'") unless args[:pkg]
 
             pkgs = []
             # Handle the output of build:yum_diff
-            if File.readable?(args.pkg)
-              File.read(args.pkg).each_line do |line|
+            if File.readable?(args[:pkg])
+              File.read(args[:pkg]).each_line do |line|
                 if line =~ /\s+~\s+(.*)/
                   pkgs << $1.split(/-\d+/).first
                 end
               end
             else
               # Handle the default case
-              pkgs = [args.pkg]
+              pkgs = [args[:pkg]]
             end
 
             Dir.chdir(get_target_dir(args)) do
