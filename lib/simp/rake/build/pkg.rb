@@ -13,6 +13,7 @@ module Simp::Rake::Build
 
     def initialize( base_dir )
       init_member_vars( base_dir )
+
       @mock = ENV['mock'] || '/usr/bin/mock'
       define_tasks
     end
@@ -27,13 +28,17 @@ module Simp::Rake::Build
       end
 
       namespace :pkg do
-
         ##############################################################################
         # Main tasks
         ##############################################################################
 
         # Have to get things set up inside the proper namespace
         task :prep,[:method] do |t,args|
+
+          if $simp6
+            @build_dir = $simp6_build_dir
+          end
+
           args.with_defaults(:method => 'tracking')
 
           @build_dirs = {
@@ -57,12 +62,11 @@ module Simp::Rake::Build
           @build_dirs[:aux].delete_if{|f| !File.directory?(f)}
 
           @pkg_dirs = {
-            :simp => "#{@build_dir}/SIMP",
-            :ext  => "#{@build_dir}/Ext_*"
+            :simp => "#{@build_dir}/SIMP"
           }
         end
 
-        task :mock_prep do
+        task :mock_prep => [:prep] do
           chown_everything = ENV.fetch( 'SIMP_RAKE_CHOWN_EVERYTHING', 'Y' ).chomp.index( %r{^(1|Y|true|yes)$}i ) || false
 
           verbose(true) do
@@ -121,7 +125,6 @@ module Simp::Rake::Build
 
         clean_failures = []
         clean_failures_lock = Mutex.new
-        chroot_scrub_lock = Mutex.new
 
         task :clean,[:chroot] => [:prep] do |t,args|
           validate_in_mock_group?
@@ -180,127 +183,130 @@ module Simp::Rake::Build
           ENV vars:
             - Set `SIMP_PKG_verbose=yes` to report file operations as they happen.
         EOM
-        task :key_prep,[:key] do |t,args|
+        task :key_prep,[:key] => [:prep] do |t,args|
           require 'securerandom'
           _verbose = ENV.fetch('SIMP_PKG_verbose','no') == 'yes'
 
           args.with_defaults(:key => 'dev')
 
-          Dir.chdir("#{@build_dir}/build_keys") {
+          FileUtils.mkdir_p("#{@build_dir}/build_keys")
+
+          Dir.chdir("#{@build_dir}/build_keys") do
             if (args.key != 'dev')
               fail("Could not find GPG keydir '#{args[:key]}' in '#{Dir.pwd}'") unless File.directory?(args[:key])
-            end
+            else
 
-            mkdir('dev') unless File.directory?('dev')
-            chmod(0700,'dev')
+              mkdir('dev') unless File.directory?('dev')
+              chmod(0700,'dev')
 
-            Dir.chdir('dev') {
-              dev_email = 'gatekeeper@simp.development.key'
-              current_key = `gpg --homedir=#{Dir.pwd} --list-keys #{dev_email} 2>/dev/null`
-              days_left = 0
-              if !current_key.empty?
-                lasts_until = current_key.lines.first.strip.split("\s").last.delete(']')
-                days_left = (Date.parse(lasts_until) - DateTime.now).to_i
-              end
-
-              if days_left > 0
-                puts "GPG key will expire in #{days_left} days."
-              else
-                puts "Generating new GPG key"
-
-                Dir.glob('*').each do |todel|
-                  rm_rf(todel, :verbose => _verbose)
-                end
-
-                expire_date = (DateTime.now + 14)
-                now = Time.now.to_i.to_s
+              Dir.chdir('dev') do
                 dev_email = 'gatekeeper@simp.development.key'
-                passphrase = SecureRandom.base64(500)
-
-                gpg_infile = <<-EOM
-      %echo Generating Development GPG Key
-      %echo
-      %echo This key will expire on #{expire_date}
-      %echo
-      Key-Type: RSA
-      Key-Length: 4096
-      Key-Usage: sign
-      Name-Real: SIMP Development
-      Name-Comment: Development key #{now}
-      Name-Email: #{dev_email}
-      Expire-Date: 2w
-      Passphrase: #{passphrase}
-      %pubring pubring.gpg
-      %secring secring.gpg
-      # The following creates the key, so we can print "Done!" afterwards
-      %commit
-      %echo New GPG Development Key Created
-                EOM
-
-                gpg_agent_script = <<-EOM
-      #!/bin/sh
-
-      gpg-agent --homedir=#{Dir.pwd} --batch --daemon --pinentry-program /usr/bin/pinentry-curses < /dev/null &
-                EOM
-
-                File.open('gengpgkey','w'){ |fh| fh.puts(gpg_infile) }
-                File.open('run_gpg_agent','w'){ |fh| fh.puts(gpg_agent_script) }
-                chmod(0755,'run_gpg_agent')
-
-                gpg_agent_pid = nil
-                gpg_agent_socket = nil
-
-                if File.exist?(%(#{ENV['HOME']}/.gnupg/S.gpg-agent))
-                  gpg_agent_socket = %(#{ENV['HOME']}/.gnupg/S.gpg-agent)
-                  gpg_agent_socket = %(#{ENV['HOME']}/.gnupg/S.gpg-agent)
+                current_key = `gpg --homedir=#{Dir.pwd} --list-keys #{dev_email} 2>/dev/null`
+                days_left = 0
+                unless current_key.empty?
+                  lasts_until = current_key.lines.first.strip.split("\s").last.delete(']')
+                  days_left = (Date.parse(lasts_until) - DateTime.now).to_i
                 end
 
-                begin
-                  unless gpg_agent_socket
-                    gpg_agent_output = %x(./run_gpg_agent).strip
+                if days_left > 0
+                  puts "GPG key will expire in #{days_left} days."
+                else
+                  puts "Generating new GPG key"
 
-                    if gpg_agent_output.empty?
-                      # This is a working version of gpg-agent, that means we need to
-                      # connect to it to figure out what's going on
+                  Dir.glob('*').each do |todel|
+                    rm_rf(todel, :verbose => _verbose)
+                  end
 
-                      gpg_agent_socket = %(#{Dir.pwd}/S.gpg-agent)
-                      gpg_agent_pid_info = %x(gpg-agent --homedir=#{Dir.pwd} /get serverpid).strip
-                      gpg_agent_pid_info =~ %r(\[(\d+)\])
-                      gpg_agent_pid = $1
-                    else
-                      # Are we running a broken version of the gpg-agent? If so, we'll
-                      # get back info on the command line.
+                  expire_date = (DateTime.now + 14)
+                  now = Time.now.to_i.to_s
+                  dev_email = 'gatekeeper@simp.development.key'
+                  passphrase = SecureRandom.base64(500)
 
-                      gpg_agent_info = gpg_agent_output.split(';').first.split('=').last.split(':')
-                      gpg_agent_socket = gpg_agent_info[0]
-                      gpg_agent_pid = gpg_agent_info[1].strip.to_i
+                  gpg_infile = <<-EOM
+        %echo Generating Development GPG Key
+        %echo
+        %echo This key will expire on #{expire_date}
+        %echo
+        Key-Type: RSA
+        Key-Length: 4096
+        Key-Usage: sign
+        Name-Real: SIMP Development
+        Name-Comment: Development key #{now}
+        Name-Email: #{dev_email}
+        Expire-Date: 2w
+        Passphrase: #{passphrase}
+        %pubring pubring.gpg
+        %secring secring.gpg
+        # The following creates the key, so we can print "Done!" afterwards
+        %commit
+        %echo New GPG Development Key Created
+                  EOM
 
-                      unless File.exist?(%(#{Dir.pwd}/#{File.basename(gpg_agent_socket)}))
-                        ln_s(gpg_agent_socket,%(#{Dir.pwd}/#{File.basename(gpg_agent_socket)}))
+                  gpg_agent_script = <<-EOM
+        #!/bin/sh
+
+        gpg-agent --homedir=#{Dir.pwd} --batch --daemon --pinentry-program /usr/bin/pinentry-curses < /dev/null &
+                  EOM
+
+                  File.open('gengpgkey','w'){ |fh| fh.puts(gpg_infile) }
+                  File.open('run_gpg_agent','w'){ |fh| fh.puts(gpg_agent_script) }
+                  chmod(0755,'run_gpg_agent')
+
+                  gpg_agent_pid = nil
+                  gpg_agent_socket = nil
+
+                  if File.exist?(%(#{ENV['HOME']}/.gnupg/S.gpg-agent))
+                    gpg_agent_socket = %(#{ENV['HOME']}/.gnupg/S.gpg-agent)
+                    gpg_agent_socket = %(#{ENV['HOME']}/.gnupg/S.gpg-agent)
+                  end
+
+                  begin
+                    unless gpg_agent_socket
+                      gpg_agent_output = %x(./run_gpg_agent).strip
+
+                      if gpg_agent_output.empty?
+                        # This is a working version of gpg-agent, that means we need to
+                        # connect to it to figure out what's going on
+
+                        gpg_agent_socket = %(#{Dir.pwd}/S.gpg-agent)
+                        gpg_agent_pid_info = %x(gpg-agent --homedir=#{Dir.pwd} /get serverpid).strip
+                        gpg_agent_pid_info =~ %r(\[(\d+)\])
+                        gpg_agent_pid = $1
+                      else
+                        # Are we running a broken version of the gpg-agent? If so, we'll
+                        # get back info on the command line.
+
+                        gpg_agent_info = gpg_agent_output.split(';').first.split('=').last.split(':')
+                        gpg_agent_socket = gpg_agent_info[0]
+                        gpg_agent_pid = gpg_agent_info[1].strip.to_i
+
+                        unless File.exist?(%(#{Dir.pwd}/#{File.basename(gpg_agent_socket)}))
+                          ln_s(gpg_agent_socket,%(#{Dir.pwd}/#{File.basename(gpg_agent_socket)}))
+                        end
                       end
                     end
-                  end
 
-                  sh %{gpg --homedir=#{Dir.pwd} --batch --gen-key gengpgkey}
-                  sh %{gpg --homedir=#{Dir.pwd} --armor --export #{dev_email} > RPM-GPG-KEY-SIMP-Dev}
-                ensure
-                  begin
-                    rm('S.gpg-agent') if File.symlink?('S.gpg-agent')
+                    sh %{gpg --homedir=#{Dir.pwd} --batch --gen-key gengpgkey}
+                    sh %{gpg --homedir=#{Dir.pwd} --armor --export #{dev_email} > RPM-GPG-KEY-SIMP-Dev}
+                  ensure
+                    begin
+                      rm('S.gpg-agent') if File.symlink?('S.gpg-agent')
 
-                    if gpg_agent_pid
-                      Process.kill(0,gpg_agent_pid)
-                      Process.kill(15,gpg_agent_pid)
+                      if gpg_agent_pid
+                        Process.kill(0,gpg_agent_pid)
+                        Process.kill(15,gpg_agent_pid)
+                      end
+                      rescue Errno::ESRCH
+                      # Not Running, Nothing to do!
                     end
-                    rescue Errno::ESRCH
-                    # Not Running, Nothing to do!
                   end
                 end
               end
-            }
+            end
 
-            Dir.chdir(args[:key]) {
+            Dir.chdir(args[:key]) do
               rpm_build_keys = Dir.glob('RPM-GPG-KEY-*')
-              target_dir = '../../GPGKEYS'
+              target_dir = File.join(@build_dir, 'GPGKEYS')
 
               fail("Could not find any RPM-GPG-KEY files in '#{Dir.pwd}'") if rpm_build_keys.empty?
               fail("No GPGKEYS directory at '#{Dir.pwd}/#{target_dir}") unless File.directory?(target_dir)
@@ -314,8 +320,8 @@ module Simp::Rake::Build
 
               dkfh.flush
               dkfh.close
-            }
-          }
+            end
+          end
         end
 
         desc <<-EOM
@@ -330,6 +336,7 @@ module Simp::Rake::Build
               - Set `SIMP_PKG_verbose=yes` to report file operations as they happen.
         EOM
         task :build,[:chroot,:docs,:key,:snapshot_release] => [:prep,:mock_prep,:key_prep] do |t,args|
+
           validate_in_mock_group?
           _verbose = ENV.fetch('SIMP_PKG_verbose','no') == 'yes'
 
@@ -502,7 +509,7 @@ module Simp::Rake::Build
 
         desc "Sign the RPMs."
         task :signrpms,[:key,:rpm_dir,:force] => [:prep,:key_prep,:mock_prep] do |t,args|
-          which('rpmsign') || raise(Exception, 'Could not find rpmsign on your system. Exiting.')
+          which('rpmsign') || raise(StandardError, 'Could not find rpmsign on your system. Exiting.')
 
           args.with_defaults(:key => 'dev')
           args.with_defaults(:rpm_dir => "#{@build_dir}/SIMP/*RPMS")
@@ -541,7 +548,7 @@ module Simp::Rake::Build
         EOM
         task :checksig,[:rpm_dir,:key_dir] => [:prep] do |t,args|
           begin
-            args.with_defaults(:rpm_dir => @pkg_dirs[:ext])
+            args.with_defaults(:rpm_dir => @pkg_dirs[:simp])
             args.with_defaults(:key_dir => "#{@build_dir}/GPGKEYS")
 
             rpm_dirs = Dir.glob(args[:rpm_dir])
@@ -554,9 +561,12 @@ module Simp::Rake::Build
 
             sh %{#{rpm_cmd} --initdb}
 
+            public_keys = Dir.glob(File.join(args[:key_dir], '*'))
+            public_keys += Dir.glob(File.join(@build_dir, 'build_keys', '*', 'RPM-GPG-KEY*'))
+
             # Only import thngs that look like GPG keys...
-            Dir.glob("#{args[:key_dir]}/*").each do |key|
-              next if File.directory?(key) or not File.readable?(key)
+            public_keys.each do |key|
+              next if File.directory?(key) or !File.readable?(key)
 
               File.read(key).each_line do |line|
                 if line =~ /-----BEGIN PGP PUBLIC KEY BLOCK-----/
@@ -578,7 +588,7 @@ module Simp::Rake::Build
               end
             end
 
-            if !bad_rpms.empty?
+            unless bad_rpms.empty?
               bad_rpms.map!{|x| x = "  * #{x}"}
               bad_rpms.unshift("ERROR: Untrusted RPMs found in the repository:")
 
@@ -587,7 +597,7 @@ module Simp::Rake::Build
               puts "Checksig succeeded"
             end
           ensure
-            remove_entry_secure temp_gpg_dir
+            remove_entry_secure temp_gpg_dir if (temp_gpg_dir && File.exist?(temp_gpg_dir))
           end
         end
 
@@ -610,7 +620,7 @@ module Simp::Rake::Build
           default_target = @pkg_dirs[:simp]
           args.with_defaults(:target_dir => default_target)
           if args[:target_dir] == default_target
-            args.with_defaults(:aux_dir => @pkg_dirs[:ext])
+            args.with_defaults(:aux_dir => @pkg_dirs[:simp])
           else
             args.with_defaults(:aux_dir => '')
           end
@@ -731,8 +741,6 @@ protect=1
           # Default package metadata for reference
           default_metadata = YAML.load(File.read("#{@src_dir}/build/package_metadata_defaults.yaml"))
 
-          reenable_lock = Mutex.new
-
           metadata = Parallel.map(
             # Allow for shell globs
             Array(dirs),
@@ -808,6 +816,11 @@ protect=1
                 raise("No SRPMs generated for #{dir}") if srpms.empty?
                 raise("No RPMs generated for #{dir}") if rpms.empty?
 
+                last_build = {
+                  'git_hash' => %x{git show-ref --head HEAD}.chomp,
+                  'rpms'     => {}
+                }
+
                 # Glob all generated rpms, and add their metadata to a result array.
                 rpms.each do |rpm|
                   # get_info from each generated rpm, not the spec file, so macros in the
@@ -818,7 +831,18 @@ protect=1
                     metadata.merge!(YAML.load_file('build/package_metadata.yaml'))
                   end
 
+                  rpm_stat = File.stat(rpm)
+
+                  last_build['rpms'][rpm] = {
+                    'metadata' => metadata,
+                    'size' => rpm_stat.size
+                  }
+
                   result << metadata
+                end
+
+                File.open('dist/.last_build_metadata', 'w') do |fh|
+                  fh.puts(last_build.to_yaml)
                 end
               end
 

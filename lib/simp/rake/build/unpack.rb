@@ -10,6 +10,7 @@ module Simp::Rake::Build
 
     def initialize( base_dir )
       init_member_vars( base_dir )
+
       @mock = ENV['mock'] || '/usr/bin/mock'
       define_tasks
     end
@@ -78,9 +79,9 @@ module Simp::Rake::Build
         out_dir = "#{File.expand_path(targetdir)}/#{map['baseos']}#{map['version']}-#{map['arch']}"
 
         # Attempt a merge
-        if File.exist?(out_dir) and merge.to_s.strip == 'false' then
+        if File.exist?(out_dir) and merge.to_s.strip == 'false'
           puts "Directory '#{out_dir}' already exists! Would you like to merge? [Yn]?"
-          if not $stdin.gets.strip.match(/^(y.*|$)/i) then
+          unless $stdin.gets.strip.match(/^(y.*|$)/i)
             puts "Skipping #{iso_path}"
             next
           end
@@ -99,11 +100,11 @@ module Simp::Rake::Build
 
         iso_toc.each do |iso_entry|
           target = "#{out_dir}#{iso_entry}"
-          if not File.exist?(target) then
+          unless File.exist?(target)
             FileUtils.mkdir_p(File.dirname(target))
             system("#{iso_info} -R -x #{iso_entry} -i #{iso_path} > #{target}")
           end
-          if progress then
+          if progress
             progress.increment
           else
             print "#"

@@ -11,17 +11,25 @@ module Simp::Rake::Build
 
     def initialize( base_dir )
       init_member_vars( base_dir )
+
       define_tasks
     end
 
     # define rake tasks
     def define_tasks
       namespace :tar do
+        task :prep do
+          if $simp6
+            @build_dir = $simp6_build_dir
+          end
 
-        directory "#{@dvd_dir}/staging"
+          if $tarball_tgt
+            @dvd_dir = File.dirname($tarball_tgt)
+          end
+        end
 
         def get_simp_version
-          simp_rpm = Dir.glob("#{@base_dir}/build/SIMP/RPMS/*/simp-[0-9]*.rpm").max_by {|f| File.mtime(f)}
+          simp_rpm = Dir.glob("#{@build_dir}/SIMP/RPMS/*/simp-[0-9]*.rpm").max_by {|f| File.mtime(f)}
           fail("Could not find simp main RPM in output directory!") unless simp_rpm
           simp_version = File.basename(simp_rpm).gsub(".noarch.rpm","").gsub("simp-","")
 
@@ -35,8 +43,9 @@ module Simp::Rake::Build
         # Main tasks
         ##############################################################################
 
-        task :validate do |t,args|
-          rpm_dir = File.join(@base_dir,'build','SIMP','RPMS')
+        task :validate => [:prep] do |t,args|
+          rpm_dir = File.join(@build_dir,'SIMP','RPMS')
+
           fail("Could not find output dir: '#{rpm_dir}'") unless File.directory?(rpm_dir)
 
           required_rpms = {
@@ -88,43 +97,58 @@ module Simp::Rake::Build
 
           validate_in_mock_group?
 
+          if $tarball_tgt
+            target_dists = ['simp6']
+          else
+            target_dists = @target_dists
+          end
+
           Parallel.map(
-            @target_dists,
+            target_dists,
             :in_processes => get_cpu_limit,
             :process => t.name
           ) do |dist|
-            base_dir = "#{@dvd_dir}/#{dist}/staging"
+            if $tarball_tgt
+              base_dir = "#{@dvd_dir}/staging"
+            else
+              base_dir = "#{@dvd_dir}/#{dist}/staging"
+            end
+
             destdir = "#{base_dir}/SIMP"
 
             # Build the staging area
+            remove_entry_secure(destdir) if File.exist?(destdir)
+
             mkdir_p(destdir)
+
             Simp::RPM.copy_wo_vcs(@dvd_src,".",base_dir)
 
             # Copy in the GPG Public Keys
             mkdir_p("#{destdir}/GPGKEYS")
-            ln(Dir.glob("#{@build_dir}/GPGKEYS/RPM-GPG-KEY*"), "#{destdir}/GPGKEYS", :force => true)
+            ln(Dir.glob("#{@build_dir}/GPGKEYS/RPM-GPG-KEY*"), "#{destdir}/GPGKEYS", { :force => true })
 
             # Copy in the auto-build RPMs
             Dir.chdir("#{@build_dir}/SIMP/RPMS") do
               Dir.glob('*').each do |type|
                 dest_type = type
-                if File.directory?(type) then
-                  if type =~ /i.*86/ then
+                if File.directory?(type)
+                  if type =~ /i.*86/
                     dest_type = 'i386'
                   end
 
                   mkdir_p("#{destdir}/#{dest_type}")
+
                   Dir.chdir(type) do
-                    ln(Dir.glob("*.#{type}.rpm"),"#{destdir}/#{dest_type}", :force => true)
+                    ln(Dir.glob("*.#{type}.rpm"), "#{destdir}/#{dest_type}", { :force => true })
                   end
                 end
               end
             end
 
-            if args.docs.casecmp('true') == 0 then
+            if args.docs.casecmp('true') == 0
               # Finally, the PDF docs if they exist.
               pdfs = Dir.glob("#{@src_dir}/doc/pdf/*")
-              if ! pdfs.empty? then
+              unless pdfs.empty?
                 pdfs.each do |pdf|
                   cp(pdf,base_dir)
                 end
@@ -132,8 +156,8 @@ module Simp::Rake::Build
                 # If we don't have PDFs in the directory, yank them out of the
                 # RPM itself!
                 simp_doc_rpm = Dir.glob("#{@build_dir}/SIMP/RPMS/*/simp-doc*.rpm").last
-                if not simp_doc_rpm then
-                  raise(Exception,"Error: Could not find simp-doc*.rpm in the build, something went very wrong")
+                unless simp_doc_rpm
+                  raise(StandardError,"Error: Could not find simp-doc*.rpm in the build, something went very wrong")
                 end
 
                 Dir.mktmpdir { |dir|
@@ -141,8 +165,8 @@ module Simp::Rake::Build
                     %x{rpm2cpio #{simp_doc_rpm} | cpio -u --quiet --warning none -ivd ./usr/share/doc/simp-*/pdf/SIMP*.pdf 2>&1 > /dev/null}
                     pdf_docs = Dir.glob("usr/share/doc/simp-*/pdf/*.pdf")
 
-                    if pdf_docs.empty? then
-                      raise(Exception,"Error: Could not find any PDFs in the simp-doc RPM, aborting.")
+                    if pdf_docs.empty?
+                      raise(StandardError,"Error: Could not find any PDFs in the simp-doc RPM, aborting.")
                     end
 
                     pdf_docs.each do |pdf|
@@ -156,13 +180,30 @@ module Simp::Rake::Build
 
           # FIXME: this is a horribad way of sharing with `build:auto`
           $simp_tarballs = {}
-          @target_dists.each do |dist|
-            base_dir = "#{@dvd_dir}/#{dist}/staging"
-            dvd_name = [ 'SIMP', 'DVD', dist, get_simp_version ]
-            dvd_tarball = "#{dvd_name.join('-')}.tar.gz"
+
+          if $tarball_tgt
+            target_dists = ['simp6']
+          else
+            target_dists = @target_dists
+          end
+
+          target_dists.each do |dist|
+            if $tarball_tgt
+              dvd_tarball = File.basename($tarball_tgt)
+              base_dir = "#{@dvd_dir}/staging"
+            else
+              base_dir = "#{@dvd_dir}/#{dist}/staging"
+              dvd_name = [ 'SIMP', 'DVD', dist, get_simp_version ]
+              dvd_tarball = "#{dvd_name.join('-')}.tar.gz"
+            end
+
+            mkdir_p(base_dir)
+
             Dir.chdir(base_dir) do
               sh %{tar --owner 0 --group 0 --exclude-vcs --mode=u=rwX,g=rX,o=rX -cpzf "../#{dvd_tarball}" ./*}
-              mv("../#{dvd_tarball}",@dvd_dir)
+              unless $tarball_tgt
+                mv("../#{dvd_tarball}",@dvd_dir)
+              end
             end
 
             puts "Package DVD: #{@dvd_dir}/#{dvd_tarball}"

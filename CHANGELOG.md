@@ -1,3 +1,7 @@
+### 3.1.0 / 2016-11-25
+* Added SIMP 6 build structure support
+* Fixed the detection for requiring rebuilds via mock
+
 ### 3.0.2 / 2016-11-02
 * Added a lot more parallel capability
 * Added a 'pkg:single' task for building single RPMs from the top level

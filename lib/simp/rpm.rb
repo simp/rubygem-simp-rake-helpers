@@ -88,8 +88,11 @@ module Simp
     #                  reference to the spec file itself
     # }
     def self.get_info(rpm_source, mock_hash=nil)
-      info    = Hash.new
-      rpm_cmd = "rpm -q --queryformat '%{NAME} %{VERSION} %{RELEASE}\n'"
+      info = {
+        :has_dist_tag => false
+      }
+
+      rpm_cmd = "rpm -q --queryformat '%{NAME} %{VERSION} %{RELEASE} %{ARCH}\n'"
 
       if mock_hash
         # Suppression of error messages is a hack for the following
@@ -111,6 +114,9 @@ module Simp
           results = execute("#{rpm_cmd}")
         else
           results = execute("#{rpm_cmd} --specfile #{rpm_source}")
+          if File.read(rpm_source).match('\?dist')
+            info[:has_dist_tag] = true
+          end
         end
 
         if results[:exit_status] != 0
@@ -121,7 +127,7 @@ module Simp
 EOE
         end
 
-        info[:name],info[:version],info[:release] = results[:stdout].strip.split("\n").first.split(' ')
+        info[:name], info[:version], info[:release], info[:arch] = results[:stdout].strip.split("\n").first.split(' ')
       else
         raise "Error: unable to read '#{rpm_source}'"
       end

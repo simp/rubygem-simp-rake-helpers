@@ -5,7 +5,7 @@ require 'simp/rake/build/constants'
 module Simp; end
 module Simp::Rake; end
 module Simp::Rake::Build
-  class SIMPBuildException < Exception
+  class SIMPBuildException < StandardError
   end
 
   include Simp::Rake
@@ -15,12 +15,19 @@ module Simp::Rake::Build
 
     def initialize( base_dir )
       init_member_vars( base_dir )
+
       define_tasks
     end
 
     # define rake tasks
     def define_tasks
       namespace :build do
+        task :prep do
+          if $simp6
+            @build_dir = $simp6_build_dir
+          end
+        end
+
         desc <<-EOM
         Run bundle at every level of the project.
 
@@ -33,7 +40,7 @@ module Simp::Rake::Build
           * :verbose => Enable verbose reporting. Default => 'false'
         EOM
 
-        task :bundle, [:action, :verbose, :method] do |t, args|
+        task :bundle, [:action, :verbose, :method] => [:prep] do |t, args|
           args.with_defaults(:action => 'install')
           args.with_defaults(:verbose => 'false')
           args.with_defaults(:method => 'tracking')
@@ -84,8 +91,14 @@ module Simp::Rake::Build
         end
 
         namespace :yum do
-          @base_dir = File.join(@build_dir,'yum_data')
-          @build_arch = 'x86_64'
+          task :prep do
+            if $simp6
+              @build_dir = $simp6_build_dir
+            end
+
+            @build_base_dir = File.join(@build_dir,'yum_data')
+            @build_arch = 'x86_64'
+          end
 
           ##############################################################################
           # Helpers
@@ -114,20 +127,24 @@ module Simp::Rake::Build
           # Return the target directory
           # Expects one argument wich is the 'arguments' hash to one of the tasks.
           def get_target_dir(args)
-            fail("Error: You must specify 'os'") unless args[:os]
-            fail("Error: You must specify 'os_version'") unless args[:os_version]
-            fail("Error: You must specify both major and minor version for the OS") unless args[:os_version] =~ /^.+\..+$/
-            fail("Error: You must specify 'simp_version'") unless args[:simp_version]
-            fail("Error: You must specify 'arch'") unless args[:arch]
+            if $simp6
+              return @build_base_dir
+            else
+              fail("Error: You must specify 'os'") unless args[:os]
+              fail("Error: You must specify 'os_version'") unless args[:os_version]
+              fail("Error: You must specify both major and minor version for the OS") unless args[:os_version] =~ /^.+\..+$/
+              fail("Error: You must specify 'simp_version'") unless args[:simp_version]
+              fail("Error: You must specify 'arch'") unless args[:arch]
 
-            # Yes, this is a kluge but the amount of variable passing that would need
-            # to be done to support this is silly.
-            @build_arch = args[:arch]
+              # Yes, this is a kluge but the amount of variable passing that would need
+              # to be done to support this is silly.
+              @build_arch = args[:arch]
 
-            return File.join(
-              @base_dir,
-              "SIMP#{args[:simp_version]}_#{args[:os]}#{args[:os_version]}_#{args[:arch]}"
-            )
+              return File.join(
+                @build_base_dir,
+                "SIMP#{args[:simp_version]}_#{args[:os]}#{args[:os_version]}_#{args[:arch]}"
+              )
+            end
           end
 
           # Return where YUM finds the passed RPM
@@ -334,7 +351,7 @@ module Simp::Rake::Build
           # Update the packages.yaml and packages/ directories
           #   * target_dir => The actual distribution directory where packages.yaml and
           #                   packages/ reside.
-          def update_packages(target_dir,bootstrap=false)
+          def update_packages(target_dir, bootstrap=false)
             # This really should never happen....
             unless File.directory?(target_dir)
               fail <<-EOM
@@ -559,7 +576,7 @@ module Simp::Rake::Build
 
           * :arch         - The architecture that you support. Default: x86_64
           EOM
-          task :scaffold,[:os,:os_version,:simp_version,:arch] do |t,args|
+          task :scaffold,[:os,:os_version,:simp_version,:arch] => [:prep] do |t,args|
             # @simp_version is set in the main Rakefile
             args.with_defaults(:simp_version => @simp_version.split('-').first)
             args.with_defaults(:arch => @build_arch)
@@ -572,7 +589,7 @@ module Simp::Rake::Build
             end
 
             # Put together the rest of the scaffold directories
-            Dir.chdir(@base_dir) do
+            Dir.chdir(@build_base_dir) do
               mkdir('my_repos') unless File.exist?('my_repos')
             end
 
@@ -597,7 +614,7 @@ module Simp::Rake::Build
 
           * :arch         - The architecture that you support. Default: x86_64
           EOM
-          task :sync,[:os,:os_version,:simp_version,:arch] => [:scaffold] do |t,args|
+          task :sync,[:os,:os_version,:simp_version,:arch] => [:prep, :scaffold] do |t,args|
             # @simp_version is set in the main Rakefile
             args.with_defaults(:simp_version => @simp_version.split('-').first)
             args.with_defaults(:arch => @build_arch)
@@ -622,7 +639,7 @@ module Simp::Rake::Build
 
           * :arch         - The architecture that you support. Default: x86_64
           EOM
-          task :diff,[:os,:os_version,:simp_version,:arch] => [:scaffold] do |t,args|
+          task :diff,[:os,:os_version,:simp_version,:arch] => [:prep, :scaffold] do |t,args|
             args.with_defaults(:simp_version => @simp_version.split('-').first)
             args.with_defaults(:arch => @build_arch)
 
@@ -688,7 +705,7 @@ module Simp::Rake::Build
 
           * :arch         - The architecture that you support. Default: x86_64
           EOM
-          task :fetch,[:pkg,:os,:os_version,:simp_version,:arch] => [:scaffold] do |t,args|
+          task :fetch,[:pkg,:os,:os_version,:simp_version,:arch] => [:prep, :scaffold] do |t,args|
             args.with_defaults(:simp_version => @simp_version.split('-').first)
             args.with_defaults(:arch => @build_arch)
 

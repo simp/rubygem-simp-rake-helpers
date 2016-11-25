@@ -12,6 +12,7 @@ module Simp::Rake::Build
 
     def initialize( base_dir )
       init_member_vars( base_dir )
+
       @mock = ENV['mock'] || '/usr/bin/mock'
       define_tasks
     end
@@ -19,6 +20,11 @@ module Simp::Rake::Build
     def define_tasks
 
       namespace :upload do
+        task :prep do
+          if $simp6
+            @build_dir = $simp6_build_dir
+          end
+        end
 
         ##############################################################################
         # Helper methods
@@ -56,7 +62,7 @@ module Simp::Rake::Build
               stdin,stdout,stderr = Open3.popen3('git','rev-list',start)
               stderr.read !~ /^fatal:/ and is_commit = true
 
-              if is_commit then
+              if is_commit
                 # Snag the date.
                 start, humanstart = `git log #{start} --pretty=format:"%ct##%cd" --max-count=1`.chomp.split('##')
               else
@@ -78,8 +84,8 @@ module Simp::Rake::Build
                   :is_new => false
                 }
                 pkg_info[file][:alias] = file
-                if file =~ /.spec$/ then
-                  if script_format then
+                if file =~ /.spec$/
+                  if script_format
                     pkg_info[file][:alias] = "#{@build_dir}/RPMS/#{Simp::RPM.new(file).name}*.rpm"
                   else
                     pkg_info[file][:alias] = Simp::RPM.new(file).name
@@ -95,7 +101,7 @@ module Simp::Rake::Build
               commit_head = `git log --before="#{start}" --pretty=format:%H --max-count=1 #{File.basename(file)}`.chomp
 
               # Did we find something different?
-              if commit_head.empty? then
+              if commit_head.empty?
                 pkg_info[file][:is_new] = true
               else
                 pkg_info[file][:is_new] = !system('git','diff','--quiet',commit_head,File.basename(file))
@@ -111,7 +117,7 @@ module Simp::Rake::Build
 
           The package list is created from the given date or git identifier (tag, branch, or hash)
         EOM
-        task :get_modified,[:start,:script_format] do |t,args|
+        task :get_modified,[:start,:script_format] => [:prep] do |t,args|
           args.with_defaults(:script_format => false)
 
           args.start or raise "Error: You must specify a 'start'"

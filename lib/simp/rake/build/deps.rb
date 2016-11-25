@@ -128,6 +128,8 @@ class R10KHelper
     @modules.each do |mod|
       module_dir = mod[:path].split(@basedir.to_s).last.split('/')[1..-2].join('/')
 
+      next unless mod[:r10k_module]
+
       if last_module_dir != module_dir
         pupfile << "moduledir '#{module_dir}'\n"
         last_module_dir = module_dir
