@@ -225,6 +225,7 @@ module Simp::Rake
                 Find.prune if @ignore_changes_list.include?(path)
 
                 next if File.directory?(path)
+
                 unless uptodate?(@tar_dest,[path])
                   require_rebuild = true
                   break
@@ -270,6 +271,7 @@ module Simp::Rake
           srpms = Dir.glob(%(#{@pkg_dir}/#{@spec_info[:name]}-#{@spec_info[:version]}-#{@spec_info[:release]}#{l_date}.*src.rpm))
 
           if require_rebuild?(srpms, @tar_dest)
+
             mock_cmd = mock_pre_check( args[:chroot], @chroot_name, args[:unique] )
 
             @puppet_module_info_files.each do |file|

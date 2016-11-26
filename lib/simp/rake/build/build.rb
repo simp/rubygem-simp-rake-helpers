@@ -94,6 +94,14 @@ module Simp::Rake::Build
           task :prep do
             if $simp6
               @build_dir = $simp6_build_dir
+
+              unless @build_dir
+                if ENV['SIMP_BUILD_yum_dir'] && File.exist?(File.join(ENV['SIMP_BUILD_yum_dir'], 'yum_data'))
+                  @build_dir = ENV['SIMP_BUILD_yum_dir']
+                end
+              end
+
+              raise('Error: For SIMP 6+ builds, you need to set SIMP_BUILD_yum_dir to the directory holding the "yum_data" directory that you wish to sync') unless @build_dir
             end
 
             @build_base_dir = File.join(@build_dir,'yum_data')
@@ -209,7 +217,7 @@ module Simp::Rake::Build
                 puts("Downloading: #{full_pkg}")
                 unless @use_yumdownloader
                   %x(curl -L --max-redirs 10 -s -o "#{full_pkg}" -k "#{source}")
-                  unless %x(file #{full_pkg}).include?('RPM')
+                  if File.exist?(full_pkg) && !%x(file #{full_pkg}).include?('RPM')
                     @use_yumdownloader = true
                     FileUtils.rm(full_pkg)
                   end
@@ -217,6 +225,11 @@ module Simp::Rake::Build
 
                 if @use_yumdownloader
                   %x(yumdownloader -c #{yum_conf} #{File.basename(full_pkg,'.rpm')} 2>/dev/null )
+
+                  if File.exist?(full_pkg) && !%x(file #{full_pkg}).include?('RPM')
+                    @use_yumdownloader = true
+                    FileUtils.rm(full_pkg)
+                  end
                 end
 
                 unless $?.success?
@@ -248,7 +261,7 @@ module Simp::Rake::Build
 
               if clean
                 errmsg += ', removing'
-                FileUtils.rm(rpm)
+                FileUtils.rm(rpm) if File.exist?(rpm)
               end
 
               raise(SIMPBuildException,errmsg)
@@ -500,6 +513,8 @@ module Simp::Rake::Build
                 failed_updates.keys.sort.each do |k|
                   $stderr.puts("  * #{k} => #{failed_updates[k]}")
                 end
+
+                raise('Could not update all packages')
               end
             end
           end
@@ -590,7 +605,11 @@ module Simp::Rake::Build
 
             # Put together the rest of the scaffold directories
             Dir.chdir(@build_base_dir) do
-              mkdir('my_repos') unless File.exist?('my_repos')
+              if $simp6
+                mkdir('../my_repos') unless File.exist?('../my_repos')
+              else
+                mkdir('my_repos') unless File.exist?('my_repos')
+              end
             end
 
             Dir.chdir(target_dir) do
@@ -705,7 +724,7 @@ module Simp::Rake::Build
 
           * :arch         - The architecture that you support. Default: x86_64
           EOM
-          task :fetch,[:pkg,:os,:os_version,:simp_version,:arch] => [:prep, :scaffold] do |t,args|
+          task :fetch,[:pkg,:os,:os_version,:simp_version,:arch] => [:prep, :clean_cache, :scaffold] do |t,args|
             args.with_defaults(:simp_version => @simp_version.split('-').first)
             args.with_defaults(:arch => @build_arch)
 

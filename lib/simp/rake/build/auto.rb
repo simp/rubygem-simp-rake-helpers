@@ -92,7 +92,7 @@ module Simp::Rake::Build
             key_name         = args[:key_name]
             do_packer_vars   = ENV.fetch('SIMP_BUILD_packer_vars', 'yes') == 'yes'
             verbose          = ENV.fetch('SIMP_BUILD_verbose', 'no') == 'yes'
-            prompt           = ENV.fetch('SIMP_BUILD_prompt', 'no') != 'no'
+            prompt           = ENV.fetch('SIMP_BUILD_prompt', 'yes') != 'no'
             pwd              = Dir.pwd
             repo_root_dir    = File.expand_path( @base_dir )
             method           = ENV.fetch('SIMP_BUILD_puppetfile','tracking')
@@ -112,18 +112,18 @@ module Simp::Rake::Build
             # Ensure that we only build the prerequisites once
             prereqs_built = false
 
-            begin
-              @os_build_metadata['distributions'].keys.sort.each do |distro|
-                @os_build_metadata['distributions'][distro].keys.sort.each do |version|
-                  unless @os_build_metadata['distributions'][distro][version]['build']
-                    if verbose
-                      $stderr.puts("Skipping build for #{distro} #{version}")
-                    end
-
-                    next
+            @os_build_metadata['distributions'].keys.sort.each do |distro|
+              @os_build_metadata['distributions'][distro].keys.sort.each do |version|
+                unless @os_build_metadata['distributions'][distro][version]['build']
+                  if verbose
+                    $stderr.puts("Skipping build for #{distro} #{version}")
                   end
 
-                  @os_build_metadata['distributions'][distro][version]['arch'].sort.each do |arch|
+                  next
+                end
+
+                @os_build_metadata['distributions'][distro][version]['arch'].sort.each do |arch|
+                  begin
                     distro_build_dir = File.join(@distro_build_dir, distro, version, arch)
 
                     # For subtask mangling
@@ -139,16 +139,30 @@ module Simp::Rake::Build
 
                     if File.exist?(tar_file)
                       if prompt
-                        puts("Existing tar file found at #{tar_file}")
-                        puts("Do you want to overwrite it? (y|N)")
-                        resp = gets
+                        valid_entry = false
+                        while !valid_entry do
+                          puts("Existing tar file found at #{tar_file}")
+                          print("Do you want to overwrite it? (y|N): ")
 
-                        if resp =~ /^(y|Y)/
-                          tarball = false
+                          resp = $stdin.gets.chomp
+
+                          if resp.empty? || (resp =~ /^(n|N)/)
+                            tarball = tar_file
+                            valid_entry = true
+                          elsif resp =~ /^(y|Y)/
+                            tarball = false
+                            valid_entry = true
+
+                            if verbose
+                              $stderr.puts("Notice: Overwriting existing tarball at #{tar_file}")
+                              $stderr.puts("Notice: PRESS CTRL-C WITHIN 5 SECONDS TO CANCEL")
+                            end
+
+                            sleep(5)
+                          else
+                            puts("Invalid input: '#{resp}', please try again")
+                          end
                         end
-                      elsif verbose
-                        $stderr.puts("Notice: Overwriting existing tarball at #{tar_file}")
-                        sleep(5)
                       end
                     end
 
@@ -380,22 +394,20 @@ module Simp::Rake::Build
                     puts "#### FINIS!"
                     puts '='*80
                     puts
+
+                    iso_status[[distro, version, arch].join(' ')] = {
+                      'success' => true
+                    }
+
+                  rescue => e
+                    iso_status[[distro, version, arch].join(' ')] = {
+                    'success'   => false,
+                    'error'     => e.to_s,
+                    'backtrace' => e.backtrace
+                    }
                   end
                 end
               end
-
-              require 'pry'
-              binding.pry
-
-              iso_status[@simp_output_iso] = {
-                'success' => true
-              }
-            rescue => e
-              iso_status[@simp_output_iso] = {
-                'success'   => false,
-                'error'     => e.to_s,
-                'backtrace' => e.backtrace.join("\n")
-              }
             end
 
             successful_isos = []
@@ -423,7 +435,9 @@ module Simp::Rake::Build
                 puts(%(    * Error: #{iso_status[iso]['error']}))
 
                 if verbose
-                  puts(%(    * Backtrace: #{iso_status[iso]['backtrace']}))
+                  puts(%(    * Backtrace: #{iso_status[iso]['backtrace'].join("\n")}))
+                else
+                  puts(%(    * Context: #{iso_status[iso]['backtrace'].first}))
                 end
               end
             end
