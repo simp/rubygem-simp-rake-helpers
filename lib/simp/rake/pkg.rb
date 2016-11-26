@@ -43,6 +43,7 @@ module Simp::Rake
       @pkg_name            = File.basename(@base_dir)
       @pkg_dir             = File.join(@base_dir, 'dist')
       @pkg_tmp_dir         = File.join(@pkg_dir, 'tmp')
+      @pkg_stash_dir       = File.join(@pkg_tmp_dir, '.stash')
       @exclude_list        = [ File.basename(@pkg_dir) ]
       @clean_list          = []
       @ignore_changes_list = [
@@ -55,7 +56,7 @@ module Simp::Rake
       unless local_spec.empty?
         @spec_file = local_spec.first
       else
-        FileUtils.mkdir_p(@pkg_tmp_dir) unless File.directory?(@pkg_tmp_dir)
+        FileUtils.mkdir_p(@pkg_stash_dir) unless File.directory?(@pkg_stash_dir)
 
         @spec_tempfile = File.open(File.join(@pkg_tmp_dir, "#{@pkg_name}.spec"), 'w')
         @spec_tempfile.write(rpm_template(simp_version))
@@ -105,7 +106,25 @@ module Simp::Rake
       define_pkg_rpm
       define_pkg_scrub
       task :default => 'pkg:tar'
+
+      Rake::Task['pkg:tar'].enhance(['pkg:restore_stash'])
+      Rake::Task['pkg:srpm'].enhance(['pkg:restore_stash'])
+      Rake::Task['pkg:rpm'].enhance(['pkg:restore_stash'])
+
       self
+    end
+
+    # Add a file to the pkg stash
+    # These will be restored to the @pkg_dir at the end of the run
+    def stash(file)
+      FileUtils.mv(file, @pkg_stash_dir)
+    end
+
+    # Restore everything from the stash dir
+    def restore_stash
+      Dir.glob(File.join(@pkg_stash_dir, '*')).each do |file|
+        FileUtils.mv(file, @pkg_dir)
+      end
     end
 
     # Initialize the mock space if passed and retrieve the spec info from that
@@ -157,8 +176,8 @@ module Simp::Rake
         end
 
         @dir_name       = "#{@spec_info[:name]}-#{@spec_info[:version]}"
-        @mfull_pkg_name = "#{@dir_name}-#{@spec_info[:release]}"
-        @full_pkg_name  = @mfull_pkg_name.gsub("%{?snapshot_release}","")
+        _full_pkg_name = "#{@dir_name}-#{@spec_info[:release]}"
+        @full_pkg_name  = _full_pkg_name.gsub("%{?snapshot_release}","")
         @tar_dest       = "#{@pkg_dir}/#{@full_pkg_name}.tar.gz"
 
         if @tar_dest =~ /UNKNOWN/
@@ -184,10 +203,13 @@ module Simp::Rake
       end
     end
 
-
     def define_pkg_tar
       namespace :pkg do
         directory @pkg_dir
+
+        task :restore_stash do |t,args|
+          at_exit { restore_stash }
+        end
 
         task :initialize_spec_info,[:chroot,:unique] => [@pkg_dir] do |t,args|
           args.with_defaults(:chroot => nil)
@@ -213,6 +235,13 @@ module Simp::Rake
           if args[:snapshot_release] == 'true'
             l_date = '.' + "#{TIMESTAMP}"
             @tar_dest = "#{@pkg_dir}/#{@full_pkg_name}#{l_date}.tar.gz"
+          end
+
+          # Remove any tar files that are not from this version
+          tar_files = Dir.glob(%(#{@pkg_dir}/#{@spec_info[:name]}-#{@spec_info[:version]}*.tar.gz))
+          tar_files.delete(@tar_dest)
+          tar_files.each do |tf|
+            stash(tf)
           end
 
           target_dir = File.basename(@base_dir)
@@ -273,7 +302,23 @@ module Simp::Rake
             @tar_dest = "#{@pkg_dir}/#{@full_pkg_name}#{l_date}.tar.gz"
           end
 
-          srpms = Dir.glob(%(#{@pkg_dir}/#{@spec_info[:name]}-#{@spec_info[:version]}-#{@spec_info[:release]}#{l_date}.*src.rpm))
+          srpms = Dir.glob(%(#{@pkg_dir}/#{@spec_info[:name]}*-#{@spec_info[:version]}-*#{l_date}*.src.rpm))
+
+          # Get rid of any SRPMs that are not of this distribution build if we
+          # have found one
+          if @spec_info[:dist_tag]
+            srpms.delete_if do |srpm|
+              if srpm.split(@spec_info[:dist_tag]).last != '.src.rpm'
+                if File.exist?(srpm)
+                  stash(srpm)
+                end
+
+                true
+              else
+                false
+              end
+            end
+          end
 
           if require_rebuild?(srpms, @tar_dest)
 
@@ -286,7 +331,7 @@ module Simp::Rake
                 next if File.directory?(path)
 
                 tgt_file = File.join(@pkg_dir, File.basename(path))
-                FileUtils.rm_rf(tgt_file) if File.exist?(tgt_file)
+                FileUtils.remove_entry_secure(tgt_file) if File.exist?(tgt_file)
                 FileUtils.cp(path, @pkg_dir) if File.exist?(path)
               end
             end
@@ -324,9 +369,26 @@ module Simp::Rake
             @tar_dest = "#{@pkg_dir}/#{@full_pkg_name}#{l_date}.tar.gz"
           end
 
-          rpms = Dir.glob(%(#{@pkg_dir}/#{@spec_info[:name]}-#{@spec_info[:version]}-#{@spec_info[:release]}#{l_date}.*rpm))
+          rpms = Dir.glob(%(#{@pkg_dir}/#{@spec_info[:name]}-*#{@spec_info[:version]}-*#{l_date}*.rpm))
+
           srpms = rpms.select{|x| x =~ /src\.rpm$/}
           rpms = (rpms - srpms)
+
+          # Get rid of any RPMs that are not of this distribution build if we
+          # have found one
+          if @spec_info[:dist_tag]
+            rpms.delete_if do |rpm|
+              if rpm.split(@spec_info[:dist_tag]).last != ".#{@spec_info[:arch]}.rpm"
+                if File.exist?(rpm)
+                  stash(rpm)
+                end
+
+                true
+              else
+                false
+              end
+            end
+          end
 
           srpms.each do |srpm|
             dirname = File.dirname(srpm)

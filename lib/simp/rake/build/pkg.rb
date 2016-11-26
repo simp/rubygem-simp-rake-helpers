@@ -287,7 +287,7 @@ module Simp::Rake::Build
                     end
 
                     sh %{gpg --homedir=#{Dir.pwd} --batch --gen-key gengpgkey}
-                    sh %{gpg --homedir=#{Dir.pwd} --armor --export #{dev_email} > RPM-GPG-KEY-SIMP-Dev}
+                    %x{gpg --homedir=#{Dir.pwd} --armor --export #{dev_email} > RPM-GPG-KEY-SIMP-Dev}
                   ensure
                     begin
                       rm('S.gpg-agent') if File.symlink?('S.gpg-agent')
@@ -559,7 +559,7 @@ module Simp::Rake::Build
 
             rpm_cmd = %{rpm --dbpath #{temp_gpg_dir}}
 
-            sh %{#{rpm_cmd} --initdb}
+            %x{#{rpm_cmd} --initdb}
 
             public_keys = Dir.glob(File.join(args[:key_dir], '*'))
             public_keys += Dir.glob(File.join(@build_dir, 'build_keys', '*', 'RPM-GPG-KEY*'))
@@ -618,11 +618,10 @@ module Simp::Rake::Build
         EOM
         task :repoclosure,[:target_dir,:aux_dir] => [:prep] do |t,args|
           default_target = @pkg_dirs[:simp]
-          args.with_defaults(:target_dir => default_target)
-          if args[:target_dir] == default_target
-            args.with_defaults(:aux_dir => @pkg_dirs[:simp])
-          else
-            args.with_defaults(:aux_dir => '')
+          args.with_defaults(:target_dir => File.expand_path(default_target))
+
+          if args[:aux_dir]
+            args[:aux_dir] = File.expand_path(args[:aux_dir])
           end
 
           _verbose = ENV.fetch('SIMP_PKG_verbose','no') == 'yes'
@@ -656,32 +655,32 @@ protect=1
 
           fail("#{args[:target_dir]} does not exist!") unless File.directory?(args[:target_dir])
 
-          begin
-            temp_pkg_dir = Dir.mktmpdir
-
-            mkdir_p("#{temp_pkg_dir}/repos/base")
-            mkdir_p("#{temp_pkg_dir}/repos/lookaside")
-            mkdir_p("#{temp_pkg_dir}/repodata")
-
-            Dir.glob(args[:target_dir]).each do |base_dir|
-              Find.find(base_dir) do |path|
-                if (path =~ /.*\.rpm$/) and (path !~ /.*.src\.rpm$/)
-                  sym_path = "#{temp_pkg_dir}/repos/base/#{File.basename(path)}"
-                  ln_s(path,sym_path, :verbose => _verbose) unless File.exists?(sym_path)
-                end
-              end
-            end
-
-            Dir.glob(args[:aux_dir]).each do |aux_dir|
-              Find.find(aux_dir) do |path|
-                if (path =~ /.*\.rpm$/) and (path !~ /.*.src\.rpm$/)
-                  sym_path = "#{temp_pkg_dir}/repos/lookaside/#{File.basename(path)}"
-                  ln_s(path,sym_path, :verbose => _verbose) unless File.exists?(sym_path)
-                end
-              end
-            end
-
+          Dir.mktmpdir do |temp_pkg_dir|
             Dir.chdir(temp_pkg_dir) do
+              mkdir_p('repos/base')
+              mkdir_p('repos/lookaside')
+              mkdir_p('repodata')
+
+              Dir.glob(args[:target_dir]).each do |base_dir|
+                Find.find(base_dir) do |path|
+                  if (path =~ /.*\.rpm$/) and (path !~ /.*.src\.rpm$/)
+                    sym_path = "repos/base/#{File.basename(path)}"
+                    ln_s(path,sym_path, :verbose => _verbose) unless File.exists?(sym_path)
+                  end
+                end
+              end
+
+              if args[:aux_dir]
+                Dir.glob(args[:aux_dir]).each do |aux_dir|
+                  Find.find(aux_dir) do |path|
+                    if (path =~ /.*\.rpm$/) and (path !~ /.*.src\.rpm$/)
+                      sym_path = "repos/lookaside/#{File.basename(path)}"
+                      ln_s(path,sym_path, :verbose => _verbose) unless File.exists?(sym_path)
+                    end
+                  end
+                end
+              end
+
               repo_files = []
               Dir.glob('repos/*').each do |repo|
                 if File.directory?(repo)
@@ -720,8 +719,6 @@ protect=1
                 fail(errmsg.join("\n"))
               end
             end
-          ensure
-            remove_entry_secure temp_pkg_dir
           end
         end
 

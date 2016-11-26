@@ -108,15 +108,22 @@ module Simp
       end
 
       if File.readable?(rpm_source)
+        if File.read(rpm_source).include?('%{?dist}')
+          info[:has_dist_tag] = true
+        end
+
         if rpm_source.split('.').last == 'rpm'
           results = execute("#{rpm_cmd} -p #{rpm_source}")
         elsif mock_hash
           results = execute("#{rpm_cmd}")
+
+          if info[:has_dist_tag]
+            info[:dist_tag] = execute(%(#{mock_hash[:command]} --chroot 'rpm --eval "%{dist}"' 2>/dev/null))[:stdout].strip
+
+            info[:dist_tag] = nil if (info[:dist_tag][0].chr == '%')
+          end
         else
           results = execute("#{rpm_cmd} --specfile #{rpm_source}")
-          if File.read(rpm_source).match('\?dist')
-            info[:has_dist_tag] = true
-          end
         end
 
         if results[:exit_status] != 0

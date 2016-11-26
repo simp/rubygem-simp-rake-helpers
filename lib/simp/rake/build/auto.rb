@@ -65,9 +65,6 @@ module Simp::Rake::Build
             - SIMP_BUILD_verbose        => 'yes' enables verbose reporting. [Default: 'no']
             - SIMP_BUILD_packer_vars    => Write a packer vars.json to go with this ISO [Default: 'yes']
             - SIMP_BUILD_signing_key    => The name of the GPG key to use to sign packages. [Default: 'dev']
-
-          Notes:
-            - To skip `tar:build` (including `pkg:build`), use the `tarball` argument
           EOM
 
           task :auto, [:iso_paths,
@@ -109,9 +106,6 @@ module Simp::Rake::Build
 
             iso_status = {}
 
-            # Ensure that we only build the prerequisites once
-            prereqs_built = false
-
             @os_build_metadata['distributions'].keys.sort.each do |distro|
               @os_build_metadata['distributions'][distro].keys.sort.each do |version|
                 unless @os_build_metadata['distributions'][distro][version]['build']
@@ -128,6 +122,11 @@ module Simp::Rake::Build
 
                     # For subtask mangling
                     $simp6_build_dir = distro_build_dir
+                    $simp6_build_metadata = {
+                      :distro  => distro,
+                      :version => version,
+                      :arch    => arch
+                    }
 
                     output_dir = args[:output_dir].sub(/^$/, File.expand_path( 'SIMP_ISO', distro_build_dir ))
 
@@ -191,6 +190,7 @@ module Simp::Rake::Build
                     target_data = get_target_data(target_release, iso_paths, yaml_file, do_checksum, verbose )
 
                     simp6_mock_cfg = File.join($simp6_build_dir, 'mock.cfg')
+
                     if File.exist?(simp6_mock_cfg)
                       target_data['mock'] = simp6_mock_cfg
 
@@ -199,51 +199,46 @@ module Simp::Rake::Build
                       end
                     end
 
-                    unless prereqs_built
-
-                      # check out subrepos
-                      # --------------------
-                      if do_checkout && !tarball
-                        puts
-                        puts '='*80
-                        puts "## Checking out subrepositories"
-                        puts
-                        puts "     (skip with `SIMP_BUILD_checkout=no`)"
-                        puts '='*80
-                        Dir.chdir repo_root_dir
-                        Rake::Task['deps:status'].invoke
-                        if @dirty_repos && !ENV['SIMP_BUILD_force_dirty'] == 'yes'
-                          raise SIMPBuildException, "ERROR: Dirty repos detected!  I refuse to destroy uncommitted work."
-                        else
-                          puts
-                          puts '-'*80
-                          puts "#### Checking out subrepositories using method '#{method}'"
-                          puts '-'*80
-                          Rake::Task['deps:checkout'].invoke(method)
-                        end
-
-                        if do_bundle
-                          puts
-                          puts '-'*80
-                          puts "#### Running bundler in all repos"
-                          puts '     (Disable with `SIMP_BUILD_bundle=no`)'
-                          puts '-'*80
-                          Rake::Task['build:bundle'].invoke
-                        else
-                          puts
-                          puts '-'*80
-                          puts "#### SKIPPED: bundler in all repos"
-                          puts '     (Force with `SIMP_BUILD_bundle=yes`)'
-                          puts '-'*80
-                        end
+                    # check out subrepos
+                    # --------------------
+                    if do_checkout && !tarball
+                      puts
+                      puts '='*80
+                      puts "## Checking out subrepositories"
+                      puts
+                      puts "     (skip with `SIMP_BUILD_checkout=no`)"
+                      puts '='*80
+                      Dir.chdir repo_root_dir
+                      Rake::Task['deps:status'].invoke
+                      if @dirty_repos && !ENV['SIMP_BUILD_force_dirty'] == 'yes'
+                        raise SIMPBuildException, "ERROR: Dirty repos detected!  I refuse to destroy uncommitted work."
                       else
                         puts
-                        puts '='*80
-                        puts "#### skipping sub repository checkout (because `SIMP_BUILD_checkout=no`)"
-                        puts
+                        puts '-'*80
+                        puts "#### Checking out subrepositories using method '#{method}'"
+                        puts '-'*80
+                        Rake::Task['deps:checkout'].invoke(method)
                       end
 
-                      prereqs_built = true
+                      if do_bundle
+                        puts
+                        puts '-'*80
+                        puts "#### Running bundler in all repos"
+                        puts '     (Disable with `SIMP_BUILD_bundle=no`)'
+                        puts '-'*80
+                        Rake::Task['build:bundle'].invoke
+                      else
+                        puts
+                        puts '-'*80
+                        puts "#### SKIPPED: bundler in all repos"
+                        puts '     (Force with `SIMP_BUILD_bundle=yes`)'
+                        puts '-'*80
+                      end
+                    else
+                      puts
+                      puts '='*80
+                      puts "#### skipping sub repository checkout (because `SIMP_BUILD_checkout=no`)"
+                      puts
                     end
 
                     # build tarball
@@ -326,7 +321,6 @@ module Simp::Rake::Build
                     ENV['SIMP_ISO_verbose'] = 'yes' if verbose
                     ENV['SIMP_PKG_verbose'] = 'yes' if verbose
                     Rake::Task['iso:build'].invoke(tarball,staging_dir,do_prune)
-
 
                     _isos = Dir[ File.join(Dir.pwd,'SIMP-*.iso') ]
                     if _isos.size == 0

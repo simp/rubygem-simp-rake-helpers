@@ -191,10 +191,12 @@ module Simp::Rake::Build
               rescue
                 # Does not matter if the command fails
               end
+
               pkglist_file = ENV.fetch(
-                                       'SIMP_PKGLIST_FILE',
-                                        File.join(dir,"#{baseosver.split('.').first}-simp_pkglist.txt")
-                                      )
+                'SIMP_PKGLIST_FILE',
+                File.join(dir,"#{baseosver.split('.').first}-simp_pkglist.txt")
+              )
+
               puts
               puts '-'*80
               puts "### Pruning packages not in file '#{pkglist_file}'"
