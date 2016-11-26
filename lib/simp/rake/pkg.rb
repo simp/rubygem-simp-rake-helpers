@@ -45,7 +45,10 @@ module Simp::Rake
       @pkg_tmp_dir         = File.join(@pkg_dir, 'tmp')
       @exclude_list        = [ File.basename(@pkg_dir) ]
       @clean_list          = []
-      @ignore_changes_list = []
+      @ignore_changes_list = [
+        'Gemfile.lock',
+        'spec/fixtures/modules'
+      ]
       @chroot_name         = unique_name
 
       local_spec = Dir.glob(File.join(@base_dir, 'build', '*.spec'))
@@ -219,10 +222,12 @@ module Simp::Rake
             if File.exist?(@tar_dest)
               Find.find(target_dir) do |path|
                 filename = File.basename(path)
+
                 Find.prune if filename =~ /^\./
                 Find.prune if ((filename == File.basename(@pkg_dir)) && File.directory?(path))
-                Find.prune if ((filename == 'spec') && File.directory?(path))
-                Find.prune if @ignore_changes_list.include?(path)
+
+                to_ignore = @ignore_changes_list.map{|x| x = Dir.glob(File.join(@base_dir, x))}.flatten
+                Find.prune if to_ignore.include?(File.expand_path(path))
 
                 next if File.directory?(path)
 
