@@ -21,6 +21,10 @@ module Simp::Rake::Build
         "#{@base_dir}/SIMP_ISO*"
       )
 
+      if $simp6_build_dirs
+        ::CLEAN.include($simp6_clean_dirs)
+      end
+
       ::CLOBBER.include(
         @dist_dir,
         "#{@build_dir}/build_keys/dev",
@@ -35,7 +39,7 @@ module Simp::Rake::Build
 
         mock_dirs = Dir.glob("/var/lib/mock/*").map{|x| x = File.basename(x) }
 
-        if not mock_dirs.empty? and not args.chroot then
+        unless ( mock_dirs.empty? or args.chroot )
           $stderr.puts "Notice: You must pass a Mock chroot to erase a specified build root."
         end
 

@@ -13,7 +13,6 @@ class Simp::Rake::Build::Helpers
     end
     Simp::Rake::Build::Auto.new( dir )
     Simp::Rake::Build::Build.new( dir )
-    Simp::Rake::Build::Clean.new( dir )
     Simp::Rake::Build::Code.new( dir )
     Simp::Rake::Build::Deps.new( dir )
     Simp::Rake::Build::Iso.new( dir )
@@ -22,5 +21,6 @@ class Simp::Rake::Build::Helpers
     Simp::Rake::Build::Tar.new( dir )
     Simp::Rake::Build::Upload.new( dir )
     Simp::Rake::Build::Unpack.new( dir )
+    Simp::Rake::Build::Clean.new( dir )
   end
 end

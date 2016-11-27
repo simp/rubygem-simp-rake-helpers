@@ -16,14 +16,13 @@ module Simp::Rake::Build
 
     def define_tasks
       namespace :code do
-
         desc "Show some basic stats. Uses git to figure out what has changed.
        * :since - Do not include any stats before this date.
        * :until - Do not include any stats after this date."
         task :stats,[:since,:until] do |t,args|
           cur_branch = %x{git rev-parse --abbrev-ref HEAD}.chomp
 
-          if cur_branch.empty? then
+          if cur_branch.empty?
             fail "Error: Could not find branch ID!"
           end
 
@@ -33,15 +32,15 @@ module Simp::Rake::Build
 
           cmd = "git log --shortstat --reverse --pretty=oneline"
 
-          if args.since then
+          if args.since
             cmd = cmd + " --since=#{args.since}"
           end
-          if args.until then
+          if args.until
             cmd = cmd + " --until=#{args.until}"
           end
 
           %x{#{cmd}}.each_line do |line|
-            if encode_line(line) =~ /(\d+) files changed, (\d+) insertions\(\+\), (\d+) del.*/ then
+            if encode_line(line) =~ /(\d+) files changed, (\d+) insertions\(\+\), (\d+) del.*/
               changed = changed + $1.to_i
               new = new + $2.to_i
               removed = removed + $3.to_i
@@ -50,15 +49,15 @@ module Simp::Rake::Build
 
           cmd = "git submodule foreach git log --shortstat --reverse --pretty=oneline"
 
-          if args.since then
+          if args.since
             cmd = cmd + " --since=#{args.since}"
           end
-          if args.until then
+          if args.until
             cmd = cmd + " --until=#{args.until}"
           end
 
           %x{#{cmd}}.each_line do |line|
-            if encode_line(line) =~ /(\d+) files changed, (\d+) insertions\(\+\), (\d+) del.*/ then
+            if encode_line(line) =~ /(\d+) files changed, (\d+) insertions\(\+\), (\d+) del.*/
               changed = changed + $1.to_i
               new = new + $2.to_i
               removed = removed + $3.to_i
@@ -88,7 +87,7 @@ module Simp::Rake::Build
           loc["other"] = 0
 
           File.open("#{SRC_DIR}/../Rakefile","r").each do |line|
-            if encode_line(line) !~ /^\s*$/ then
+            if encode_line(line) !~ /^\s*$/
               loc["rake"] = loc["rake"] + 1
             end
           end.close
@@ -96,26 +95,27 @@ module Simp::Rake::Build
           other_ext = Array.new
 
           Find.find(SRC_DIR) do |path|
-              if (
-                ( File.basename(path)[0] == ?. ) or
-                ( path =~ /src\/rsync/ ) or
-                ( path[-3..-1] =~ /\.gz|pem|pub/ ) or
-                ( path =~ /developers_guide\/rdoc/ )
-              ) then
-                Find.prune
-              else
-                next if FileTest.symlink?(path) or FileTest.directory?(path)
-              end
+            if (
+              ( File.basename(path)[0] == ?. ) or
+              ( path =~ /src\/rsync/ ) or
+              ( path[-3..-1] =~ /\.gz|pem|pub/ ) or
+              ( path =~ /developers_guide\/rdoc/ )
+            )
+              Find.prune
+            else
+              next if FileTest.symlink?(path) or FileTest.directory?(path)
+            end
 
             ext = File.extname(path)[1..-1]
-            if not ext then ext = 'none' end
-            if not loc[ext] then
-              other_ext.push(ext) if not other_ext.include?(ext)
+            ext ||= 'none'
+
+            unless loc[ext]
+              other_ext.push(ext) unless other_ext.include?(ext)
               ext = 'other'
             end
 
             File.open(path,'r').each do |line|
-              if encode_line(line) !~ /^\s*$/ then
+              if encode_line(line) !~ /^\s*$/
                 loc[ext] = loc[ext] + 1
               end
             end
@@ -136,7 +136,7 @@ module Simp::Rake::Build
           puts
           puts "Unknown Extension Count: #{other_ext.length}"
 
-          if args.show_unknown then
+          if args.show_unknown
             puts "Unknown Extensions:"
             other_ext.sort.each do |ext|
               puts "  #{ext}"

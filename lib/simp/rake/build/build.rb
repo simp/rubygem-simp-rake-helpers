@@ -5,7 +5,7 @@ require 'simp/rake/build/constants'
 module Simp; end
 module Simp::Rake; end
 module Simp::Rake::Build
-  class SIMPBuildException < Exception
+  class SIMPBuildException < StandardError
   end
 
   include Simp::Rake
@@ -15,12 +15,19 @@ module Simp::Rake::Build
 
     def initialize( base_dir )
       init_member_vars( base_dir )
+
       define_tasks
     end
 
     # define rake tasks
     def define_tasks
       namespace :build do
+        task :prep do
+          if $simp6
+            @build_dir = $simp6_build_dir
+          end
+        end
+
         desc <<-EOM
         Run bundle at every level of the project.
 
@@ -33,7 +40,7 @@ module Simp::Rake::Build
           * :verbose => Enable verbose reporting. Default => 'false'
         EOM
 
-        task :bundle, [:action, :verbose, :method] do |t, args|
+        task :bundle, [:action, :verbose, :method] => [:prep] do |t, args|
           args.with_defaults(:action => 'install')
           args.with_defaults(:verbose => 'false')
           args.with_defaults(:method => 'tracking')
@@ -84,8 +91,22 @@ module Simp::Rake::Build
         end
 
         namespace :yum do
-          @base_dir = File.join(@build_dir,'yum_data')
-          @build_arch = 'x86_64'
+          task :prep do
+            if $simp6
+              @build_dir = $simp6_build_dir
+
+              unless @build_dir
+                if ENV['SIMP_BUILD_yum_dir'] && File.exist?(File.join(ENV['SIMP_BUILD_yum_dir'], 'yum_data'))
+                  @build_dir = ENV['SIMP_BUILD_yum_dir']
+                end
+              end
+
+              raise('Error: For SIMP 6+ builds, you need to set SIMP_BUILD_yum_dir to the directory holding the "yum_data" directory that you wish to sync') unless @build_dir
+            end
+
+            @build_base_dir = File.join(@build_dir,'yum_data')
+            @build_arch = 'x86_64'
+          end
 
           ##############################################################################
           # Helpers
@@ -114,20 +135,24 @@ module Simp::Rake::Build
           # Return the target directory
           # Expects one argument wich is the 'arguments' hash to one of the tasks.
           def get_target_dir(args)
-            fail("Error: You must specify 'os'") unless args[:os]
-            fail("Error: You must specify 'os_version'") unless args[:os_version]
-            fail("Error: You must specify both major and minor version for the OS") unless args[:os_version] =~ /^.+\..+$/
-            fail("Error: You must specify 'simp_version'") unless args[:simp_version]
-            fail("Error: You must specify 'arch'") unless args[:arch]
+            if $simp6
+              return @build_base_dir
+            else
+              fail("Error: You must specify 'os'") unless args[:os]
+              fail("Error: You must specify 'os_version'") unless args[:os_version]
+              fail("Error: You must specify both major and minor version for the OS") unless args[:os_version] =~ /^.+\..+$/
+              fail("Error: You must specify 'simp_version'") unless args[:simp_version]
+              fail("Error: You must specify 'arch'") unless args[:arch]
 
-            # Yes, this is a kluge but the amount of variable passing that would need
-            # to be done to support this is silly.
-            @build_arch = args[:arch]
+              # Yes, this is a kluge but the amount of variable passing that would need
+              # to be done to support this is silly.
+              @build_arch = args[:arch]
 
-            return File.join(
-              @base_dir,
-              "SIMP#{args[:simp_version]}_#{args[:os]}#{args[:os_version]}_#{args[:arch]}"
-            )
+              return File.join(
+                @build_base_dir,
+                "SIMP#{args[:simp_version]}_#{args[:os]}#{args[:os_version]}_#{args[:arch]}"
+              )
+            end
           end
 
           # Return where YUM finds the passed RPM
@@ -192,7 +217,7 @@ module Simp::Rake::Build
                 puts("Downloading: #{full_pkg}")
                 unless @use_yumdownloader
                   %x(curl -L --max-redirs 10 -s -o "#{full_pkg}" -k "#{source}")
-                  unless %x(file #{full_pkg}).include?('RPM')
+                  if File.exist?(full_pkg) && !%x(file #{full_pkg}).include?('RPM')
                     @use_yumdownloader = true
                     FileUtils.rm(full_pkg)
                   end
@@ -200,6 +225,11 @@ module Simp::Rake::Build
 
                 if @use_yumdownloader
                   %x(yumdownloader -c #{yum_conf} #{File.basename(full_pkg,'.rpm')} 2>/dev/null )
+
+                  if File.exist?(full_pkg) && !%x(file #{full_pkg}).include?('RPM')
+                    @use_yumdownloader = true
+                    FileUtils.rm(full_pkg)
+                  end
                 end
 
                 unless $?.success?
@@ -231,7 +261,7 @@ module Simp::Rake::Build
 
               if clean
                 errmsg += ', removing'
-                FileUtils.rm(rpm)
+                FileUtils.rm(rpm) if File.exist?(rpm)
               end
 
               raise(SIMPBuildException,errmsg)
@@ -334,7 +364,7 @@ module Simp::Rake::Build
           # Update the packages.yaml and packages/ directories
           #   * target_dir => The actual distribution directory where packages.yaml and
           #                   packages/ reside.
-          def update_packages(target_dir,bootstrap=false)
+          def update_packages(target_dir, bootstrap=false)
             # This really should never happen....
             unless File.directory?(target_dir)
               fail <<-EOM
@@ -483,6 +513,8 @@ module Simp::Rake::Build
                 failed_updates.keys.sort.each do |k|
                   $stderr.puts("  * #{k} => #{failed_updates[k]}")
                 end
+
+                raise('Could not update all packages')
               end
             end
           end
@@ -559,7 +591,7 @@ module Simp::Rake::Build
 
           * :arch         - The architecture that you support. Default: x86_64
           EOM
-          task :scaffold,[:os,:os_version,:simp_version,:arch] do |t,args|
+          task :scaffold,[:os,:os_version,:simp_version,:arch] => [:prep] do |t,args|
             # @simp_version is set in the main Rakefile
             args.with_defaults(:simp_version => @simp_version.split('-').first)
             args.with_defaults(:arch => @build_arch)
@@ -572,8 +604,12 @@ module Simp::Rake::Build
             end
 
             # Put together the rest of the scaffold directories
-            Dir.chdir(@base_dir) do
-              mkdir('my_repos') unless File.exist?('my_repos')
+            Dir.chdir(@build_base_dir) do
+              if $simp6
+                mkdir('../my_repos') unless File.exist?('../my_repos')
+              else
+                mkdir('my_repos') unless File.exist?('my_repos')
+              end
             end
 
             Dir.chdir(target_dir) do
@@ -597,7 +633,7 @@ module Simp::Rake::Build
 
           * :arch         - The architecture that you support. Default: x86_64
           EOM
-          task :sync,[:os,:os_version,:simp_version,:arch] => [:scaffold] do |t,args|
+          task :sync,[:os,:os_version,:simp_version,:arch] => [:prep, :scaffold] do |t,args|
             # @simp_version is set in the main Rakefile
             args.with_defaults(:simp_version => @simp_version.split('-').first)
             args.with_defaults(:arch => @build_arch)
@@ -622,7 +658,7 @@ module Simp::Rake::Build
 
           * :arch         - The architecture that you support. Default: x86_64
           EOM
-          task :diff,[:os,:os_version,:simp_version,:arch] => [:scaffold] do |t,args|
+          task :diff,[:os,:os_version,:simp_version,:arch] => [:prep, :scaffold] do |t,args|
             args.with_defaults(:simp_version => @simp_version.split('-').first)
             args.with_defaults(:arch => @build_arch)
 
@@ -688,7 +724,7 @@ module Simp::Rake::Build
 
           * :arch         - The architecture that you support. Default: x86_64
           EOM
-          task :fetch,[:pkg,:os,:os_version,:simp_version,:arch] => [:scaffold] do |t,args|
+          task :fetch,[:pkg,:os,:os_version,:simp_version,:arch] => [:prep, :clean_cache, :scaffold] do |t,args|
             args.with_defaults(:simp_version => @simp_version.split('-').first)
             args.with_defaults(:arch => @build_arch)
 

@@ -11,6 +11,7 @@ module Simp::Rake::Build
 
     def initialize( base_dir )
       init_member_vars( base_dir )
+
       @mock = ENV['mock'] || '/usr/bin/mock'
       define_tasks
     end
@@ -20,6 +21,11 @@ module Simp::Rake::Build
       File.umask(0007)
 
       namespace :iso do
+        task :prep do
+          if $simp6
+            @build_dir = $simp6_build_dir
+          end
+        end
 
         # Remove packages from the given directory. The goal of this method is to help
         # get the distro to be as small as possible.
@@ -98,13 +104,14 @@ module Simp::Rake::Build
        ENV vars:
          - Set `SIMP_ISO_verbose=yes` to report file operations as they happen.
            EOM
-        task :build,[:tarball,:unpacked_dvds,:prune] do |t,args|
+        task :build,[:tarball,:unpacked_dvds,:prune] => [:prep] do |t,args|
           args.with_defaults(:unpacked_dvds => "#{@run_dir}", :prune => 'true')
 
           if args.tarball.nil?
             fail("Error: You must specify a source tarball or tarball directory!")
           else
             tarball = File.expand_path(args.tarball)
+
             unless File.exist?(tarball)
               fail("Error: Could not find tarball at '#{tarball}'!")
             end
@@ -116,10 +123,17 @@ module Simp::Rake::Build
             Dir.glob("#{tarball}/*.tar.gz") : [tarball]
           vermap = YAML::load_file( File.join( File.dirname(__FILE__), 'vermap.yaml'))
 
-          tarfiles.each do |tarball|
+          tarfiles.each do |tball|
             namepieces = File.basename(tarball,".tar.gz").split('-')
-            simpver = namepieces[3..-1].join('-')
-            baseos = namepieces[2]
+
+            # SIMP 6
+            if namepieces[1] =~ /^\d/
+              simpver = namepieces[1..2].join('-')
+              baseos  = namepieces[3]
+            else
+              simpver = namepieces[3..-1].join('-')
+              baseos  = namepieces[2]
+            end
 
             iso_dirs = Dir.glob("#{File.expand_path(args.unpacked_dvds)}/#{baseos}*")
             if iso_dirs.empty?
@@ -173,14 +187,16 @@ module Simp::Rake::Build
 
               # Prune unwanted packages
               begin
-                system("tar --no-same-permissions -C #{dir} -xzf #{tarball} *simp_pkglist.txt")
+                system("tar --no-same-permissions -C #{dir} -xzf #{tball} *simp_pkglist.txt")
               rescue
                 # Does not matter if the command fails
               end
+
               pkglist_file = ENV.fetch(
-                                       'SIMP_PKGLIST_FILE',
-                                        File.join(dir,"#{baseosver.split('.').first}-simp_pkglist.txt")
-                                      )
+                'SIMP_PKGLIST_FILE',
+                File.join(dir,"#{baseosver.split('.').first}-simp_pkglist.txt")
+              )
+
               puts
               puts '-'*80
               puts "### Pruning packages not in file '#{pkglist_file}'"
@@ -200,13 +216,18 @@ module Simp::Rake::Build
               end
 
               # Add the SIMP code
-              system("tar --no-same-permissions -C #{dir} -xzf #{tarball}")
+              system("tar --no-same-permissions -C #{dir} -xzf #{tball}")
 
               Dir.chdir("#{dir}/SIMP") do
                 # Add the SIMP Dependencies
                 simp_base_ver = simpver.split('-').first
-                simp_dep_src = %(SIMP#{simp_base_ver}_#{baseos}#{baseosver}_#{arch})
-                yum_dep_location = File.join(@build_dir,'yum_data',simp_dep_src,'packages')
+
+                if $simp6
+                  yum_dep_location = File.join(@build_dir,'yum_data','packages')
+                else
+                  simp_dep_src = %(SIMP#{simp_base_ver}_#{baseos}#{baseosver}_#{arch})
+                  yum_dep_location = File.join(@build_dir,'yum_data',simp_dep_src,'packages')
+                end
 
                 unless File.directory?(yum_dep_location)
                   fail("Could not find dependency directory at #{yum_dep_location}")
@@ -220,7 +241,7 @@ module Simp::Rake::Build
                 # Add any one-off RPMs that you might want to add to your own build
                 # These are *not* checked to make sure that they actually match your
                 # environment
-                aux_packages = File.join(@build_dir,'yum_data',simp_dep_src,'aux_packages')
+                aux_packages = File.join(File.dirname(yum_dep_location),'aux_packages')
                 if File.directory?(aux_packages)
                   yum_dep_rpms += Dir.glob(File.join(aux_packages,'*.rpm'))
                 end
@@ -307,7 +328,7 @@ module Simp::Rake::Build
             * :key - The GPG key to sign the RPMs with. Defaults to 'prod'.
             * :chroot - An optional Mock Chroot. If this is passed, the tar:build task will be called.
         EOM
-        task :src,[:key,:chroot] do |t,args|
+        task :src,[:prep, :key,:chroot] do |t,args|
           args.with_defaults(:key => 'prod')
 
           if Dir.glob("#{@dvd_dir}/*.gz").empty? && !args.chroot
