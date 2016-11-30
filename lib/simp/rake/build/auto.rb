@@ -607,9 +607,12 @@ module Simp::Rake::Build
               puts '='*80
               puts "#### Running tar:build"
               puts '='*80
-              $simp_tarballs = {}
+              # Horrible state passing magic vars
+              $tarball_tgt = File.join(@base_dir, 'build', 'DVD_Overlay', "SIMP-#{@simp_version}-#{target_data['flavor']}-#{target_data['os_version']}.tar.gz")
+
               Rake::Task['tar:build'].invoke(target_data['mock'],key_name,do_docs)
-              tarball = $simp_tarballs.fetch(target_data['flavor'])
+
+              tarball = $tarball_tgt
             end
 
             # yum sync

@@ -1,3 +1,6 @@
+### 3.1.1 / 2016-11-29
+* Fixed bug in legacy compatibility
+
 ### 3.1.0 / 2016-11-25
 * Added SIMP 6 build structure support
 * Fixed the detection for requiring rebuilds via mock
