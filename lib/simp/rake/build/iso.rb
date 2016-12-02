@@ -16,6 +16,10 @@ module Simp::Rake::Build
       define_tasks
     end
 
+    def verbose
+      ENV.fetch('SIMP_ISO_verbose','no') == 'yes'
+    end
+
     def define_tasks
 
       File.umask(0007)
@@ -33,8 +37,6 @@ module Simp::Rake::Build
         # [:exclude_dirs] Array of directories to not remove any packages from
         # [:exclude_pkgs] Array of packages to not remove
         def prune_packages(from_dir,exclude_dirs,exclude_pkgs,mkrepo='createrepo -p',use_hack=true)
-          verbose = ENV.fetch('SIMP_ISO_verbose','no') == 'yes'
-
           $stderr.puts "Starting to prune..."
           Dir.chdir(from_dir) do
             prune_count = 0
@@ -116,8 +118,6 @@ module Simp::Rake::Build
               fail("Error: Could not find tarball at '#{tarball}'!")
             end
           end
-
-          verbose = ENV.fetch('SIMP_ISO_verbose','no') == 'yes'
 
           tarfiles = File.directory?(tarball) ?
             Dir.glob("#{tarball}/*.tar.gz") : [tarball]

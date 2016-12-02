@@ -1,3 +1,6 @@
+### 3.1.2 / 2016-12-02
+* Look for the DVD directory in the distribution directories
+
 ### 3.1.1 / 2016-11-29
 * Fixed bug in legacy compatibility
 

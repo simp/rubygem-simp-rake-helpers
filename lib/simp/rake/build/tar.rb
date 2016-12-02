@@ -21,6 +21,7 @@ module Simp::Rake::Build
         task :prep do
           if $simp6
             @build_dir = $simp6_build_dir
+            @dvd_src = File.join(@build_dir, File.basename(@dvd_src))
           end
 
           if $tarball_tgt
