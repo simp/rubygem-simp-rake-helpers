@@ -61,7 +61,7 @@ module Simp::Rake::Build::Constants
 
     @run_dir           = Dir.pwd
     @base_dir          = base_dir
-    @build_arch        = ENV['buld_arch'] || %x{#{:facter} hardwaremodel 2>/dev/null}.chomp
+    @build_arch        = ENV['SIMP_BUILD_arch'] || %x{#{:facter} hardwaremodel 2>/dev/null}.chomp
     @build_dir         = File.join(@base_dir, 'build')
     @dvd_dir           = File.join(@build_dir, 'DVD_Overlay')
     @target_dists      = ['CentOS', 'RedHat']

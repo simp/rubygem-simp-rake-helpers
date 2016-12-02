@@ -37,6 +37,7 @@ module Simp::Rake::Build
 
           if $simp6
             @build_dir = $simp6_build_dir
+            @dvd_src = File.join(@build_dir, File.basename(@dvd_src))
           end
 
           args.with_defaults(:method => 'tracking')
@@ -570,7 +571,7 @@ module Simp::Rake::Build
 
               File.read(key).each_line do |line|
                 if line =~ /-----BEGIN PGP PUBLIC KEY BLOCK-----/
-                  sh %{#{rpm_cmd} --import #{key}}
+                  %x{#{rpm_cmd} --import #{key}}
                   break
                 end
               end
@@ -886,7 +887,7 @@ protect=1
         #desc "Checks the environment for building the DVD tarball
         def check_dvd_env
           ["#{@dvd_src}/isolinux","#{@dvd_src}/ks"].each do |dir|
-            File.directory?(dir)or raise "Environment not suitable: Unable to find directory '#{dir}'"
+            File.directory?(dir) or raise "Environment not suitable: Unable to find directory '#{dir}'"
           end
         end
 
