@@ -1,3 +1,6 @@
+### 3.1.3 / 2016-12-02
+* Fixed issues with looping through the build directories
+
 ### 3.1.2 / 2016-12-02
 * Look for the DVD directory in the distribution directories
 

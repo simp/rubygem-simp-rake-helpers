@@ -52,7 +52,7 @@ module Simp::Rake::Build
                                            Will default to a full build and *will* erase existing artifacts.
             - SIMP_BUILD_staging_dir    => Path to stage big build assets
                                            [Default: './SIMP_ISO_STAGING']
-            - SIMP_BUILD_rm_staging_dir => 'yes' forcibly removes the staging dir before starting
+            - SIMP_BUILD_rm_staging_dir => 'no' do not forcibly remove the staging dir before starting
             - SIMP_BUILD_force_dirty    => 'yes' tries to checks out subrepos even if dirty
             - SIMP_BUILD_docs           => 'yes' builds & includes documentation
             - SIMP_BUILD_checkout       => 'no' will skip the git repo checkouts
@@ -90,10 +90,8 @@ module Simp::Rake::Build
             do_packer_vars   = ENV.fetch('SIMP_BUILD_packer_vars', 'yes') == 'yes'
             verbose          = ENV.fetch('SIMP_BUILD_verbose', 'no') == 'yes'
             prompt           = ENV.fetch('SIMP_BUILD_prompt', 'yes') != 'no'
-            pwd              = Dir.pwd
-            repo_root_dir    = File.expand_path( @base_dir )
             method           = ENV.fetch('SIMP_BUILD_puppetfile','tracking')
-            do_rm_staging    = ENV['SIMP_BUILD_rm_staging_dir'] == 'yes'
+            do_rm_staging    = ENV.fetch('SIMP_BUILD_rm_staging_dir', 'yes') == 'yes'
             do_docs          = ENV['SIMP_BUILD_docs'] == 'yes' ? 'true' : 'false'
             do_merge         = ENV['SIMP_BUILD_unpack_merge'] != 'no'
             do_prune         = ENV['SIMP_BUILD_prune'] != 'no' ? 'true' : 'false'
@@ -102,7 +100,6 @@ module Simp::Rake::Build
             do_unpack        = ENV['SIMP_BUILD_unpack'] != 'no'
             full_iso_name    = ENV.fetch('SIMP_BUILD_iso_name', false)
             iso_name_tag     = ENV.fetch('SIMP_BUILD_iso_tag', false)
-            tarball          = false
 
             iso_status = {}
 
@@ -117,6 +114,9 @@ module Simp::Rake::Build
                 end
 
                 @os_build_metadata['distributions'][distro][version]['arch'].sort.each do |arch|
+                  tarball          = false
+                  repo_root_dir    = File.expand_path( @base_dir )
+
                   begin
                     distro_build_dir = File.join(@distro_build_dir, distro, version, arch)
 
@@ -185,6 +185,10 @@ module Simp::Rake::Build
                                                "    '#{output_dir}'\n\n"
                     end
 
+                    unless File.directory?(output_dir)
+                      FileUtils.mkdir_p(output_dir)
+                    end
+
                     # Look up ISOs against known build assets
                     # --------------------
                     target_data = get_target_data(target_release, iso_paths, yaml_file, do_checksum, verbose )
@@ -208,8 +212,11 @@ module Simp::Rake::Build
                       puts
                       puts "     (skip with `SIMP_BUILD_checkout=no`)"
                       puts '='*80
+
                       Dir.chdir repo_root_dir
+                      Rake::Task['deps:status'].reenable
                       Rake::Task['deps:status'].invoke
+
                       if @dirty_repos && !ENV['SIMP_BUILD_force_dirty'] == 'yes'
                         raise SIMPBuildException, "ERROR: Dirty repos detected!  I refuse to destroy uncommitted work."
                       else
@@ -217,6 +224,7 @@ module Simp::Rake::Build
                         puts '-'*80
                         puts "#### Checking out subrepositories using method '#{method}'"
                         puts '-'*80
+                        Rake::Task['deps:checkout'].reenable
                         Rake::Task['deps:checkout'].invoke(method)
                       end
 
@@ -226,6 +234,7 @@ module Simp::Rake::Build
                         puts "#### Running bundler in all repos"
                         puts '     (Disable with `SIMP_BUILD_bundle=no`)'
                         puts '-'*80
+                        Rake::Task['build:bundle'].reenable
                         Rake::Task['build:bundle'].invoke
                       else
                         puts
@@ -260,6 +269,7 @@ module Simp::Rake::Build
                       # Horrible state passing magic vars
                       $tarball_tgt = File.join(distro_build_dir, 'DVD_Overlay', "SIMP-#{@simp_version}-#{distro}-#{version}-#{arch}.tar.gz")
 
+                      Rake::Task['tar:build'].reenable
                       Rake::Task['tar:build'].invoke(target_data['mock'],key_name,do_docs)
 
                       tarball = $tarball_tgt
@@ -271,6 +281,7 @@ module Simp::Rake::Build
                     puts '-'*80
                     puts "#### rake build:yum:sync[#{target_data['flavor']},#{target_data['os_version']}]"
                     puts '-'*80
+                    Rake::Task['build:yum:sync'].reenable
                     Rake::Task['build:yum:sync'].invoke(target_data['flavor'],target_data['os_version'])
 
                     # If you have previously downloaded packages from yum, you may need to run
@@ -310,23 +321,24 @@ module Simp::Rake::Build
                       puts
                     end
 
-                    Dir.chdir repo_root_dir
+                    Dir.chdir staging_dir
 
                     puts
                     puts '='*80
-                    puts "#### iso:build[#{tarball}]"
+                    puts "#### iso:build[#{tarball}, #{staging_dir}, #{do_prune}]"
                     puts '='*80
                     puts
 
                     ENV['SIMP_ISO_verbose'] = 'yes' if verbose
                     ENV['SIMP_PKG_verbose'] = 'yes' if verbose
+                    Rake::Task['iso:build'].reenable
                     Rake::Task['iso:build'].invoke(tarball,staging_dir,do_prune)
 
-                    _isos = Dir[ File.join(Dir.pwd,'SIMP-*.iso') ]
+                    _isos = Dir[ File.join(staging_dir, 'SIMP-*.iso') ]
                     if _isos.size == 0
-                      fail "ERROR: No SIMP ISOs found in '#{Dir.pwd}'"
+                      fail "ERROR: No SIMP ISOs found in '#{staging_dir}'"
                     elsif _isos.size > 1
-                      warn "WARNING: More than one SIMP ISO found in '#{Dir.pwd}'"
+                      warn "WARNING: More than one SIMP ISO found in '#{staging_dir}'"
                       _isos.each{ |i| warn i }
                     end
 
@@ -416,6 +428,7 @@ module Simp::Rake::Build
             end
 
             unless successful_isos.empty?
+              puts '='*80
               puts '='*80
               puts("Successful ISOs:")
               puts(%(  * #{successful_isos.join("\n  * ")}))
