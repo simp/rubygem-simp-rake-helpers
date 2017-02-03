@@ -9,12 +9,9 @@ bundler_args: --without development
 notifications:
   email: false
 rvm:
-  - 2.0.0
   - 2.1.0
-  - 1.9.3
+  - 2.3.3
 script:
   - "bundle exec rake spec"
 matrix:
   fast_finish: true
-  allow_failures:
-    - rvm: 1.9.3
