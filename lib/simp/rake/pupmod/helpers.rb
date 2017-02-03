@@ -1,12 +1,17 @@
 require 'puppetlabs_spec_helper/rake_tasks'
 require 'puppet/version'
-require 'puppet/vendor/semantic/lib/semantic' unless Puppet.version.to_f < 3.6
 require 'puppet-syntax/tasks/puppet-syntax'
 require 'puppet-lint/tasks/puppet-lint'
 require 'simp/rake/pkg'
 require 'simp/rake/beaker'
 require 'parallel_tests/cli'
 require 'simp/rake/fixtures'
+
+if Puppet.version.to_f >= 4.9
+    require 'semantic_puppet'
+elsif Puppet.version.to_f >= 3.6 && Puppet.version.to_f < 4.9
+    require 'puppet/vendor/semantic/lib/semantic'
+end
 
 module Simp; end
 module Simp::Rake; end

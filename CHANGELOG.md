@@ -1,3 +1,7 @@
+### 3.1.4 / 2017-02-01
+* Updated requirement on semantic_puppet, which chaned with Puppet 4.9+
+* https://github.com/garethr/puppet-module-skeleton/pull/137/files
+
 ### 3.1.3 / 2016-12-02
 * Fixed issues with looping through the build directories
 
