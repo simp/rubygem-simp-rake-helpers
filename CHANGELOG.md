@@ -1,6 +1,9 @@
+### 3.2.0 / 2017-02-02
+* Updated gemspec deps to newer `simp-rake-helpers` ~> 1.0 and `rake` < 13.0
+
 ### 3.1.4 / 2017-02-01
-* Updated requirement on semantic_puppet, which chaned with Puppet 4.9+
-* https://github.com/garethr/puppet-module-skeleton/pull/137/files
+* Updated requirement on `semantic_puppet`, which changed with Puppet 4.9+
+* See: https://github.com/garethr/puppet-module-skeleton/pull/137/files
 
 ### 3.1.3 / 2016-12-02
 * Fixed issues with looping through the build directories
