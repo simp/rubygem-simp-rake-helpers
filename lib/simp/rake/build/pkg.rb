@@ -35,7 +35,8 @@ module Simp::Rake::Build
         # Have to get things set up inside the proper namespace
         task :prep,[:method] do |t,args|
 
-          if $simp6
+          # This doesn't get caught for things like 'rake clean'
+          if $simp6 && $simp6_build_dir
             @build_dir = $simp6_build_dir
             @dvd_src = File.join(@build_dir, File.basename(@dvd_src))
           end
@@ -45,7 +46,6 @@ module Simp::Rake::Build
           @build_dirs = {
             :modules => get_module_dirs(args[:method]),
             :aux => [
-              "#{@build_dir}/GPGKEYS",
               "#{@src_dir}/rsync",
               # Anything in here gets built!
               "#{@src_dir}/assets/*",
@@ -307,20 +307,24 @@ module Simp::Rake::Build
 
             Dir.chdir(args[:key]) do
               rpm_build_keys = Dir.glob('RPM-GPG-KEY-*')
-              target_dir = File.join(@build_dir, 'GPGKEYS')
 
               fail("Could not find any RPM-GPG-KEY files in '#{Dir.pwd}'") if rpm_build_keys.empty?
-              fail("No GPGKEYS directory at '#{Dir.pwd}/#{target_dir}") unless File.directory?(target_dir)
 
-              dkfh = File.open("#{target_dir}/.dropped_keys",'w')
+              # Drop the development key in the root of the ISO for convenience
+              if args[:key] == 'dev'
+                target_dir = @dvd_src
 
-              rpm_build_keys.each do |gpgkey|
-                cp(gpgkey,target_dir, :verbose => _verbose)
-                dkfh.puts(gpgkey)
+                fail("Could not find directory '#{target_dir}'") unless File.directory?(target_dir)
+
+                rpm_build_keys.each do |gpgkey|
+                  cp(gpgkey,target_dir, :verbose => _verbose)
+                end
+              # Otherwise, make sure it isn't present for the build
+              else
+                Dir.glob(File.join(@dvd_src,'RPM-GPG-KEY-SIMP*')).each do |to_del|
+                  rm(to_del)
+                end
               end
-
-              dkfh.flush
-              dkfh.close
             end
           end
         end
@@ -545,12 +549,12 @@ module Simp::Rake::Build
 
             Checks all RPM files in a directory to see if they are trusted.
               * :rpm_dir - A directory containing RPM files to check. Default #{@build_dir}/SIMP
-              * :key_dir - The path to the GPG keys you want to check the packages against. Default #{@build_dir}/GPGKEYS
+              * :key_dir - The path to the GPG keys you want to check the packages against. Default #{@src_dir}/assets/simp-gpgkeys/
         EOM
         task :checksig,[:rpm_dir,:key_dir] => [:prep] do |t,args|
           begin
             args.with_defaults(:rpm_dir => @pkg_dirs[:simp])
-            args.with_defaults(:key_dir => "#{@build_dir}/GPGKEYS")
+            args.with_defaults(:key_dir => "#{@src_dir}/assets/simp-gpgkeys")
 
             rpm_dirs = Dir.glob(args[:rpm_dir])
 
