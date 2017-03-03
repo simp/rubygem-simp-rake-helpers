@@ -1,3 +1,7 @@
+### 3.3.0 / 2017-02-28
+* Modified to no longer add the SIMP Dev key into the GPGKEYS directory and
+  instead add it to the root level of the DVD for local reference.
+
 ### 3.2.0 / 2017-02-02
 * Updated gemspec deps to newer `simp-rake-helpers` ~> 1.0 and `rake` < 13.0
 
