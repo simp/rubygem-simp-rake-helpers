@@ -454,7 +454,7 @@ module Simp::Rake
               # See if the module is newer than all tags
               matching_tag = %x(git tag --points-at HEAD).strip.split("\n").first
 
-              if matching_tag.empty?
+              if matching_tag.nil? || matching_tag.empty?
                 # We don't have a matching release
                 # Get the closest tag
                 nearest_tag = %x(git describe --abbrev=0 --tags).strip
