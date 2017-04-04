@@ -1,3 +1,9 @@
+### 3.4.0 / 2017-03-17
+* Added a Rake task `pkg:check_version` that can be run in any module to
+  determine if it needs to have either the metadata.json or the CHANGELOG
+  version bumped
+* Should be looped and manually reviewed as a pre-build task
+
 ### 3.3.0 / 2017-02-28
 * Modified to no longer add the SIMP Dev key into the GPGKEYS directory and
   instead add it to the root level of the DVD for local reference.

@@ -105,6 +105,7 @@ module Simp::Rake
       define_pkg_srpm
       define_pkg_rpm
       define_pkg_scrub
+      define_pkg_check_version
       task :default => 'pkg:tar'
 
       Rake::Task['pkg:tar'].enhance(['pkg:restore_stash'])
@@ -428,9 +429,78 @@ module Simp::Rake
           cmd = %Q(#{mock_cmd} --scrub=all)
           sh cmd
         end
-
       end
+    end
 
+    def define_pkg_check_version
+      namespace :pkg do
+        # :pkg:check_version
+        # -----------------------------
+        desc <<-EOM
+        Ensure that #{@pkg_name} has a properly updated version number.
+        EOM
+        task :check_version do |t,args|
+          require 'json'
+
+          # Get the current version
+          if File.exist?('metadata.json')
+            mod_version = JSON.load(File.read('metadata.json'))['version'].strip
+            success_msg = "#{@pkg_name}: Version #{mod_version} up to date"
+
+            # If we have no tags, we need a new version
+            if %x(git tag).strip.empty?
+              puts "#{@pkg_name}: New Version Required"
+            else
+              # See if the module is newer than all tags
+              matching_tag = %x(git tag --points-at HEAD).strip.split("\n").first
+
+              if matching_tag.nil? || matching_tag.empty?
+                # We don't have a matching release
+                # Get the closest tag
+                nearest_tag = %x(git describe --abbrev=0 --tags).strip
+
+                if mod_version == nearest_tag
+                  puts "#{@pkg_name}: Error: metadata.json needs to be updated past #{mod_version}"
+                else
+                  # Check the CHANGELOG Version
+                  if File.exist?('CHANGELOG')
+                    changelog = File.read('CHANGELOG')
+                    changelog_version = nil
+
+                    # Find the first date line
+                    changelog.each_line do |line|
+                      if line =~ /\*.*(\d+\.\d+\.\d+)(-\d+)?\s*$/
+                        changelog_version = $1
+                        break
+                      end
+                    end
+
+                    if changelog_version
+                      if changelog_version == mod_version
+                        puts success_msg
+                      else
+                        puts "#{@pkg_name}: Error: CHANGELOG version #{changelog_version} out of date for version #{mod_version}"
+                      end
+                    else
+                      puts "#{@pkg_name}: Error: No CHANGELOG version found"
+                    end
+                  else
+                    puts "#{@pkg_name}: Warning: No CHANGELOG found"
+                  end
+                end
+              else
+                if mod_version != matching_tag
+                  puts "#{@pkg_name}: Error: Tag #{matching_tag} does not match version #{mod_version}"
+                else
+                  puts success_msg
+                end
+              end
+            end
+          else
+            puts "#{@pkg_name}: No metadata.json found"
+          end
+        end
+      end
     end
 
     # ------------------------------------------------------------------------------
