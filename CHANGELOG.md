@@ -1,3 +1,6 @@
+### 3.5.0 / 2017-03-17
+* Updated dependencies to use Beaker 3
+
 ### 3.4.0 / 2017-03-17
 * Added a Rake task `pkg:check_version` that can be run in any module to
   determine if it needs to have either the metadata.json or the CHANGELOG
