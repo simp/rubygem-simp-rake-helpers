@@ -17,7 +17,8 @@ module Simp::Rake
   def load_puppetfile(method='tracking')
     unless @puppetfile
 
-      @puppetfile = R10KHelper.new("Puppetfile.#{method}")
+      # Pull the puppetfile from the top-level
+      @puppetfile = R10KHelper.new("#{@base_dir}/Puppetfile.#{method}")
       @module_paths = []
 
       @puppetfile.each_module do |mod|

@@ -1,3 +1,6 @@
+### 3.5.1 / 2017-05-15
+* Fix ability to build with existing tarball
+
 ### 3.5.0 / 2017-03-17
 * Updated dependencies to use Beaker 3
 
