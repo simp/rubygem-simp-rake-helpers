@@ -86,8 +86,7 @@ module Simp::Rake::Build
           loc["spec"] = 0
           loc["other"] = 0
 
-          src_dir="#{@base_dir}/src"
-          File.open("#{src_dir}/../Rakefile","r").each do |line|
+          File.open("#{@base_dir}/Rakefile","r").each do |line|
             if encode_line(line) !~ /^\s*$/
               loc["rake"] = loc["rake"] + 1
             end
@@ -95,7 +94,7 @@ module Simp::Rake::Build
 
           other_ext = Array.new
 
-          Find.find(src_dir) do |path|
+          Find.find(@src_dir) do |path|
             if (
               ( File.basename(path)[0] == ?. ) or
               ( path =~ /src\/rsync/ ) or
