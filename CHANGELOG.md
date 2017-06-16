@@ -1,3 +1,6 @@
+### 3.5.2 / 2017-06-16
+* Fixed code count error
+
 ### 3.5.1 / 2017-05-15
 * Fix ability to build with existing tarball
 
