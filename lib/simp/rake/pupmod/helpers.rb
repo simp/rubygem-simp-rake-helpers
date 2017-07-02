@@ -80,6 +80,41 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
       sh "metadata-json-lint metadata.json"
     end
 
+    desc <<-EOM
+      Generate an appropriate annotated tag entry from a CHANGELOG.
+
+      * The entries are extracted from a match with the version from the module's
+        metadata.json
+    EOM
+    task :changelog_annotation do
+      require 'json'
+
+      module_version = JSON.parse(File.read('metadata.json'))['version']
+
+      changelog = Hash.new
+      delim = nil
+
+      File.read('CHANGELOG').each_line do |line|
+        if line =~ /^\*\s+(.+ .+ .+ \d{4})\s+(.+)\s+-\s+(\d+\.\d+\.\d+)/
+          delim           = Hash.new
+          delim[:date]    = $1
+          delim[:user]    = $2
+          delim[:release] = $3
+
+          changelog[delim[:release]] ||= Array.new
+          changelog[delim[:release]] << line
+
+          next
+        end
+
+        if delim && delim[:release]
+          changelog[delim[:release]] << '    ' + line
+        end
+      end
+
+      puts changelog[module_version]
+    end
+
 
     desc "Run syntax, lint, and spec tests."
     task :test => [
