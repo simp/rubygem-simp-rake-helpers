@@ -85,6 +85,8 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
 
       * The entries are extracted from a match with the version from the module's
         metadata.json
+      * Entries are matched per the packaging guidelines found here (inline version only!):
+        https://fedoraproject.org/wiki/Packaging:Guidelines?rd=Packaging/Guidelines#Changelogs
     EOM
     task :changelog_annotation do
       require 'json'
@@ -95,11 +97,15 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
       delim = nil
 
       File.read('CHANGELOG').each_line do |line|
-        if line =~ /^\*\s+(.+ .+ .+ \d{4})\s+(.+)\s+-\s+(\d+\.\d+\.\d+)/
+        # We only support inline versions, with or without the dash. Match is
+        # whitespace insensitive around the version to be as user friendly as
+        # possible, while only accepting valid entries.
+        if line =~ /^\*\s+(.+ .+ .+ \d{4})\s+(.+>)(\s+|\s*-\s*)?(\d+\.\d+\.\d+)/
           delim           = Hash.new
           delim[:date]    = $1
           delim[:user]    = $2
-          delim[:release] = $3
+          # $3 is the delimiter between email and version, throw it away
+          delim[:release] = $4
 
           changelog[delim[:release]] ||= Array.new
           changelog[delim[:release]] << line
