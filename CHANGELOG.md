@@ -1,3 +1,6 @@
+### 3.6.0 / 2017-07-03
+* Added changelog_annotation task
+
 ### 3.5.2 / 2017-06-16
 * Fixed code count error
 
