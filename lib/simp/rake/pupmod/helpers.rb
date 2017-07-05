@@ -85,10 +85,22 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
 
       * The entries are extracted from a match with the version from the module's
         metadata.json
-      * Entries are matched per the packaging guidelines found here (inline version only!):
-        https://fedoraproject.org/wiki/Packaging:Guidelines?rd=Packaging/Guidelines#Changelogs
+      * If no match is found, the task will fail
+      * Changelog entries must follow the format:
+          * Wed Jul 05 2017 UserName <username@simp.com> - 1.2.3-4
+          - The entry must start with *.  Any line beginning with * will be interpreted
+            as an entry.
+          - The dates must be RPM compatible, in chronological order
+          - The user email must be contained in < >
+          - The entry must be terminated by the release
+      * Any entry that does not follow the prescribed format will not be annotated
+        properly
     EOM
-    task :changelog_annotation do
+    # TODO: Hook in a query of the auto-generated specfile:
+    #   `rpm -q --specfile dist/tmp/*.spec --changelog`
+    # That will give Travis a way of warning us if the changelog
+    # will prevent the rpm from building.
+    task :changelog_annotation, [:debug] do |t,args|
       require 'json'
 
       module_version = JSON.parse(File.read('metadata.json'))['version']
@@ -97,19 +109,18 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
       delim = nil
 
       File.read('CHANGELOG').each_line do |line|
-        # We only support inline versions, with or without the dash. Match is
-        # whitespace insensitive around the version to be as user friendly as
-        # possible, while only accepting valid entries.
-        if line =~ /^\*\s+(.+ .+ .+ \d{4})\s+(.+>)(\s+|\s*-\s*)?(\d+\.\d+\.\d+)/
-          delim           = Hash.new
-          delim[:date]    = $1
-          delim[:user]    = $2
-          # $3 is the delimiter between email and version, throw it away
-          delim[:release] = $4
+        if line =~ /^\*/
+          if /^\*\s+((?:Mon|Tue|Wed|Thu|Fri|Sat|Sun) (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{2} \d{4})\s+(.+<.+>)(?:\s+|\s*-\s*)?(\d+\.\d+\.\d+)/.match(line).nil?
+             warn "DEBUG: invalid changelog entry: #{line}" if args[:debug]
+          else 
+            delim           = Hash.new
+            delim[:date]    = $1
+            delim[:user]    = $2
+            delim[:release] = $3
 
-          changelog[delim[:release]] ||= Array.new
-          changelog[delim[:release]] << line
-
+            changelog[delim[:release]] ||= Array.new
+            changelog[delim[:release]] << line
+          end
           next
         end
 
@@ -118,6 +129,7 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
         end
       end
 
+      fail "Did not find any changelog entries for version #{module_version}" if changelog[module_version].nil?
       puts changelog[module_version]
     end
 
