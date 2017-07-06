@@ -101,18 +101,25 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
     # That will give Travis a way of warning us if the changelog
     # will prevent the rpm from building.
     task :changelog_annotation, [:debug] do |t,args|
+      debug = true if args[:debug].nil?
       require 'json'
 
       module_version = JSON.parse(File.read('metadata.json'))['version']
 
       changelog = Hash.new
       delim = nil
+      ignore_line = false
 
       File.read('CHANGELOG').each_line do |line|
         if line =~ /^\*/
           if /^\*\s+((?:Mon|Tue|Wed|Thu|Fri|Sat|Sun) (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{2} \d{4})\s+(.+<.+>)(?:\s+|\s*-\s*)?(\d+\.\d+\.\d+)/.match(line).nil?
-             warn "DEBUG: invalid changelog entry: #{line}" if args[:debug]
+             warn "\nDEBUG: invalid changelog entry: #{line}\n" if debug
+             # Don't add anything to the annotation until we reach the next
+             # valid entry
+             ignore_line = true
+             next
           else 
+            ignore_line = false
             delim           = Hash.new
             delim[:date]    = $1
             delim[:user]    = $2
@@ -125,7 +132,7 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
         end
 
         if delim && delim[:release]
-          changelog[delim[:release]] << '  ' + line
+          changelog[delim[:release]] << '  ' + line if not ignore_line
         end
       end
 
