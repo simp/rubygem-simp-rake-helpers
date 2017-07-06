@@ -83,26 +83,31 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
     desc <<-EOM
       Generate an appropriate annotated tag entry from a CHANGELOG.
 
-      * The entries are extracted from a match with the version from the module's
-        metadata.json
-      * If no match is found, the task will fail
-      * Changelog entries must follow the format:
+      ARGS:
+        * :quiet => Set to 'true' if you want to suppress warning messages
+
+      NOTES:
+        * The entries are extracted from a match with the version from the
+          module's metadata.json
+        * If no match is found, the task will fail
+        * Changelog entries must follow the format:
           * Wed Jul 05 2017 UserName <username@simp.com> - 1.2.3-4
-          - The entry must start with *.  Any line beginning with * will be interpreted
-            as an entry.
-          - The dates must be RPM compatible, in chronological order
-          - The user email must be contained in < >
-          - The entry must be terminated by the release
-      * Any entry that does not follow the prescribed format will not be annotated
-        properly
+            - The entry must start with *. Any line beginning with * will be
+              interpreted as an entry.
+            - The dates must be RPM compatible, in chronological order
+            - The user email must be contained in < >
+            - The entry must be terminated by the release
+        * Any entry that does not follow the prescribed format will not be
+          annotated properly
     EOM
     # TODO: Hook in a query of the auto-generated specfile:
     #   `rpm -q --specfile dist/tmp/*.spec --changelog`
     # That will give Travis a way of warning us if the changelog
     # will prevent the rpm from building.
-    task :changelog_annotation, [:debug] do |t,args|
-      debug = true if args[:debug].nil?
+    task :changelog_annotation, [:quiet] do |t,args|
       require 'json'
+
+      quiet = true if args[:quiet].to_s == 'true'
 
       module_version = JSON.parse(File.read('metadata.json'))['version']
 
@@ -113,11 +118,11 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
       File.read('CHANGELOG').each_line do |line|
         if line =~ /^\*/
           if /^\*\s+((?:Mon|Tue|Wed|Thu|Fri|Sat|Sun) (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{2} \d{4})\s+(.+<.+>)(?:\s+|\s*-\s*)?(\d+\.\d+\.\d+)/.match(line).nil?
-             warn "\nDEBUG: invalid changelog entry: #{line}\n" if debug
+             warn "\nWARNING: invalid changelog entry: #{line}\n" unless quiet
              # Don't add anything to the annotation until we reach the next
              # valid entry
              ignore_line = true
-          else 
+          else
             ignore_line = false
             delim           = Hash.new
             delim[:date]    = $1
@@ -127,11 +132,12 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
             changelog[delim[:release]] ||= Array.new
             changelog[delim[:release]] << line
           end
+
           next
         end
 
         if delim && delim[:release]
-          changelog[delim[:release]] << '  ' + line if not ignore_line
+          changelog[delim[:release]] << '  ' + line unless ignore_line
         end
       end
 
