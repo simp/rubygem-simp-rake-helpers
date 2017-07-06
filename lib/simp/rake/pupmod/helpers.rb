@@ -125,7 +125,7 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
         end
 
         if delim && delim[:release]
-          changelog[delim[:release]] << '    ' + line
+          changelog[delim[:release]] << '  ' + line
         end
       end
 
