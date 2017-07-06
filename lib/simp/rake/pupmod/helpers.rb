@@ -117,7 +117,6 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
              # Don't add anything to the annotation until we reach the next
              # valid entry
              ignore_line = true
-             next
           else 
             ignore_line = false
             delim           = Hash.new
@@ -137,6 +136,7 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
       end
 
       fail "Did not find any changelog entries for version #{module_version}" if changelog[module_version].nil?
+      puts "Release of #{module_version}\n\n"
       puts changelog[module_version]
     end
 
