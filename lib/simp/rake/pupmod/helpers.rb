@@ -118,7 +118,7 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
       File.read('CHANGELOG').each_line do |line|
         if line =~ /^\*/
           if /^\*\s+((?:Mon|Tue|Wed|Thu|Fri|Sat|Sun) (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{2} \d{4})\s+(.+<.+>)(?:\s+|\s*-\s*)?(\d+\.\d+\.\d+)/.match(line).nil?
-             warn "\nWARNING: invalid changelog entry: #{line}\n" unless quiet
+             warn "WARNING: invalid changelog entry: #{line}" unless quiet
              # Don't add anything to the annotation until we reach the next
              # valid entry
              ignore_line = true
@@ -142,7 +142,7 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
       end
 
       fail "Did not find any changelog entries for version #{module_version}" if changelog[module_version].nil?
-      puts "Release of #{module_version}\n\n"
+      puts "\nRelease of #{module_version}\n\n"
       puts changelog[module_version]
     end
 
