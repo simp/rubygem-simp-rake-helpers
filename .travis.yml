@@ -23,10 +23,10 @@ before_deploy:
 deploy:
   provider: rubygems
   gemspec: simp-rake-helpers.gemspec
+  gem: simp-rake-helpers
   on:
     tags: true
     rvm: 2.1.9
-    gem: simp-rake-helpers
     condition: '($SKIP_PUBLISH != true)'
   api_key:
     secure: aoPmOZ3WgjNJ56UXmamKxaRv37iUaxKekAeS8n2fPk78X/nU2qGjdDHFH+SBrfl33PyzsGnS3WAANMKaIkAgssvKoaII/sAC+Sl6q1eyVUprZqloXrG+cHlnHY4GnziWEH3JrkHDChW0xoJq7hhpj7qTRKrEIp6nA25MjozjveoL+HH4kKy/ACJhiEdsYTFaDLYYFY50gGUL9KjIkwN6g9d+dIzG9JqcYoDbneQlO6/23yr4GiAHQ8HM1j5tUoBqJad+CWjWhSY7pbfYBy2ziwVhFy1qoOS4/bhlasRCsLTtz0AjjR0YWOhJap1vJqYhrSxtvhmVuzScmDkueAem/PfWS3XCQvbmjdmFMzPOxo0aRRJMlaeVWRsZ/aVFC7ngpRzokq1duZEKI47xZC27vJSOp3RZMmYl/7GsykoYkqHHsTvzSALEQiVtQq8sIOtN0JOTFI8H4LSMirXuqGq+SgCJiAQ3mQzSgh50TXiZaA2UPPcQaw4AzY36BRKs1cgw3cEWuL38O2cWUTAzEE4SUh499wrU5x+N0PsYL0AvMFONsRaq5epOYrlIL9UPSL/qZRLmzpcEWZRfOX4Ni5N6Aa9ZR8juenR6UmE79S2dupBxQeinkdfXuWznUZH7BcnUDoz8rErABpJGHNVY60dUO/s055WCr7Y95Gi+H75X9/I=
