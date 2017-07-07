@@ -22,6 +22,7 @@ before_deploy:
   - '[[ $TRAVIS_TAG =~ ^${GEM_VERSION}$ ]]'
 deploy:
   provider: rubygems
+  gemspec: simp-rake-helpers.gemspec
   on:
     tags: true
     rvm: 2.1.9
