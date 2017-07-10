@@ -1,3 +1,6 @@
+### 3.7.0 / 2017-07-10
+* Added compare_latest_tag task
+
 ### 3.6.0 / 2017-07-03
 * Added changelog_annotation task
 
