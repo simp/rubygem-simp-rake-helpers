@@ -152,6 +152,8 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
         * :tags_source => Set to the remote from which the tags for this
                       project can be fetched, e.g. 'upstream' for a
                       forked project. Defaults to 'origin'.
+        * :ignore_owner => Execute comparison even if the project owner
+                      is not 'simp'.
         * :verbose => Set to 'true' if you want to see detailed messages
 
       NOTES:
@@ -180,18 +182,19 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
       - spec directory
       - doc directory
     EOM
-    task :compare_latest_tag, [:tags_source, :verbose] do |t,args|
+    task :compare_latest_tag, [:tags_source, :ignore_owner, :verbose] do |t,args|
       require 'json'
       require 'puppet/util/package'
 
       tags_source = args[:tags_source].nil? ? 'origin' : args[:tags_source]
+      ignore_owner = true if args[:ignore_owner].to_s == 'true' 
       verbose = true if args[:verbose].to_s == 'true' 
 
       metadata = JSON.load(File.read('metadata.json'))
       module_version = metadata['version']
       owner =  metadata['name'].split('-')[0]
 
-      if owner == 'simp'
+      if (owner == 'simp') or ignore_owner
         # determine last tag
         `git fetch -t #{tags_source} 2>/dev/null`
         tags = `git tag -l`.split("\n")
