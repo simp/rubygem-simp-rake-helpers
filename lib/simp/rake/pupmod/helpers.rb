@@ -146,6 +146,101 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
       puts changelog[module_version]
     end
 
+    desc <<-EOM
+    Compare to latest tag.
+      ARGS:
+        * :tags_source => Set to the remote from which the tags for this
+                      project can be fetched, e.g. 'upstream' for a
+                      forked project. Defaults to 'origin'.
+        * :ignore_owner => Execute comparison even if the project owner
+                      is not 'simp'.
+        * :verbose => Set to 'true' if you want to see detailed messages
+
+      NOTES:
+      Compares mission-impacting (significant) files with the latest
+      tag and identifies the relevant files that have changed.  
+
+      Does nothing if the project owner, as specified in the
+      metadata.json file, is not 'simp'.
+
+      When mission-impacting files have changed, fails if
+      (1) Latest version cannot be extracted from the top-most
+          CHANGELOG entry.
+      (2) The latest version in the CHANGELOG (minus the release
+          qualifier) does not match the version in the metadata.json
+          file.
+      (3) A version bump is required but not recorded in both the
+          CHANGELOG and metadata.json files.
+      (4) The latest version is < latest tag.
+
+      Changes to the following files/directories are not considered
+      significant:
+      - Any hidden file/directory (entry that begins with a '.')
+      - Gemfile
+      - Gemfile.lock
+      - Rakefile
+      - spec directory
+      - doc directory
+    EOM
+    task :compare_latest_tag, [:tags_source, :ignore_owner, :verbose] do |t,args|
+      require 'json'
+      require 'puppet/util/package'
+
+      tags_source = args[:tags_source].nil? ? 'origin' : args[:tags_source]
+      ignore_owner = true if args[:ignore_owner].to_s == 'true' 
+      verbose = true if args[:verbose].to_s == 'true' 
+
+      metadata = JSON.load(File.read('metadata.json'))
+      module_version = metadata['version']
+      owner =  metadata['name'].split('-')[0]
+
+      if (owner == 'simp') or ignore_owner
+        # determine last tag
+        `git fetch -t #{tags_source} 2>/dev/null`
+        tags = `git tag -l`.split("\n")
+        puts "Available tags from #{tags_source} = #{tags}" if verbose
+        tags.delete_if { |tag| tag.include?('-') or (tag =~ /^v/) }
+
+        if tags.empty?
+          puts "No tags exist from #{tags_source}"
+        else
+          last_tag = (tags.sort { |a,b| Puppet::Util::Package::versioncmp(a,b) })[-1]
+
+          # determine mission-impacting files that have changed
+          files_changed = `git diff tags/#{last_tag} --name-only`.strip.split("\n")
+          files_changed.delete_if do |file|
+            file[0] ==  '.' or file =~ /^Gemfile/ or file == 'Rakefile' or file =~/^spec\// or file =~/^doc/
+          end
+        
+          if files_changed.empty?
+            puts "  No new tag required: No significant files have changed since '#{last_tag}' tag"
+          else
+            # determine latest CHANGELOG version
+            line = IO.readlines('CHANGELOG')[0]
+            match = line.match(/^\*\s+((?:Mon|Tue|Wed|Thu|Fri|Sat|Sun) (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{2} \d{4})\s+(.+<.+>)(?:\s+|\s*-\s*)?(\d+\.\d+\.\d+)/)
+            unless match
+              fail("ERROR: Invalid CHANGELOG entry. Unable to extract version from '#{line}'")
+            end
+
+            changelog_version = match[3]
+            unless module_version == changelog_version
+              fail("ERROR: Version mismatch.  module version=#{module_version}  changelog version=#{changelog_version}")
+            end
+
+            cmp_result = Puppet::Util::Package::versioncmp(module_version, last_tag)
+            if cmp_result < 0
+              fail("ERROR: Version regression. '#{module_version}' < last tag '#{last_tag}'")
+            elsif cmp_result == 0
+              fail("ERROR: Version update beyond last tag '#{last_tag}' is required for changes to #{files_changed}")
+            else
+              puts "  New tag of version '#{module_version}' is required for changes to #{files_changed}"
+            end
+          end
+        end
+      else     
+        puts "  Not evaluating module owned by '#{owner}'"
+      end
+    end
 
     desc "Run syntax, lint, and spec tests."
     task :test => [
