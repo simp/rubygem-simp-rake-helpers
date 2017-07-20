@@ -1,3 +1,9 @@
+### 3.7.1 / 2017-07-20
+* Fixed bug in `:changelog_annotation` task
+* `:test` now uses `:metadata_lint` instead of `:metadata`
+* `:metadata` is now an alias for `:metadata_lint`
+* Added tests and fixtures for changelog logic
+
 ### 3.7.0 / 2017-07-10
 * Added compare_latest_tag task
 
