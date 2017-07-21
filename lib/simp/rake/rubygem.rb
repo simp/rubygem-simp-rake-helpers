@@ -62,6 +62,7 @@ module Simp::Rake
       desc "Run spec tests"
       RSpec::Core::RakeTask.new(:spec) do |t|
           t.rspec_opts = ['--color']
+          t.exclude_pattern = '**/{acceptance,fixtures,files}/**/*_spec.rb'
           t.pattern = 'spec/lib/simp/**/*_spec.rb'
       end
     end

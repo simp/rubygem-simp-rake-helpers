@@ -19,6 +19,9 @@ module Simp::Rake::Pupmod; end
 
 # Rake tasks for SIMP Puppet modules
 class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
+  # See https://fedoraproject.org/wiki/Packaging:Guidelines?rd=Packaging/Guidelines#Changelogs
+  CHANGELOG_ENTRY_REGEX = /^\*\s+((?:Mon|Tue|Wed|Thu|Fri|Sat|Sun) (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{1,2} \d{4})\s+(.+<.+>)(?:\s+|\s*-\s*)?(\d+\.\d+\.\d+)/
+
   def initialize( base_dir = Dir.pwd )
     @base_dir = base_dir
     Dir[ File.join(File.dirname(__FILE__),'*.rb') ].each do |rake_file|
@@ -38,7 +41,6 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
       end
     rescue LoadError
     end
-
 
     # Lint & Syntax exclusions
     exclude_paths = [
@@ -76,9 +78,61 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
     end
 
     desc 'lint metadata.json'
-    task :metadata do
-      sh "metadata-json-lint metadata.json"
+    Rake::Task[:metadata].clear
+    task :metadata => :metadata_lint
+
+    # Read the metadata.json as a data structure
+    def metadata( file_path = nil )
+      require 'json'
+      _file = file_path || File.join(@base_dir, 'metadata.json')
+      fail "ERROR: file not found: '#{_file}'" unless File.exists? _file
+      @metadata ||= JSON.parse( File.read(_file) )
     end
+
+
+    # Generate an appropriate annotated tag entry from the modules' CHANGELOG
+    #
+    # @note this currently does not support the valid RPM `%changelog` format
+    #       that places the version number on the next line:
+    #
+    #       * Fri Mar 02 2012 Maintenance
+    #       4.0.0-2
+    #       - Improved test stubs.
+    #
+    def changelog_annotation( quiet = false, file = nil )
+      result         = ""
+      changelog_file = file || File.join(@base_dir, 'CHANGELOG')
+      module_version = metadata['version']
+      changelogs      = {}
+
+      _entry = {} # current log entry's metadata (empty unless valid entry)
+      File.read(changelog_file).each_line do |line|
+        if line =~ /^\*/
+          if CHANGELOG_ENTRY_REGEX.match(line).nil?
+             warn %Q[WARNING: invalid changelogs entry: "#{line}"] unless quiet
+             _entry = {}
+          else
+            _entry = {
+              :date    => $1,
+              :user    => $2,
+              :release => $3,
+            }
+            changelogs[_entry[:release]] ||= []
+            changelogs[_entry[:release]] << line
+            next
+          end
+        end
+
+        # Don't add anything to the annotation unless reach the next valid entry
+        changelogs[_entry[:release]] << "  #{line}" if _entry.fetch(:release, false)
+      end
+
+      fail "Did not find any changelogs entries for version #{module_version}" if changelogs[module_version].nil?
+
+      result += "\nRelease of #{module_version}\n\n"
+      result += changelogs[module_version].join
+    end
+
 
     desc <<-EOM
       Generate an appropriate annotated tag entry from a CHANGELOG.
@@ -105,45 +159,8 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
     # That will give Travis a way of warning us if the changelog
     # will prevent the rpm from building.
     task :changelog_annotation, [:quiet] do |t,args|
-      require 'json'
-
       quiet = true if args[:quiet].to_s == 'true'
-
-      module_version = JSON.parse(File.read('metadata.json'))['version']
-
-      changelog = Hash.new
-      delim = nil
-      ignore_line = false
-
-      File.read('CHANGELOG').each_line do |line|
-        if line =~ /^\*/
-          if /^\*\s+((?:Mon|Tue|Wed|Thu|Fri|Sat|Sun) (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{2} \d{4})\s+(.+<.+>)(?:\s+|\s*-\s*)?(\d+\.\d+\.\d+)/.match(line).nil?
-             warn "WARNING: invalid changelog entry: #{line}" unless quiet
-             # Don't add anything to the annotation until we reach the next
-             # valid entry
-             ignore_line = true
-          else
-            ignore_line = false
-            delim           = Hash.new
-            delim[:date]    = $1
-            delim[:user]    = $2
-            delim[:release] = $3
-
-            changelog[delim[:release]] ||= Array.new
-            changelog[delim[:release]] << line
-          end
-
-          next
-        end
-
-        if delim && delim[:release]
-          changelog[delim[:release]] << '  ' + line unless ignore_line
-        end
-      end
-
-      fail "Did not find any changelog entries for version #{module_version}" if changelog[module_version].nil?
-      puts "\nRelease of #{module_version}\n\n"
-      puts changelog[module_version]
+      puts changelog_annotation( quiet )
     end
 
     desc <<-EOM
@@ -158,7 +175,7 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
 
       NOTES:
       Compares mission-impacting (significant) files with the latest
-      tag and identifies the relevant files that have changed.  
+      tag and identifies the relevant files that have changed.
 
       Does nothing if the project owner, as specified in the
       metadata.json file, is not 'simp'.
@@ -187,10 +204,9 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
       require 'puppet/util/package'
 
       tags_source = args[:tags_source].nil? ? 'origin' : args[:tags_source]
-      ignore_owner = true if args[:ignore_owner].to_s == 'true' 
-      verbose = true if args[:verbose].to_s == 'true' 
+      ignore_owner = true if args[:ignore_owner].to_s == 'true'
+      verbose = true if args[:verbose].to_s == 'true'
 
-      metadata = JSON.load(File.read('metadata.json'))
       module_version = metadata['version']
       owner =  metadata['name'].split('-')[0]
 
@@ -211,7 +227,7 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
           files_changed.delete_if do |file|
             file[0] ==  '.' or file =~ /^Gemfile/ or file == 'Rakefile' or file =~/^spec\// or file =~/^doc/
           end
-        
+
           if files_changed.empty?
             puts "  No new tag required: No significant files have changed since '#{last_tag}' tag"
           else
@@ -237,7 +253,7 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
             end
           end
         end
-      else     
+      else
         puts "  Not evaluating module owned by '#{owner}'"
       end
     end
@@ -247,7 +263,7 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
       :syntax,
       :lint,
       :spec_parallel,
-      :metadata,
+      :metadata_lint,
     ]
 
     desc <<-EOM
