@@ -1,3 +1,6 @@
+### 3.7.2 / 2017-07-20
+* Updated rsync build dir to rsync_skeleton
+
 ### 3.7.1 / 2017-07-20
 * Fixed bug in `:changelog_annotation` task
 * `:test` now uses `:metadata_lint` instead of `:metadata`
