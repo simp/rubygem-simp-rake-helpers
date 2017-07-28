@@ -46,7 +46,9 @@ module Simp::Rake::Build
           @build_dirs = {
             :modules => get_module_dirs(args[:method]),
             :aux => [
+              # Legacy rsync, keep it for backwards-compatibility
               "#{@src_dir}/rsync",
+              "#{@src_dir}/rsync_skeleton",
               # Anything in here gets built!
               "#{@src_dir}/assets/*",
               # Legacy Compat
