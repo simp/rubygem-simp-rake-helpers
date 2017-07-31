@@ -6,7 +6,7 @@ before_install:
   - sudo apt-get install -y rpm
   - rm Gemfile.lock || true
   - rvm @global do gem uninstall bundler -a -x
-  - gem install bundler -v '~> 1.14'
+  - rvm @global do gem install bundler -v '~> 1.14'
 bundler_args: "--without development --path .vendor"
 notifications:
   email: false
