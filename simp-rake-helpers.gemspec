@@ -30,7 +30,7 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'puppet-lint',               '>= 1.0', '< 3.0'
   s.add_runtime_dependency 'puppetlabs_spec_helper',    '~> 1.0'
   s.add_runtime_dependency 'parallel',                  '~> 1.0'
-  s.add_runtime_dependency 'simp-rspec-puppet-facts',   '~> 1.0'
+  s.add_runtime_dependency 'simp-rspec-puppet-facts',   '~> 2.0'
   s.add_runtime_dependency 'puppet-blacksmith',         '~> 3.3'
   s.add_runtime_dependency 'simp-beaker-helpers',       '~> 1.0'
   s.add_runtime_dependency 'parallel_tests',            '~> 2.4'
