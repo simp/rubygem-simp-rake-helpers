@@ -23,14 +23,17 @@ Gem::Specification.new do |s|
   # gem dependencies
   #   for the published gem
   # ensure the gem is built out of versioned files
-  s.add_runtime_dependency 'bundler',                   '~> 1.0'
+
+  # Bundler is limited for support in FIPS enabled systems
+  # 1.15 reverted the FIPS changes but it is still in progress
+  s.add_runtime_dependency 'bundler',                   '~> 1.14.0'
   s.add_runtime_dependency 'rake',                      '>= 10.0', '< 13.0'
   s.add_runtime_dependency 'coderay',                   '~> 1.0'
-  s.add_runtime_dependency 'puppet',                    '>= 3.0'
+  s.add_runtime_dependency 'puppet',                    '>= 3.0', '< 6.0'
   s.add_runtime_dependency 'puppet-lint',               '>= 1.0', '< 3.0'
-  s.add_runtime_dependency 'puppetlabs_spec_helper',    '~> 1.0'
+  s.add_runtime_dependency 'puppetlabs_spec_helper',    '~> 2.0'
   s.add_runtime_dependency 'parallel',                  '~> 1.0'
-  s.add_runtime_dependency 'simp-rspec-puppet-facts',   '~> 1.0'
+  s.add_runtime_dependency 'simp-rspec-puppet-facts',   '~> 2.0'
   s.add_runtime_dependency 'puppet-blacksmith',         '~> 3.3'
   s.add_runtime_dependency 'simp-beaker-helpers',       '~> 1.0'
   s.add_runtime_dependency 'parallel_tests',            '~> 2.4'
