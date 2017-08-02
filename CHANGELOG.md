@@ -1,3 +1,7 @@
+### 4.0.1 / 2017-08-02
+* Reverted the bundler pinning since it was causing too many issues on CI
+  systems
+
 ### 4.0.0 / 2017-07-31
 * Pinned bundler to '~> 1.14.0' to allow building on FIPS-enabled systems
 * Updated to simp-rspec-puppet-facts 2.0.0

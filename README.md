@@ -1,32 +1,54 @@
 # simp-rake-helpers
-[![License](http://img.shields.io/:license-apache-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0.html) [![Build Status](https://travis-ci.org/simp/rubygems-simp-rake-helpers.svg?branch=master)](https://travis-ci.org/simp/rubygems-simp-rake-helpers)
+
+[![License](http://img.shields.io/:license-apache-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0.html)
+[![Build Status](https://travis-ci.org/simp/rubygem-simp-rake-helpers.svg?branch=master)](https://travis-ci.org/simp/rubygem-simp-rake-helpers)
+[![Gem](https://img.shields.io/gem/v/simp-rake-helpers.svg)](https://rubygems.org/gems/simp-rake-helpers)
+[![Gem_Downloads](https://img.shields.io/gem/dt/simp-rake-helpers.svg)](https://rubygems.org/gems/simp-rake-helpers)
 
 #### Table of Contents
 
-1. [Overview](#overview)
-  * [This gem is part of SIMP](#this-gem-is-part-of-simp)
-  * [Features](#features)
-2. [Setup](#setup)
-   * [Gemfile](#gemfile)
-3. [Usage - Configuration options and additional functionality](#usage)
-  * [In a Puppet Module](#in-a-puppet-module)
-  * [In a Ruby Gem](#in-a-ruby-gem)
-  * [RPM Generation](#rpm-generation)
-4. [Reference - An under-the-hood peek at what the gem is doing and how](#reference)
-5. [Limitations - OS compatibility, etc.](#limitations)
-6. [Development - Guide for contributing to the module](#development)
-  * [License](#license)
-  * [History](#history)
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
+- [Overview](#overview)
+  - [This gem is part of SIMP](#this-gem-is-part-of-simp)
+  - [Features](#features)
+- [Setup](#setup)
+  - [Gemfile](#gemfile)
+- [Usage](#usage)
+  - [In a Puppet module](#in-a-puppet-module)
+  - [In a Ruby Gem](#in-a-ruby-gem)
+  - [RPM Generation](#rpm-generation)
+    - [RPM Changelog](#rpm-changelog)
+    - [RPM Dependencies](#rpm-dependencies)
+- [Reference](#reference)
+  - [simp/rake/rpm](#simprakerpm)
+    - [rake pkg:rpm[chroot,unique,snapshot_release]](#rake-pkgrpmchrootuniquesnapshot_release)
+      - [Parameters](#parameters)
+    - [rake pkg:scrub[chroot,unique]](#rake-pkgscrubchrootunique)
+    - [rake pkg:srpm[chroot,unique,snapshot_release]](#rake-pkgsrpmchrootuniquesnapshot_release)
+      - [Parameters](#parameters-1)
+    - [rake pkg:tar[snapshot_release]](#rake-pkgtarsnapshot_release)
+      - [Parameters](#parameters-2)
+- [Limitations](#limitations)
+  - [FIPS Enabled Systems](#fips-enabled-systems)
+- [Development](#development)
+  - [License](#license)
+  - [History](#history)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ## Overview
+
 The `simp-rake-helpers` gem provides common Rake tasks to support the SIMP build process.
 
 ### This gem is part of SIMP
+
 This gem is part of (the build tooling for) the [System Integrity Management Platform](https://github.com/NationalSecurityAgency/SIMP), a compliance-management framework built on [Puppet](https://puppetlabs.com/).
 
 
 ### Features
+
 * Supports multithreaded mock operations
 * RPM packaging and signing
 * Rubygem packaging
@@ -71,8 +93,8 @@ group :test do
 end
 ```
 
-
 ## Usage
+
 ### In a Puppet module
 
 Within the project's Rakefile:
@@ -82,7 +104,6 @@ require 'simp/rake/pupmod/helpers'
 
 Simp::Rake::Pupmod::Helpers.new(File.dirname(__FILE__))
 ```
-
 
 ### In a Ruby Gem
 
@@ -181,14 +202,29 @@ Build the pupmod-simp-iptables tar package
 
 ## Limitations
 
+### FIPS Enabled Systems
+
+This is not a limitation of the module, but of Bundler.
+
+If you are running on a FIPS-enabled system, you will need to use `bundler '~> 1.14.0'`
+until the FIPS support can be corrected.
+
+If you are using RVM, the appropriate steps are as follows:
+
+```shell
+rm Gemfile.lock ||:
+rvm @global do gem uninstall bundler -a -x
+rvm @global do gem install bundler -v '~> 1.14.0'
+```
 
 ## Development
 
 Please see the [SIMP Contribution Guidelines](https://simp-project.atlassian.net/wiki/display/SD/Contributing+to+SIMP).
 
 ### License
+
 See [LICENSE](LICENSE)
 
-
 ### History
+
 See [CHANGELOG.md](CHANGELOG.md)
