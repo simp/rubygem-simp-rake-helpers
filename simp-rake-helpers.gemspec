@@ -24,9 +24,7 @@ Gem::Specification.new do |s|
   #   for the published gem
   # ensure the gem is built out of versioned files
 
-  # Bundler is limited for support in FIPS enabled systems
-  # 1.15 reverted the FIPS changes but it is still in progress
-  s.add_runtime_dependency 'bundler',                   '~> 1.14.0'
+  s.add_runtime_dependency 'bundler',                   '~> 1.14'
   s.add_runtime_dependency 'rake',                      '>= 10.0', '< 13.0'
   s.add_runtime_dependency 'coderay',                   '~> 1.0'
   s.add_runtime_dependency 'puppet',                    '>= 3.0', '< 6.0'
