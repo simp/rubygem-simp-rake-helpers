@@ -740,8 +740,11 @@ protect=1
           validate_in_mock_group?
           _verbose = ENV.fetch('SIMP_PKG_verbose','no') == 'yes'
 
-          # Default package metadata for reference
-          default_metadata = YAML.load(File.read("#{@src_dir}/build/package_metadata_defaults.yaml"))
+          rpm_dependency_file = "#{@build_dir}/rpm/dependencies.yaml"
+
+          if File.exist?(rpm_dependency_file)
+            rpm_dependency_metadata = YAML.load(File.read(rpm_dependency_file))
+          end
 
           metadata = Parallel.map(
             # Allow for shell globs
@@ -763,6 +766,64 @@ protect=1
 
               # We're building a module, override anything down there
               if File.exist?('metadata.json')
+
+                # Hack in the RPM dependency information if necessary
+                if rpm_dependency_metadata
+                  require 'json'
+
+                  rpm_metadata_file = File.join(dir, 'build', 'rpm_metadata', 'requires')
+                  FileUtils.mkdir_p(File.dirname(rpm_metadata_file))
+
+                  module_metadata = JSON.parse(File.read('metadata.json'))
+                  module_author, module_name = module_metadata['name'].split('-')
+
+                  module_dep_info = rpm_dependency_metadata[module_name]
+                  if module_dep_info
+                    rpm_metadata_content = []
+
+                    module_dep_info[:obsoletes].each_pair do |pkg, version|
+                      module_version = module_metadata['version']
+
+                      # We don't want to add this if we're building an older
+                      # version or the RPM will be malformed
+                      if Gem::Version.new(module_version) > Gem::Version.new(version.split('-').first)
+                        rpm_metadata_content << "Obsoletes: #{pkg} > #{version}"
+                      end
+                    end
+
+                    module_dep_info[:requires].each do |pkg|
+                      short_name = pkg.split('-')[-2..-1].join('/')
+
+                      dep_version = module_metadata['dependencies'].select{|dep| dep['name'] == short_name}.first['version_requirement']
+
+                      if dep_version =~ /^\s*(\d+\.\d+\.\d+)\s*$/
+                        rpm_metadata_content << "Requires: #{pkg} = #{$1}"
+                      else
+                        if dep_version.include?('x')
+                          dep_parts = dep_version.split('.')
+
+                          if dep_parts.count == 3
+                            dep_version = ">= #{dep_parts[0]}.#{dep_parts[1]}.0 < #{dep_parts[0].to_i + 1}.0.0"
+                          else
+                            dep_version = ">= #{dep_parts[0]}.0.0 < #{dep_parts[0].to_i + 1}.0.0"
+                          end
+                        end
+
+                        # metadata.json is a LOT more forgiving than the RPM spec file
+                        if dep_version =~ /^\s*(?:(?:([<>]=?)\s*(\d+\.\d+\.\d+))\s*(?:(<)\s*(\d+\.\d+\.\d+))?)\s*$/
+                          rpm_metadata_content << "Requires: #{pkg} #{$1} #{$2}"
+                          rpm_metadata_content << "Requires: #{pkg} #{$3} #{$4}" if $3
+                        end
+                      end
+                    end
+
+                    File.open(rpm_metadata_file, 'w') do |fh|
+                      fh.puts(rpm_metadata_content.join("\n"))
+                      fh.flush
+                    end
+                  end
+                end
+
                 unique_namespace = (0...24).map{ (65 + rand(26)).chr }.join.downcase
 
                 Simp::Rake::Pkg.new(Dir.pwd, nil, unique_namespace, @simp_version)
