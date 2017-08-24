@@ -1,0 +1,49 @@
+{
+  "name": "oldowner-obsoletes_too_new_mod",
+  "version": "2.5.0",
+  "source": "https://github.com/oldowner/puppet-obsoletes_too_new_mod",
+  "author": "oldowner",
+  "license": "Apache-2.0",
+  "summary": "Module for obsoletes_too_new",
+  "description": "Module for obsoletes_too_new",
+  "project_page": "https://github.com/oldowner/puppet-obsoletes_too_new_mod",
+  "issues_url": "https://github.com/oldowner/puppet-obsoletes_too_new_mod/issues",
+  "dependencies": [
+    {
+      "name": "foo1/bar1",
+      "version_requirement": "1.0.0"
+    },
+    {
+      "name": "foo2/bar2",
+      "version_requirement": "> 2.0.0"
+    }
+  ],
+  "operatingsystem_support": [
+    {
+      "operatingsystem": "RedHat",
+      "operatingsystemrelease": [
+        "5",
+        "6",
+        "7"
+      ]
+    },
+    {
+      "operatingsystem": "CentOS",
+      "operatingsystemrelease": [
+        "5",
+        "6",
+        "7"
+      ]
+    }
+  ],
+  "requirements": [
+    {
+      "name": "pe",
+      "version_requirement": ">= 3.3.2"
+    },
+    {
+      "name": "puppet",
+      "version_requirement": ">=3.2.0 <4.3.0"
+    }
+  ]
+}

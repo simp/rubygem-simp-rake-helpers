@@ -1,0 +1,65 @@
+{
+  "name": "newowner-changed_name_mod",
+  "version": "5.2.0",
+  "source": "https://github.com/newowner/puppet-changed_name_mod",
+  "author": "newowner",
+  "license": "Apache-2.0",
+  "summary": "Module for changed_name",
+  "description": "Module for changed_name",
+  "project_page": "https://github.com/newowner/puppet-changed_name_mod",
+  "issues_url": "https://github.com/newowner/puppet-changed_name_mod/issues",
+  "dependencies": [
+    {
+      "name": "foo1/bar1",
+      "version_requirement": "1.0.0"
+    },
+    {
+      "name": "foo2/bar2",
+      "version_requirement": "> 2.0.0"
+    },
+    {
+      "name": "foo3/bar3",
+      "version_requirement": "< 3.0.0"
+    },
+    {
+      "name": "foo4/bar4",
+      "version_requirement": ">= 4.0.0 < 5.0.0"
+    },
+    {
+      "name": "foo5/bar5",
+      "version_requirement": "5.x"
+    },
+    {
+      "name": "foo6/bar6",
+      "version_requirement": "6.4.x"
+    }
+  ],
+  "operatingsystem_support": [
+    {
+      "operatingsystem": "RedHat",
+      "operatingsystemrelease": [
+        "5",
+        "6",
+        "7"
+      ]
+    },
+    {
+      "operatingsystem": "CentOS",
+      "operatingsystemrelease": [
+        "5",
+        "6",
+        "7"
+      ]
+    }
+  ],
+  "requirements": [
+    {
+      "name": "pe",
+      "version_requirement": ">= 3.3.2"
+    },
+    {
+      "name": "puppet",
+      "version_requirement": ">=3.2.0 <4.3.0"
+    }
+  ]
+}

@@ -7,6 +7,85 @@ module Simp; end
 module Simp::Rake; end
 module Simp::Rake::Build
 
+  # Generate build/rpm_metadata/requires file from a combination
+  # of the metadata.json file and the rpm_dependency_metadata hash,
+  # if the rpm_dependency_metadata hash as an entry for the module.
+  # Only dependencies listed in the rpm_dependency_metadata will
+  # be included in the requires file.  The version requirements fo
+  # each dependency will be pulled from the metadata.json file.
+  # Fails if rpm_dependency_metadata specifies a dependency that
+  # is not listed in the metadata.json file.
+  def self.generate_rpm_requires(dir, rpm_dependency_metadata)
+    require 'json'
+
+    metadata_json_file = File.join(dir, 'metadata.json')
+    module_metadata = JSON.parse(File.read(metadata_json_file))
+    module_author, module_name = module_metadata['name'].split('-')
+
+    module_dep_info = rpm_dependency_metadata[module_name]
+    if module_dep_info
+      rpm_metadata_content = []
+
+      if module_dep_info[:obsoletes]
+        module_dep_info[:obsoletes].each_pair do |pkg, version|
+          module_version = module_metadata['version']
+
+          # We don't want to add this if we're building an older
+          # version or the RPM will be malformed
+          if Gem::Version.new(module_version) > Gem::Version.new(version.split('-').first)
+            rpm_metadata_content << "Obsoletes: #{pkg} > #{version}"
+          else
+            puts "Ignoring 'obsoletes' for #{pkg}: module version #{module_version}" + 
+             " from metadata.json is not > obsolete version #{version}"
+          end
+        end
+      end
+
+      module_dep_info[:requires].each do |pkg|
+        short_name = pkg.split('-')[-2..-1].join('/')
+
+        dep_info = module_metadata['dependencies'].select{ |dep| 
+          dep['name'] == short_name
+        }
+
+        if dep_info.empty?
+          fail "Could not find #{short_name} dependency in #{metadata_json_file}"
+        else
+          dep_version = dep_info.first['version_requirement']
+        end
+
+        if dep_version =~ /^\s*(\d+\.\d+\.\d+)\s*$/
+          rpm_metadata_content << "Requires: #{pkg} = #{$1}"
+        else
+          if dep_version.include?('x')
+            dep_parts = dep_version.split('.')
+
+            if dep_parts.count == 3
+              dep_version = ">= #{dep_parts[0]}.#{dep_parts[1]}.0 < #{dep_parts[0].to_i + 1}.0.0"
+            else
+              dep_version = ">= #{dep_parts[0]}.0.0 < #{dep_parts[0].to_i + 1}.0.0"
+            end
+          end
+
+          # metadata.json is a LOT more forgiving than the RPM spec file
+          if dep_version =~ /^\s*(?:(?:([<>]=?)\s*(\d+\.\d+\.\d+))\s*(?:(<)\s*(\d+\.\d+\.\d+))?)\s*$/
+            rpm_metadata_content << "Requires: #{pkg} #{$1} #{$2}"
+            rpm_metadata_content << "Requires: #{pkg} #{$3} #{$4}" if $3
+          else
+            fail "Unable to parse #{short_name} dependency version '#{dep_version}' in #{metadata_json_file}"
+          end
+        end
+      end
+
+      rpm_metadata_file = File.join(dir, 'build', 'rpm_metadata', 'requires')
+      FileUtils.mkdir_p(File.dirname(rpm_metadata_file))
+      File.open(rpm_metadata_file, 'w') do |fh|
+        fh.puts(rpm_metadata_content.join("\n"))
+        fh.flush
+      end
+    end
+  end
+
   class Pkg < ::Rake::TaskLib
     include Simp::Rake
     include Simp::Rake::Build::Constants
@@ -769,59 +848,7 @@ protect=1
 
                 # Hack in the RPM dependency information if necessary
                 if rpm_dependency_metadata
-                  require 'json'
-
-                  rpm_metadata_file = File.join(dir, 'build', 'rpm_metadata', 'requires')
-                  FileUtils.mkdir_p(File.dirname(rpm_metadata_file))
-
-                  module_metadata = JSON.parse(File.read('metadata.json'))
-                  module_author, module_name = module_metadata['name'].split('-')
-
-                  module_dep_info = rpm_dependency_metadata[module_name]
-                  if module_dep_info
-                    rpm_metadata_content = []
-
-                    module_dep_info[:obsoletes].each_pair do |pkg, version|
-                      module_version = module_metadata['version']
-
-                      # We don't want to add this if we're building an older
-                      # version or the RPM will be malformed
-                      if Gem::Version.new(module_version) > Gem::Version.new(version.split('-').first)
-                        rpm_metadata_content << "Obsoletes: #{pkg} > #{version}"
-                      end
-                    end
-
-                    module_dep_info[:requires].each do |pkg|
-                      short_name = pkg.split('-')[-2..-1].join('/')
-
-                      dep_version = module_metadata['dependencies'].select{|dep| dep['name'] == short_name}.first['version_requirement']
-
-                      if dep_version =~ /^\s*(\d+\.\d+\.\d+)\s*$/
-                        rpm_metadata_content << "Requires: #{pkg} = #{$1}"
-                      else
-                        if dep_version.include?('x')
-                          dep_parts = dep_version.split('.')
-
-                          if dep_parts.count == 3
-                            dep_version = ">= #{dep_parts[0]}.#{dep_parts[1]}.0 < #{dep_parts[0].to_i + 1}.0.0"
-                          else
-                            dep_version = ">= #{dep_parts[0]}.0.0 < #{dep_parts[0].to_i + 1}.0.0"
-                          end
-                        end
-
-                        # metadata.json is a LOT more forgiving than the RPM spec file
-                        if dep_version =~ /^\s*(?:(?:([<>]=?)\s*(\d+\.\d+\.\d+))\s*(?:(<)\s*(\d+\.\d+\.\d+))?)\s*$/
-                          rpm_metadata_content << "Requires: #{pkg} #{$1} #{$2}"
-                          rpm_metadata_content << "Requires: #{pkg} #{$3} #{$4}" if $3
-                        end
-                      end
-                    end
-
-                    File.open(rpm_metadata_file, 'w') do |fh|
-                      fh.puts(rpm_metadata_content.join("\n"))
-                      fh.flush
-                    end
-                  end
+                  generate_rpm_requires(dir, rpm_dependency_metadata)
                 end
 
                 unique_namespace = (0...24).map{ (65 + rand(26)).chr }.join.downcase

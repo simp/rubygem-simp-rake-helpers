@@ -1,0 +1,36 @@
+# This file holds a list of RPM dependencies that apply to Puppet module RPMs.
+#
+# This is specifically needed since we do not want to fork any external modules
+# if at all possible.
+#
+# Requirement versions are pulled directly from the metadata.json file in the module
+---
+'changed_name_mod':
+  :obsoletes:
+    'pupmod-oldowner-changed_name_mod': '2.5.0-2016.1'
+  :requires:
+    - 'pupmod-foo1-bar1'
+    - 'pupmod-foo2-bar2'
+    - 'pupmod-foo3-bar3'
+    - 'pupmod-foo4-bar4'
+    - 'pupmod-foo5-bar5'
+    - 'pupmod-foo6-bar6'
+'managed_mod':
+  :requires:
+    # does NOT include puppetlabs/apt
+    - 'pupmod-puppetlabs-stdlib'
+    - 'pupmod-ceritsc-yum'
+    - 'pupmod-richardc-datacat'
+'obsoletes_too_new_mod':
+  :obsoletes:
+    'pupmod-oldowner-obsoletes_too_new_mod': '2.5.0-2016.1'
+  :requires:
+    - 'pupmod-foo1-bar1'
+    - 'pupmod-foo2-bar2'
+'unknown_dep_mod':
+  :requires:
+    - 'pupmod-foo1-bar1'
+    - 'pupmod-oops-unknown'
+'malformed_dep_meta_mod':
+  :requires:
+    - 'pupmod-foo1-bar1'
