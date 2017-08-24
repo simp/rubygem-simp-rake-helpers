@@ -41,11 +41,10 @@ package_version = "UNKNOWN"
 module_license = "UNKNOWN"
 
 --
--- Default to the current year
--- This was done due to the change in naming scheme across all of the modules.
+-- Default to 0
 --
 
-package_release = os.date("%Y.0")
+package_release = 0
 }
 
 %{lua:
