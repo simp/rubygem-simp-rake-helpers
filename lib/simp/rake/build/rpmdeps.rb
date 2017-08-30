@@ -33,7 +33,7 @@ module Simp::Rake::Build::RpmDeps
     end
     requires
   end
- 
+
   # Generate 'Obsoletes' and 'Requires' lines, from a combination of
   # the module_dep_info and module_metadata.  Only dependencies listed
   # in the module_dep_info hash will be included in the output. The
@@ -51,13 +51,13 @@ module Simp::Rake::Build::RpmDeps
 
         # We don't want to add this if we're building an older
         # version or the RPM will be malformed
-        if Gem::Version.new(module_version) > 
+        if Gem::Version.new(module_version) >
           Gem::Version.new(version.split('-').first)
 
           rpm_metadata_content << "Obsoletes: #{pkg} > #{version}"
         else
-          puts "Ignoring 'obsoletes' for #{pkg}: module version" + 
-           " #{module_version} from metadata.json is not >" + 
+          puts "Ignoring 'obsoletes' for #{pkg}: module version" +
+           " #{module_version} from metadata.json is not >" +
            " obsolete version #{version}"
         end
       end
@@ -66,7 +66,7 @@ module Simp::Rake::Build::RpmDeps
     module_dep_info[:requires].each do |pkg|
       short_name = pkg.split('-')[-2..-1].join('/')
 
-      dep_info = module_metadata['dependencies'].select{ |dep| 
+      dep_info = module_metadata['dependencies'].select{ |dep|
         dep['name'] == short_name
       }
 
@@ -80,7 +80,7 @@ module Simp::Rake::Build::RpmDeps
       begin
         rpm_metadata_content << get_version_requires(pkg, dep_version)
       rescue SIMPRpmDepVersionException => e
-        err_msg = "Unable to parse #{short_name} dependency" + 
+        err_msg = "Unable to parse #{short_name} dependency" +
           " version '#{dep_version}'"
         raise SIMPRpmDepException.new(err_msg)
       end
@@ -95,14 +95,14 @@ module Simp::Rake::Build::RpmDeps
   # use in an RPM spec file
   def self.generate_module_rpm_requires(module_metadata)
     rpm_metadata_content = []
-    module_metadata['dependencies'].each do |dep| 
+    module_metadata['dependencies'].each do |dep|
       pkg = "pupmod-#{dep['name'].gsub('/', '-')}"
       dep_version = dep['version_requirement']
 
       begin
         rpm_metadata_content << get_version_requires(pkg, dep_version)
       rescue SIMPRpmDepVersionException => e
-        err_msg = "Unable to parse #{dep['name']} dependency" + 
+        err_msg = "Unable to parse #{dep['name']} dependency" +
           " version '#{dep_version}'"
         raise SIMPRpmDepException.new(err_msg)
       end
@@ -115,14 +115,14 @@ module Simp::Rake::Build::RpmDeps
   # 'Obsoletes' and/or 'Requires' lines for use in an RPM spec file
   # from a combination of the 'metadata.json' file in dir and
   # the rpm_dependency_metadata
-  # hash. 
+  # hash.
   #
   # If the rpm_dependency_metadata hash as an entry for the
   # module named in the 'metadata.json' file, the generated
   # 'requires' file will contain
   # * 'Obsoletes' lines for any obsoletes specified in the
   #   rpm_dependency_metadata hash
-  # * 'Requires' lines for any requires specified in the 
+  # * 'Requires' lines for any requires specified in the
   #   rpm_dependency_metadata hash, where the versions for those
   #   dependencies are pulled from the 'metadata.json' file.
   #
@@ -134,7 +134,7 @@ module Simp::Rake::Build::RpmDeps
 
     metadata_json_file = File.join(dir, 'metadata.json')
     module_metadata = JSON.parse(File.read(metadata_json_file))
-    module_author, module_name = module_metadata['name'].split('-')
+    module_name = module_metadata['name'].split(%r(-|/)).last
 
     module_dep_info = rpm_dependency_metadata[module_name]
     rpm_metadata_content = []
