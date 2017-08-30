@@ -1,0 +1,57 @@
+{
+  "name": "owner-managed_mod",
+  "version": "0.11.0",
+  "source": "https://github.com/owner/puppet-managed_mod",
+  "author": "owner",
+  "license": "Apache-2.0",
+  "summary": "Module for managed_mod",
+  "description": "Module for managed_mod",
+  "project_page": "https://github.com/owner/puppet-managed_mod",
+  "issues_url": "https://github.com/owner/puppet-managed_mod/issues",
+  "dependencies": [
+    {
+      "name": "puppetlabs/stdlib",
+      "version_requirement": ">= 3.2.0 < 5.0.0"
+    },
+    {
+      "name": "puppetlabs/apt",
+      "version_requirement": ">= 1.4.0 < 3.0.0"
+    },
+    {
+      "name": "ceritsc/yum",
+      "version_requirement": ">= 0.9.6 < 1.0.0"
+    },
+    {
+      "name": "richardc/datacat",
+      "version_requirement": ">= 0.6.2 < 1.0.0"
+    }
+  ],
+  "operatingsystem_support": [
+    {
+      "operatingsystem": "RedHat",
+      "operatingsystemrelease": [
+        "5",
+        "6",
+        "7"
+      ]
+    },
+    {
+      "operatingsystem": "CentOS",
+      "operatingsystemrelease": [
+        "5",
+        "6",
+        "7"
+      ]
+    }
+  ],
+  "requirements": [
+    {
+      "name": "pe",
+      "version_requirement": ">= 3.3.2"
+    },
+    {
+      "name": "puppet",
+      "version_requirement": ">=3.2.0 <4.3.0"
+    }
+  ]
+}

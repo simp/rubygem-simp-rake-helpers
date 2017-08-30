@@ -41,13 +41,10 @@ package_version = "UNKNOWN"
 module_license = "UNKNOWN"
 
 --
--- Default to 2016
--- This was done due to the change in naming scheme across all of the modules.
--- The '.1' bump is there for the SIMP 6 path changes
+-- Default to 0
 --
 
-package_release = '2016.1'
-
+package_release = 0
 }
 
 %{lua:
@@ -209,6 +206,8 @@ if req_file then
 end
 }
 
+%global _binaries_in_noarch_packages_terminate_build 0
+
 %define module_name %{lua: print(module_name)}
 %define package_name %{lua: print(package_name)}
 
@@ -287,12 +286,14 @@ mkdir -p %{buildroot}/%{prefix}
 curdir=`pwd`
 dirname=`basename $curdir`
 cp -r ../$dirname %{buildroot}/%{prefix}/%{module_name}
+
+# Remove unnecessary assets
 rm -rf %{buildroot}/%{prefix}/%{module_name}/.git
-rm -f %{buildroot}/%{prefix}/*.lock
-rm -rf %{buildroot}/%{prefix}/spec/fixtures/modules
-rm -rf %{buildroot}/%{prefix}/dist
-rm -rf %{buildroot}/%{prefix}/junit
-rm -rf %{buildroot}/%{prefix}/log
+rm -f %{buildroot}/%{prefix}/%{module_name}/*.lock
+rm -rf %{buildroot}/%{prefix}/%{module_name}/spec/fixtures/modules
+rm -rf %{buildroot}/%{prefix}/%{module_name}/dist
+rm -rf %{buildroot}/%{prefix}/%{module_name}/junit
+rm -rf %{buildroot}/%{prefix}/%{module_name}/log
 
 %clean
 [ "%{buildroot}" != "/" ] && rm -rf %{buildroot}

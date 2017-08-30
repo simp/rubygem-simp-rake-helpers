@@ -91,8 +91,8 @@ shared_examples_for "a pre-SIMP6 RPM generator" do
     on test_host, %(rpm -qpR #{testpackage_rpm} | grep -q pupmod-simp-foo)
     on test_host, %(rpm -qpR #{testpackage_rpm} | grep -q pupmod-simp-simplib)
     on test_host, %(rpm -qpR #{testpackage_rpm} | grep -q pupmod-puppetlabs-stdlib)
-    on test_host, %(rpm -qp --provides #{testpackage_rpm} | grep -q -x "pupmod-testpackage = 0.0.1-2016")
-    on test_host, %(rpm -qp --provides #{testpackage_rpm} | grep -q -x "simp-testpackage = 0.0.1-2016")
+    on test_host, %(rpm -qp --provides #{testpackage_rpm} | grep -q -x "pupmod-testpackage = 0.0.1-0")
+    on test_host, %(rpm -qp --provides #{testpackage_rpm} | grep -q -x "simp-testpackage = 0.0.1-0")
     on test_host, %(rpm -qp --queryformat "[%{obsoletes}\\n]" #{testpackage_rpm} | grep -q "^pupmod-testpackage")
     on test_host, %(rpm -qp --queryformat "[%{obsoletes}\\n]" #{testpackage_rpm} | grep -q "^simp-testpackage")
 
@@ -179,7 +179,7 @@ describe 'rake pkg:rpm' do
           let(:test_host) { host }
           let(:test_dist) { dist }
           let(:build_type) {:default}
-          let(:testpackage_rpm) { File.join(testpackage_dir, 'dist/pupmod-simp-testpackage-0.0.1-2016.1.noarch.rpm') }
+          let(:testpackage_rpm) { File.join(testpackage_dir, 'dist/pupmod-simp-testpackage-0.0.1-0.noarch.rpm') }
 
           it 'should have a clean working environment' do
             testpackages.each do |package|
@@ -197,8 +197,8 @@ describe 'rake pkg:rpm' do
             on test_host, %(rpm -qpR #{testpackage_rpm} | grep -q pupmod-simp-foo)
             on test_host, %(rpm -qpR #{testpackage_rpm} | grep -q pupmod-simp-simplib)
             on test_host, %(rpm -qpR #{testpackage_rpm} | grep -q pupmod-puppetlabs-stdlib)
-            on test_host, %(rpm -qp --provides #{testpackage_rpm} | grep -q -x "pupmod-testpackage = 0.0.1-2016.1")
-            on test_host, %(rpm -qp --provides #{testpackage_rpm} | grep -q -x "simp-testpackage = 0.0.1-2016.1")
+            on test_host, %(rpm -qp --provides #{testpackage_rpm} | grep -q -x "pupmod-testpackage = 0.0.1-0")
+            on test_host, %(rpm -qp --provides #{testpackage_rpm} | grep -q -x "simp-testpackage = 0.0.1-0")
             on test_host, %(rpm -qp --queryformat "[%{obsoletes}\\n]" #{testpackage_rpm} | grep -q "^pupmod-testpackage")
             on test_host, %(rpm -qp --queryformat "[%{obsoletes}\\n]" #{testpackage_rpm} | grep -q "^simp-testpackage")
 
@@ -222,7 +222,7 @@ describe 'rake pkg:rpm' do
           let(:test_host) { host }
           let(:test_dist) { dist }
           let(:build_type) { :simp4 }
-          let(:testpackage_rpm) { File.join(testpackage_dir, 'dist/pupmod-simp-testpackage-0.0.1-2016.noarch.rpm') }
+          let(:testpackage_rpm) { File.join(testpackage_dir, 'dist/pupmod-simp-testpackage-0.0.1-0.noarch.rpm') }
 
           it 'should have a clean working environment' do
             testpackages.each do |package|
@@ -238,7 +238,7 @@ describe 'rake pkg:rpm' do
           let(:test_host) { host }
           let(:test_dist) { dist }
           let(:build_type) { :simp5 }
-          let(:testpackage_rpm) { File.join(testpackage_dir, 'dist/pupmod-simp-testpackage-0.0.1-2016.noarch.rpm') }
+          let(:testpackage_rpm) { File.join(testpackage_dir, 'dist/pupmod-simp-testpackage-0.0.1-0.noarch.rpm') }
 
           it 'should have a clean working environment' do
             testpackages.each do |package|

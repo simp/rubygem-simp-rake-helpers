@@ -53,7 +53,7 @@ module Simp::Rake
           require 'yaml'
           pwd = File.expand_path(@base_dir)
           _f  = YAML.load_file(File.join(pwd,'.fixtures.yml'))
-          
+
           unless File.file?(File.join(pwd,'.fixtures.yml.local'))
             fail "ERROR: Can't diff fixtures without a `.fixtures.yml.local` file"
           end

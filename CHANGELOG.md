@@ -1,3 +1,11 @@
+### 4.1.0 / 2017-08-02
+* Added the ability to read from `simp-core/build/rpm/dependencies.yaml` in a
+  checked out repo to add the necessary Obsoletes and Requires statements for
+  external RPMs
+* Changed the 'YEAR' part of the RPM release to reflect the current year
+* Ensure that the 'spec/fixtures/modules' directory is no longer added to the
+  RPMs
+
 ### 4.0.1 / 2017-08-02
 * Reverted the bundler pinning since it was causing too many issues on CI
   systems

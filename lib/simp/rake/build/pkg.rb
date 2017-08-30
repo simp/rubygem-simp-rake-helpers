@@ -2,6 +2,7 @@
 
 require 'simp/rake/pkg'
 require 'simp/rake/build/constants'
+require 'simp/rake/build/rpmdeps'
 
 module Simp; end
 module Simp::Rake; end
@@ -740,8 +741,12 @@ protect=1
           validate_in_mock_group?
           _verbose = ENV.fetch('SIMP_PKG_verbose','no') == 'yes'
 
-          # Default package metadata for reference
-          default_metadata = YAML.load(File.read("#{@src_dir}/build/package_metadata_defaults.yaml"))
+          rpm_dependency_file = File.join(@base_dir, 'build', 'rpm',
+            'dependencies.yaml')
+
+          if File.exist?(rpm_dependency_file)
+            rpm_dependency_metadata = YAML.load(File.read(rpm_dependency_file))
+          end
 
           metadata = Parallel.map(
             # Allow for shell globs
@@ -763,6 +768,12 @@ protect=1
 
               # We're building a module, override anything down there
               if File.exist?('metadata.json')
+
+                # Generate RPM dependency/obsoletes information from the
+                # dependencies.yaml and the module's metadata.json
+                Simp::Rake::Build::RpmDeps::generate_rpm_requires_file(dir,
+                  rpm_dependency_metadata)
+
                 unique_namespace = (0...24).map{ (65 + rand(26)).chr }.join.downcase
 
                 Simp::Rake::Pkg.new(Dir.pwd, nil, unique_namespace, @simp_version)

@@ -1,0 +1,45 @@
+{
+  "name": "newowner-malformed_dep_meta_mod",
+  "version": "5.2.0",
+  "source": "https://github.com/newowner/puppet-malformed_dep_meta_mod",
+  "author": "newowner",
+  "license": "Apache-2.0",
+  "summary": "Module for malformed_dep_meta",
+  "description": "Module for malformed_dep_meta",
+  "project_page": "https://github.com/newowner/puppet-malformed_dep_meta_mod",
+  "issues_url": "https://github.com/newowner/puppet-malformed_dep_meta_mod/issues",
+  "dependencies": [
+    {
+      "name": "foo1/bar1",
+      "version_requirement": "1.0.0.1"
+    }
+  ],
+  "operatingsystem_support": [
+    {
+      "operatingsystem": "RedHat",
+      "operatingsystemrelease": [
+        "5",
+        "6",
+        "7"
+      ]
+    },
+    {
+      "operatingsystem": "CentOS",
+      "operatingsystemrelease": [
+        "5",
+        "6",
+        "7"
+      ]
+    }
+  ],
+  "requirements": [
+    {
+      "name": "pe",
+      "version_requirement": ">= 3.3.2"
+    },
+    {
+      "name": "puppet",
+      "version_requirement": ">=3.2.0 <4.3.0"
+    }
+  ]
+}
