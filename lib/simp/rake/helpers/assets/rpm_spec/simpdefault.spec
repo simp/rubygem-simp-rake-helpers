@@ -206,6 +206,8 @@ if req_file then
 end
 }
 
+%global _binaries_in_noarch_packages_terminate_build 0
+
 %define module_name %{lua: print(module_name)}
 %define package_name %{lua: print(package_name)}
 
