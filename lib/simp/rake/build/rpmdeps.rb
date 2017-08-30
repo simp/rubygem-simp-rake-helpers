@@ -64,14 +64,17 @@ module Simp::Rake::Build::RpmDeps
     end
 
     module_dep_info[:requires].each do |pkg|
-      short_name = pkg.split(%r(-|/))[-2..-1].join('/')
+      pkg_parts = pkg.split(%r(-|/))[-2..-1]
+
+      # Need to cover all base cases
+      short_names = [pkg_parts.join('/'), pkg_parts.join('-')]
 
       dep_info = module_metadata['dependencies'].select{ |dep|
-        dep['name'] == short_name
+        short_names.include?(dep['name'])
       }
 
       if dep_info.empty?
-        err_msg = "Could not find #{short_name} dependency"
+        err_msg = "Could not find #{short_names.first} dependency"
         raise SIMPRpmDepException.new(err_msg)
       else
         dep_version = dep_info.first['version_requirement']
@@ -80,7 +83,7 @@ module Simp::Rake::Build::RpmDeps
       begin
         rpm_metadata_content << get_version_requires(pkg, dep_version)
       rescue SIMPRpmDepVersionException => e
-        err_msg = "Unable to parse #{short_name} dependency" +
+        err_msg = "Unable to parse #{short_names.first} dependency" +
           " version '#{dep_version}'"
         raise SIMPRpmDepException.new(err_msg)
       end
@@ -140,18 +143,15 @@ module Simp::Rake::Build::RpmDeps
     rpm_metadata_content = []
     begin
       if module_dep_info
-        rpm_metadata_content = generate_custom_rpm_requires(
-          module_dep_info, module_metadata)
+        rpm_metadata_content = generate_custom_rpm_requires(module_dep_info, module_metadata)
       else
-        rpm_metadata_content = generate_module_rpm_requires(
-          module_metadata)
+        rpm_metadata_content = generate_module_rpm_requires(module_metadata)
       end
     rescue SIMPRpmDepException => e
       fail "#{e.message} in #{metadata_json_file}"
     end
 
-    rpm_metadata_file = File.join(dir, 'build', 'rpm_metadata',
-      'requires')
+    rpm_metadata_file = File.join(dir, 'build', 'rpm_metadata', 'requires')
 
     FileUtils.mkdir_p(File.dirname(rpm_metadata_file))
     File.open(rpm_metadata_file, 'w') do |fh|
