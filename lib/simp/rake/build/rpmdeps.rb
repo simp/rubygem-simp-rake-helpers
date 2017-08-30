@@ -64,7 +64,7 @@ module Simp::Rake::Build::RpmDeps
     end
 
     module_dep_info[:requires].each do |pkg|
-      short_name = pkg.split('-')[-2..-1].join('/')
+      short_name = pkg.split(%r(-|/))[-2..-1].join('/')
 
       dep_info = module_metadata['dependencies'].select{ |dep|
         dep['name'] == short_name
