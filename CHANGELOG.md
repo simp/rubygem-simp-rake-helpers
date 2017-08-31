@@ -1,3 +1,7 @@
+### 4.1.1 / 2017-08-31
+* Added the ability to read RPM release qualifier for checked out
+  module from `simp-core/build/rpm/dependencies.yaml`
+
 ### 4.1.0 / 2017-08-02
 * Added the ability to read from `simp-core/build/rpm/dependencies.yaml` in a
   checked out repo to add the necessary Obsoletes and Requires statements for

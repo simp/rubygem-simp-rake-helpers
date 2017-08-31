@@ -21,6 +21,7 @@
     - 'pupmod-puppetlabs-stdlib'
     - 'pupmod-ceritsc-yum'
     - 'pupmod-richardc-datacat'
+  :release: '2017.0'
 'obsoletes_too_new_mod':
   :obsoletes:
     'pupmod-oldowner-obsoletes_too_new_mod': '2.5.0-2016.1'
