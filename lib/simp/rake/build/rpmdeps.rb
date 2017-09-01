@@ -136,6 +136,18 @@ module Simp::Rake::Build::RpmDeps
     rpm_metadata_content.flatten
   end
 
+  # Check to see if the contents of the requires file match the new requires info
+  #
+  # +new_requires_info+:: The new requires metadata Array
+  # +rpm_requires_file+:: The path to the module requires file
+  def self.rpm_requires_up_to_date?(new_requires, rpm_requires_file)
+    return false unless File.exist?(rpm_requires_file)
+
+    rpm_requires_content = File.read(rpm_requires_file).lines.map(&:strip) - ['']
+
+    return (new_requires.flatten - rpm_requires_content).empty?
+  end
+
   # Generate 'build/rpm_metadata/requires' file containing
   # 'Obsoletes' and/or 'Requires' lines for use in an RPM spec file.
   #
@@ -169,15 +181,28 @@ module Simp::Rake::Build::RpmDeps
     end
 
     rpm_metadata_file = File.join(dir, 'build', 'rpm_metadata', 'requires')
-    FileUtils.mkdir_p(File.dirname(rpm_metadata_file))
-    File.open(rpm_metadata_file, 'w') do |fh|
-      fh.puts(rpm_metadata_content.flatten.join("\n"))
-      fh.flush
+
+    unless rpm_requires_up_to_date?(rpm_metadata_content, rpm_metadata_file)
+      FileUtils.mkdir_p(File.dirname(rpm_metadata_file))
+      File.open(rpm_metadata_file, 'w') do |fh|
+        fh.puts(rpm_metadata_content.flatten.join("\n"))
+        fh.flush
+      end
     end
   end
 
-  # Generate 'build/rpm_metadata/release' file containing
-  # release qualifier specified in the module_rpm_meta
+  # Check to see if the contents of the release file match the new release info
+  #
+  # +new_release_info+:: The new release metadata string
+  # +rpm_release_file+:: The path to the module release file
+  def self.release_file_up_to_date?(new_release_info, rpm_release_file)
+    return false unless File.exist?(rpm_release_file)
+
+    return File.read(rpm_release_file).strip == new_release_info.strip
+  end
+
+  # Generate 'build/rpm_metadata/release' file containing release qualifier
+  # specified in the module_rpm_meta
   #
   # +dir+:: module root directory
   # +module_rpm_meta+:: module entry from the top-level
@@ -186,11 +211,14 @@ module Simp::Rake::Build::RpmDeps
    return unless (module_rpm_meta and module_rpm_meta[:release])
 
     rpm_release_file = File.join(dir, 'build', 'rpm_metadata', 'release')
-    FileUtils.mkdir_p(File.dirname(rpm_release_file))
-    File.open(rpm_release_file, 'w') do |fh|
-      fh.puts('# release set by simp-core dependencies.yaml')
-      fh.puts(module_rpm_meta[:release])
-      fh.flush
+
+    unless release_file_up_to_date?(module_rpm_meta[:release], rpm_release_file)
+      FileUtils.mkdir_p(File.dirname(rpm_release_file))
+      File.open(rpm_release_file, 'w') do |fh|
+        fh.puts('# release set by simp-core dependencies.yaml')
+        fh.puts(module_rpm_meta[:release])
+        fh.flush
+      end
     end
   end
 

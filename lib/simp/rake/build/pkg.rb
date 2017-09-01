@@ -775,11 +775,10 @@ protect=1
                 #   'dependencies.yaml' and the module's
                 #   'metadata.json'; always created
                 # - 'build/rpm_metadata/release' file containing RPM
-                #   release qualifier from the 'dependencies.yaml'; 
+                #   release qualifier from the 'dependencies.yaml';
                 #   only created if release qualifier if specified in
                 #   the 'dependencies.yaml'
-                Simp::Rake::Build::RpmDeps::generate_rpm_meta_files(dir,
-                  rpm_metadata)
+                Simp::Rake::Build::RpmDeps::generate_rpm_meta_files(dir, rpm_metadata)
 
                 unique_namespace = (0...24).map{ (65 + rand(26)).chr }.join.downcase
 
