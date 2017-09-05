@@ -48,9 +48,7 @@ module Simp::Rake
       @clean_list          = []
       @ignore_changes_list = [
         'Gemfile.lock',
-        'spec/fixtures/modules',
-        'build/rpm_metadata',          # this is generated
-        'build/rpm_metadata/requires'  # this is generated
+        'spec/fixtures/modules'
       ]
       @chroot_name         = unique_name
 
