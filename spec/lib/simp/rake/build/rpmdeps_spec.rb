@@ -179,7 +179,6 @@ EOM
     it 'should fail for unmanaged component with invalid dep version in metadata.json' do
       rpm_meta = rpm_metadata.dup
       rpm_meta ['malformed_dep_meta_mod'] = nil
-puts rpm_meta
       mod_dir = File.join(@tmp_dir, 'files', 'malformed_dep_meta_mod')
       err_msg = "Unable to parse foo1/bar1 dependency version '1.0.0.1' in #{mod_dir}/metadata.json"
       expect {
