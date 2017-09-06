@@ -745,7 +745,7 @@ protect=1
             'dependencies.yaml')
 
           if File.exist?(rpm_dependency_file)
-            rpm_dependency_metadata = YAML.load(File.read(rpm_dependency_file))
+            rpm_metadata = YAML.load(File.read(rpm_dependency_file))
           end
 
           metadata = Parallel.map(
@@ -769,10 +769,16 @@ protect=1
               # We're building a module, override anything down there
               if File.exist?('metadata.json')
 
-                # Generate RPM dependency/obsoletes information from the
-                # dependencies.yaml and the module's metadata.json
-                Simp::Rake::Build::RpmDeps::generate_rpm_requires_file(dir,
-                  rpm_dependency_metadata)
+                # Generate RPM metadata files
+                # - 'build/rpm_metadata/requires' file containing RPM
+                #   dependency/obsoletes information from the
+                #   'dependencies.yaml' and the module's
+                #   'metadata.json'; always created
+                # - 'build/rpm_metadata/release' file containing RPM
+                #   release qualifier from the 'dependencies.yaml';
+                #   only created if release qualifier if specified in
+                #   the 'dependencies.yaml'
+                Simp::Rake::Build::RpmDeps::generate_rpm_meta_files(dir, rpm_metadata)
 
                 unique_namespace = (0...24).map{ (65 + rand(26)).chr }.join.downcase
 

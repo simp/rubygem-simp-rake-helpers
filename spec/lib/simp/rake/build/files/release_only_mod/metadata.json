@@ -1,0 +1,45 @@
+{
+  "name": "owner-release_only_mod",
+  "version": "0.11.0",
+  "source": "https://github.com/owner/puppet-release_only_mod",
+  "author": "owner",
+  "license": "Apache-2.0",
+  "summary": "Module for release_only_mod",
+  "description": "Module for release_only_mod",
+  "project_page": "https://github.com/owner/puppet-release_only_mod",
+  "issues_url": "https://github.com/owner/puppet-release_only_mod/issues",
+  "dependencies": [
+    {
+      "name": "puppetlabs/stdlib",
+      "version_requirement": ">= 3.2.0 < 5.0.0"
+    }
+  ],
+  "operatingsystem_support": [
+    {
+      "operatingsystem": "RedHat",
+      "operatingsystemrelease": [
+        "5",
+        "6",
+        "7"
+      ]
+    },
+    {
+      "operatingsystem": "CentOS",
+      "operatingsystemrelease": [
+        "5",
+        "6",
+        "7"
+      ]
+    }
+  ],
+  "requirements": [
+    {
+      "name": "pe",
+      "version_requirement": ">= 3.3.2"
+    },
+    {
+      "name": "puppet",
+      "version_requirement": ">=3.2.0 <4.3.0"
+    }
+  ]
+}
