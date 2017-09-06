@@ -81,8 +81,8 @@ EOM
     end
   end
 
-  context 'managed component with a subset of metadata.json dependencies and a requires' do
-    it 'should generate requires file with dependencies only from dependencies.yaml' do
+  context 'managed component with a subset of metadata.json dependencies and a release' do
+    it 'should generate both a requires file and a release file from dependencies.yaml' do
       mod_dir = File.join(@tmp_dir, 'files', 'managed_mod')
       Simp::Rake::Build::RpmDeps::generate_rpm_meta_files(mod_dir, rpm_metadata)
 
@@ -104,6 +104,27 @@ EOM
       release_file = File.join(mod_dir, 'build', 'rpm_metadata', 'release')
       expect(File.exist?(release_file)).to be true
       expect(IO.read(release_file)).to match(/^2017.0$/)
+    end
+  end
+
+  context 'managed component with only a release' do
+    it 'should generate a release file from dependencies.yaml' do
+      mod_dir = File.join(@tmp_dir, 'files', 'release_only_mod')
+      Simp::Rake::Build::RpmDeps::generate_rpm_meta_files(mod_dir, rpm_metadata)
+
+      requires_file = File.join(mod_dir, 'build', 'rpm_metadata', 'requires')
+      expect(File.exist?(requires_file)).to be true
+
+      expected = <<EOM
+Requires: pupmod-puppetlabs-stdlib >= 3.2.0
+Requires: pupmod-puppetlabs-stdlib < 5.0.0
+EOM
+      actual = IO.read(requires_file)
+      expect(actual).to eq expected
+
+      release_file = File.join(mod_dir, 'build', 'rpm_metadata', 'release')
+      expect(File.exist?(release_file)).to be true
+      expect(IO.read(release_file)).to match(/^2017.2$/)
     end
   end
 
