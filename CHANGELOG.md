@@ -1,3 +1,12 @@
+### 5.0.0 / 2017-09-06
+* Removed all 'mock' support
+* Bound the build to only the OS upon which you are building
+* Removed legacy support code
+* Designed for use within a Docker environment
+  * Technically, you can install and run it inside mock but it's not 
+    going to do any of the heavy lifting for you any longer
+* Is *NOT* backwards compatible with anything for the most part
+
 ### 4.1.1 / 2017-08-31
 * Added the ability to read RPM release qualifier for checked out
   module from `simp-core/build/rpm/dependencies.yaml`

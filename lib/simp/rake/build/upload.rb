@@ -13,7 +13,6 @@ module Simp::Rake::Build
     def initialize( base_dir )
       init_member_vars( base_dir )
 
-      @mock = ENV['mock'] || '/usr/bin/mock'
       define_tasks
     end
 
@@ -112,11 +111,13 @@ module Simp::Rake::Build
           return pkg_info
         end
 
+=begin
         desc <<-EOM
           Get a list of modified packages.
 
           The package list is created from the given date or git identifier (tag, branch, or hash)
         EOM
+=end
         task :get_modified,[:start,:script_format] => [:prep] do |t,args|
           args.with_defaults(:script_format => false)
 

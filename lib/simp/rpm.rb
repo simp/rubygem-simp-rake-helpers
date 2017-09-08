@@ -80,32 +80,12 @@ module Simp
 
     # Parses information, such as the version, from the given specfile or RPM
     # into a hash.
-    #
-    # Can take an optional mock hash that should have the following structure:
-    # {
-    #   :command    => The actual mock command to run
-    #   :rpm_extras => Extra arguments to pass to RPM. This will probably be a
-    #                  reference to the spec file itself
-    # }
-    def self.get_info(rpm_source, mock_hash=nil)
+    def self.get_info(rpm_source)
       info = {
         :has_dist_tag => false
       }
 
       rpm_cmd = "rpm -q --queryformat '%{NAME} %{VERSION} %{RELEASE} %{ARCH}\n'"
-
-      if mock_hash
-        # Suppression of error messages is a hack for the following
-        # scenario:
-        # * The RPM spec file has an invalid date in its %changelog.
-        # * The 'bogus date' warning message from rpmbuild
-        #   is sent to stderr, while RPM name, version, and release
-        #   info is sent to stdout.
-        # * mock combines stdout and stderr in the command run.
-        # * The 'bogus date' warning message is parsed to generate
-        #   the RPM info, instead of the RPM info message.
-        rpm_cmd = mock_hash[:command] + ' ' + '"' + rpm_cmd + ' ' + mock_hash[:rpm_extras] + ' 2>/dev/null"'
-      end
 
       if File.readable?(rpm_source)
         if File.read(rpm_source).include?('%{?dist}')
@@ -114,14 +94,6 @@ module Simp
 
         if rpm_source.split('.').last == 'rpm'
           results = execute("#{rpm_cmd} -p #{rpm_source}")
-        elsif mock_hash
-          results = execute("#{rpm_cmd}")
-
-          if info[:has_dist_tag]
-            info[:dist_tag] = execute(%(#{mock_hash[:command]} --chroot 'rpm --eval "%{dist}"' 2>/dev/null))[:stdout].strip
-
-            info[:dist_tag] = nil if (info[:dist_tag][0].chr == '%')
-          end
         else
           results = execute("#{rpm_cmd} --specfile #{rpm_source}")
         end

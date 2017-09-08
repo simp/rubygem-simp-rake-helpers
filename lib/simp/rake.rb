@@ -8,6 +8,7 @@ module Simp::Rake
   require 'shellwords'
   require 'parallel'
   require 'tempfile'
+  require 'facter'
   require 'simp/rpm'
   require 'simp/rake/pkg'
 
@@ -112,13 +113,6 @@ module Simp::Rake
 
     warn "Warning: Command #{cmd} not found on the system."
     return nil
-  end
-
-  # Return whether or not the user is in the mock group
-  def validate_in_mock_group?
-    if not %x{groups}.split.include?('mock')
-      raise(Exception,"You need to be in the 'mock' group.")
-    end
   end
 
   def help

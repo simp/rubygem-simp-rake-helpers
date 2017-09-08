@@ -110,7 +110,7 @@ module Simp::Rake::Build::RpmDeps
 
       begin
         rpm_metadata_content << get_version_requires(pkg, dep_version)
-      rescue SIMPRpmDepVersionException => e
+      rescue SIMPRpmDepVersionException
         err_msg = "Unable to parse #{short_names.first} dependency" +
           " version '#{dep_version}'"
         raise SIMPRpmDepException.new(err_msg)
@@ -141,7 +141,7 @@ module Simp::Rake::Build::RpmDeps
 
         begin
           rpm_metadata_content << get_version_requires(pkg, dep_version)
-        rescue SIMPRpmDepVersionException => e
+        rescue SIMPRpmDepVersionException
           err_msg = "Unable to parse #{dep['name']} dependency" +
             " version '#{dep_version}'"
           raise SIMPRpmDepException.new(err_msg)

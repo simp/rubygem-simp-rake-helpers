@@ -11,13 +11,13 @@ module Simp::Rake::Build
     def initialize( base_dir )
       init_member_vars( base_dir )
 
-      @mock = ENV['mock'] || '/usr/bin/mock'
       define_tasks
     end
 
     def define_tasks
       #!/usr/bin/rake -T
 
+=begin
       desc "Unpack an ISO. Unpacks either a RHEL or CentOS ISO into
       <targetdir>/<RHEL|CentOS><version>-<arch>.
        * :iso_path - Full path to the ISO image to unpack.
@@ -30,6 +30,7 @@ module Simp::Rake::Build
        * :version - optional override for the <version> number (e.g., '7.0' instead of '7')
 
       "
+=end
       task :unpack,[:iso_path, :merge, :targetdir, :isoinfo, :version] do |t,args|
         args.with_defaults(
           :iso_path   => '',

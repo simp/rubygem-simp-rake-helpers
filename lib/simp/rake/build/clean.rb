@@ -35,22 +35,14 @@ module Simp::Rake::Build
       def advanced_clean(type,args)
         fail "Type must be one of 'clean' or 'clobber'" unless ['clean','clobber'].include?(type)
 
-        validate_in_mock_group?
-
-        mock_dirs = Dir.glob("/var/lib/mock/*").map{|x| x = File.basename(x) }
-
-        unless ( mock_dirs.empty? or args.chroot )
-          $stderr.puts "Notice: You must pass a Mock chroot to erase a specified build root."
-        end
-
-        Rake::Task["pkg:#{type}"].invoke(args.chroot)
+        Rake::Task["pkg:#{type}"].invoke
       end
 
-      task :clobber,[:chroot] do |t,args|
+      task :clobber do |t,args|
         advanced_clean('clobber',args)
       end
 
-      task :clean,[:chroot] do |t,args|
+      task :clean do |t,args|
         advanced_clean('clean',args)
       end
     end

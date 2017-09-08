@@ -45,10 +45,6 @@ module Simp::Rake::Build
         ##############################################################################
 
         task :validate => [:prep] do |t,args|
-          rpm_dir = File.join(@build_dir,'SIMP','RPMS')
-
-          fail("Could not find output dir: '#{rpm_dir}'") unless File.directory?(rpm_dir)
-
           required_rpms = {
             'noarch' => [
               'rubygem-simp-cli',
@@ -59,10 +55,13 @@ module Simp::Rake::Build
             ]
           }
 
+          rpm_dir = File.join(@build_dir,'SIMP','RPMS')
+          fail("Could not find directory '#{rpm_dir}'") unless File.directory?(rpm_dir)
+
           Dir.chdir(rpm_dir) do
             failures = []
             required_rpms.keys.each do |dir|
-              fail("Could not find directory '#{File.join(rpm_dir,dir)}'") unless File.directory?(dir)
+              fail("Could not find directory '#{File.join(rpm_dir, dir)}'") unless File.directory?(dir)
 
               Dir.chdir(dir) do
                 required_rpms[dir].each do |pkg|
@@ -85,18 +84,16 @@ module Simp::Rake::Build
           end
         end
 
+=begin
         desc <<-EOM
           Build the DVD tarball(s).
 
-            * :chroot - The mock chroot to use for pkg:build
             * :key - What key to use for signing the RPMs
             * :docs - Whether or not to build the documentation
-            * :snapshot_release - Append the timestamp to the SIMP tarball(s)
         EOM
-        task :build,[:chroot,:key,:docs,:snapshot_release] => ['pkg:build','pkg:checksig','tar:validate'] do |t,args|
+=end
+        task :build,[:key,:docs] => ['pkg:build','pkg:checksig','tar:validate'] do |t,args|
           args.with_defaults(:docs => 'true')
-
-          validate_in_mock_group?
 
           if $tarball_tgt
             target_dists = ['simp6']
