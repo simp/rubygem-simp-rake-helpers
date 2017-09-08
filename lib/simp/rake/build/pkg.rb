@@ -665,7 +665,7 @@ protect=1
                 #   release qualifier from the 'dependencies.yaml';
                 #   only created if release qualifier if specified in
                 #   the 'dependencies.yaml'
-                Simp::Rake::Build::RpmDeps::generate_rpm_requires_file(dir, rpm_dependency_metadata)
+                Simp::Rake::Build::RpmDeps::generate_rpm_requires_file(dir, rpm_metadata)
 
                 # This allows us to properly handle parallelization of all of
                 # the Rake task calls
