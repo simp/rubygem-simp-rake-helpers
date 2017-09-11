@@ -1,5 +1,6 @@
 #!/usr/bin/rake -T
 
+require 'simp/yum'
 require 'simp/rake/pkg'
 require 'simp/rake/build/constants'
 require 'simp/rake/build/rpmdeps'
@@ -14,6 +15,8 @@ module Simp::Rake::Build
 
     def initialize( base_dir )
       init_member_vars( base_dir )
+
+      @verbose = ENV.fetch('SIMP_PKG_verbose','no') == 'yes'
 
       define_tasks
     end
@@ -670,9 +673,38 @@ protect=1
                 # This allows us to properly handle parallelization of all of
                 # the Rake task calls
                 unique_namespace = (0...24).map{ (65 + rand(26)).chr }.join.downcase
-                Simp::Rake::Pkg.new(Dir.pwd, unique_namespace, @simp_version)
 
-                Rake::Task["#{unique_namespace}:pkg:rpm"].invoke
+                new_rpm = Simp::Rake::Pkg.new(Dir.pwd, unique_namespace, @simp_version)
+
+                new_rpm_info = Simp::RPM.get_info(new_rpm.spec_file)
+
+                # Pull down any newer versions of the target RPM if we've been
+                # given a source yum configuration
+                #
+                # Just build from scratch if something goes wrong
+                begin
+                  yum_helper = Simp::YUM.new(
+                    Simp::YUM.generate_yum_conf(File.join(@distro_build_dir, 'yum_data')))
+                rescue Simp::YUM::Error
+                end
+
+                downloaded = false
+                if yum_helper
+                  begin
+                    yum_helper.download("#{new_rpm_info[:name]}-#{new_rpm_info[:full_version]}", :target_dir => 'dist')
+                    downloaded = true
+
+                    $stderr.puts "Found existing match for #{new_rpm_info[:name]}" if @verbose
+                  rescue Simp::YUM::Error => e
+                    downloaded = false
+
+                    $stderr.puts e if @verbose
+                  end
+                end
+
+                unless downloaded
+                  Rake::Task["#{unique_namespace}:pkg:rpm"].invoke
+                end
 
                 built_rpm = true
 
