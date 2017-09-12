@@ -158,7 +158,7 @@ module Simp::Rake::Build
                   raise(StandardError,"Error: Could not find simp-doc*.rpm in the build, something went very wrong")
                 end
 
-                Dir.mktmpdir { |dir|
+                Dir.mktmpdir do |dir|
                   Dir.chdir(dir) do
                     %x{rpm2cpio #{simp_doc_rpm} | cpio -u --quiet --warning none -ivd ./usr/share/doc/simp-*/pdf/SIMP*.pdf 2>&1 > /dev/null}
                     pdf_docs = Dir.glob("usr/share/doc/simp-*/pdf/*.pdf")
@@ -171,7 +171,7 @@ module Simp::Rake::Build
                       cp(pdf,base_dir)
                     end
                   end
-                }
+                end
               end
             end
           end

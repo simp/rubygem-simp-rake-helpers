@@ -51,9 +51,7 @@ module Simp::Rake
         'dist/tmp',
         'dist/*.rpm',
         'dist/rpmbuild',
-        'spec/fixtures/modules',
-        'build/rpm_metadata',          # this is generated
-        'build/rpm_metadata/requires'  # this is generated
+        'spec/fixtures/modules'
       ]
 
       FileUtils.mkdir_p(@pkg_tmp_dir)
@@ -144,11 +142,11 @@ module Simp::Rake
     def initialize_spec_info
       unless @spec_info
         # This gets the resting spec file and allows us to pull out the name
-        @spec_info   = Simp::RPM.get_info(@spec_file)
-        @spec_info_dir = @base_dir
+        @spec_info ||= Simp::RPM.new(@spec_file)
+        @spec_info_dir ||= @base_dir
 
-        @dir_name       = "#{@spec_info[:name]}-#{@spec_info[:version]}"
-        @full_pkg_name = "#{@dir_name}-#{@spec_info[:release]}"
+        @dir_name ||= "#{@spec_info.basename}-#{@spec_info.version}"
+        @full_pkg_name ||= "#{@dir_name}-#{@spec_info.release}"
 
         _rpmbuild_srcdir = `rpm -E '%{_sourcedir}'`.strip
 
@@ -156,10 +154,10 @@ module Simp::Rake
           sh 'rpmdev-setuptree'
         end
 
-        @rpm_srcdir = "#{@pkg_dir}/rpmbuild/SOURCES"
+        @rpm_srcdir ||= "#{@pkg_dir}/rpmbuild/SOURCES"
         FileUtils.mkdir_p(@rpm_srcdir)
 
-        @tar_dest = "#{@pkg_dir}/#{@full_pkg_name}.tar.gz"
+        @tar_dest ||= "#{@pkg_dir}/#{@full_pkg_name}.tar.gz"
 
         if @full_pkg_name =~ /UNKNOWN/
           fail("Error: Could not determine package information from 'metadata.json'. Got '#{@full_pkg_name}'")
@@ -284,74 +282,124 @@ module Simp::Rake
 
               if srpms.empty?
                 raise <<-EOM
-  Could not create SRPM for '#{@spec_info[:name]}
+  Could not create SRPM for '#{@spec_info.basename}
     Error: #{File.read('logs/build.err')}
                 EOM
               end
             end
 
-            existing_rpm = Dir.glob(@full_pkg_name + '.*.rpm')
-            existing_rpm.delete_if{|x| x =~ /src.rpm$/}
+            # Collect the built, or downloaded, RPMs
+            rpms = []
 
-            if existing_rpm.empty? || require_rebuild?(existing_rpm.first, srpms)
+            @spec_info.packages
+            expected_rpms = @spec_info.packages.map{|f|
+              latest_rpm = Dir.glob("#{f}-#{@spec_info.version}*.rpm").select{|x|
+                # Get all local RPMs that are not SRPMs
+                x !~ /\.src\.rpm$/
+              }.map{|x|
+                # Convert them to objects
+                x = Simp::RPM.new(x)
+              }.sort_by{|x|
+                # Sort by the full version of the package and return the one
+                # with the highest version
+                Gem::Version.new(x.full_version)
+              }.last
 
-              # Try a build
-              %x(rpmbuild #{rpm_opts.join(' ')} --rebuild #{srpms.first} > logs/build.out 2> logs/build.err)
+              if latest_rpm && (
+                  Gem::Version.new(latest_rpm.full_version) >=
+                  Gem::Version.new(@spec_info.full_version)
+              )
+                f = latest_rpm.package_name
+              else
+                f = "#{f}-#{@spec_info.full_version}-#{@spec_info.arch}.rpm"
+              end
+            }
 
-              # If the build failed, it was probably due to missing dependencies
-              unless $?.success?
-                # Find the RPM build dependencies
-                rpm_build_deps = %x(rpm -q -R -p #{srpms.first}).strip.split("\n")
+            if expected_rpms.empty? || require_rebuild?(expected_rpms, srpms)
 
-                # RPM stuffs this in every time
-                rpm_build_deps.delete_if {|x| x =~ /^rpmlib/}
+              expected_rpms_data = expected_rpms.map{ |f|
+                if File.exist?(f)
+                  f = Simp::RPM.new(f)
+                else
+                  f = nil
+                end
+              }
 
-                # See if we have the ability to install things
-                unless Process.uid == 0
-                  unless %x(sudo -ln) =~ %r(NOPASSWD:\s+(ALL|yum( install)?))
+              require_rebuild = true
+
+              # We need to rebuild if not *all* of the expected RPMs are present
+              unless expected_rpms_data.include?(nil)
+                # If all of the RPMs are signed, we do not need a rebuild
+                require_rebuild = !expected_rpms_data.compact.select{|x| !x.signature}.empty?
+              end
+
+              if !require_rebuild
+                # We found all expected RPMs and they all had valid signatures
+                #
+                # Record the existing RPM metadata in the output file
+                rpms = expected_rpms
+              else
+                # Try a build
+                %x(rpmbuild #{rpm_opts.join(' ')} --rebuild #{srpms.first} > logs/build.out 2> logs/build.err)
+
+                # If the build failed, it was probably due to missing dependencies
+                unless $?.success?
+                  # Find the RPM build dependencies
+                  rpm_build_deps = %x(rpm -q -R -p #{srpms.first}).strip.split("\n")
+
+                  # RPM stuffs this in every time
+                  rpm_build_deps.delete_if {|x| x =~ /^rpmlib/}
+
+                  # See if we have the ability to install things
+                  unless Process.uid == 0
+                    unless %x(sudo -ln) =~ %r(NOPASSWD:\s+(ALL|yum( install)?))
+                      raise <<-EOM
+    Please install the following dependencies and try again:
+    #{rpm_build_deps.map{|x| x = "  * #{x}"}.join("\n")}
+    EOM
+                    end
+                  end
+
+                  rpm_build_deps.map! do |rpm|
+                    if rpm =~ %r((.*)\s+(?:<=|=|==)\s+(.+))
+                      rpm = "#{$1}-#{$2}"
+                    end
+
+                    rpm
+                  end
+
+                  yum_install_cmd = %(yum -y install #{rpm_build_deps.join(' ')})
+                  unless Process.uid == 0
+                    yum_install_cmd = 'sudo ' + yum_install_cmd
+                  end
+
+                  install_output = %x(#{yum_install_cmd} 2>&1)
+
+                  if !$?.success? || (install_output =~ %r((N|n)o package))
                     raise <<-EOM
-  Please install the following dependencies and try again:
-  #{rpm_build_deps.map{|x| x = "  * #{x}"}.join("\n")}
-  EOM
+    Could not run #{yum_install_cmd}
+      Error: #{install_output}
+                    EOM
                   end
                 end
 
-                rpm_build_deps.map! do |rpm|
-                  if rpm =~ %r((.*)\s+(?:<=|=|==)\s+(.+))
-                    rpm = "#{$1}-#{$2}"
-                  end
+                # Try it again!
+                #
+                # If this doesn't work, something we can't fix automatically is wrong
+                %x(rpmbuild #{rpm_opts.join(' ')} --rebuild #{srpms.first} > logs/build.out 2> logs/build.err)
 
-                  rpm
-                end
+                rpms = File.read('logs/build.out').scan(%r(Wrote:\s+(.*\.rpm))).flatten - srpms
 
-                yum_install_cmd = %(yum -y install #{rpm_build_deps.join(' ')})
-                unless Process.uid == 0
-                  yum_install_cmd = 'sudo ' + yum_install_cmd
-                end
-
-                install_output = %x(#{yum_install_cmd} 2>&1)
-
-                if !$?.success? || (install_output =~ %r((N|n)o package))
+                if rpms.empty?
                   raise <<-EOM
-  Could not run #{yum_install_cmd}
-    Error: #{install_output}
+    Could not create RPM for '#{@spec_info.basename}
+      Error: #{File.read('logs/build.err')}
                   EOM
                 end
               end
 
-              # Try it again!
-              #
-              # If this doesn't work, something we can't fix automatically is wrong
-              %x(rpmbuild #{rpm_opts.join(' ')} --rebuild #{srpms.first} > logs/build.out 2> logs/build.err)
-
-              rpms = File.read('logs/build.out').scan(%r(Wrote:\s+(.*\.rpm))).flatten - srpms
-
-              if rpms.empty?
-                raise <<-EOM
-  Could not create RPM for '#{@spec_info[:name]}
-    Error: #{File.read('logs/build.err')}
-                EOM
-              end
+              # Prevent overwriting the last good metadata file
+              raise %(Could not find any valid RPMs for '#{@spec_info.basename}') if rpms.empty?
 
               # Update the dist/.last_rpm_build_metadata file
               last_build = {
@@ -366,7 +414,7 @@ module Simp::Rake
                 last_build['srpms'][File.basename(srpm)] = {
                   'metadata'  => Simp::RPM.get_info(srpm),
                   'size'      => file_stat.size,
-                  'timestamp' => file_stat.mtime,
+                  'timestamp' => file_stat.ctime,
                   'path'      => File.absolute_path(srpm)
                 }
               end
@@ -377,7 +425,7 @@ module Simp::Rake
                 last_build['rpms'][File.basename(rpm)] = {
                   'metadata' => Simp::RPM.get_info(rpm),
                   'size'      => file_stat.size,
-                  'timestamp' => file_stat.mtime,
+                  'timestamp' => file_stat.ctime,
                   'path'     => File.absolute_path(rpm)
                 }
               end

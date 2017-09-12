@@ -257,6 +257,7 @@ module Simp::Rake::Build
               end
 
               yum_helper = Simp::YUM.new(Simp::YUM.generate_yum_conf)
+              yum_conf = yum_helper.yum_conf
 
               known_package_hash = get_known_packages
               downloaded_package_hash = get_downloaded_packages
@@ -300,12 +301,12 @@ module Simp::Rake::Build
                   # Do we have a valid external source?
                   package_source = known_package_hash.find{|k,h| h[:rpm_name] == package_to_download}.last[:source]
                   if package_source && (package_source =~ %r(^[a-z]+://))
-                    download_rpm(package_to_download,yum_conf,package_source)
+                    download_rpm(package_to_download, yum_conf, package_source)
                   else
                     # If you get here, then you'll need to have an internal mirror of the
                     # repositories in question. This covers things like private RPMs as
                     # well as Commercial RPMs from Red Hat.
-                    download_rpm(package_to_download,yum_conf)
+                    download_rpm(package_to_download, yum_conf)
                   end
                 rescue SIMPBuildException => e
                   base_package_name = known_package_hash.find{|k,h| h[:rpm_name] == package_to_download}.first

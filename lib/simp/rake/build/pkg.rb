@@ -277,6 +277,8 @@ module Simp::Rake::Build
 
             fail("No RPMs found at #{rpm_dir}") if (rpms.nil? || rpms.empty?)
 
+            have_signed_rpm = false
+
             Dir.chdir(rpm_dir) do
               rpms.each_key do |rpm|
                 if @verbose
@@ -287,13 +289,25 @@ module Simp::Rake::Build
                 FileUtils.mkdir_p(arch)
 
                 FileUtils.cp(rpms[rpm]['path'], arch)
+
+                if rpms[rpm][:signature]
+                  have_signed_rpm = true
+                end
               end
             end
 
             Dir.chdir(srpm_dir) do
               srpms.each_key do |srpm|
+                if have_signed_rpm && !srpms[srpm][:signature]
+                  if @verbose
+                    puts "Found signed RPM - skipping copy of '#{srpm}'"
+                  end
+
+                  next
+                end
+
                 if @verbose
-                  puts "Copying #{srpm} to #{srpm_dir}"
+                  puts "Copying '#{srpm}' to '#{srpm_dir}'"
                 end
 
                 arch = srpms[srpm]['metadata'][:arch]
@@ -432,10 +446,8 @@ module Simp::Rake::Build
             :in_processes => get_cpu_limit,
             :progress => t.name
           ) do |rpm|
-            rpminfo = %x{rpm -qip #{rpm} 2>/dev/null}.split("\n")
-            if (force || !rpminfo.grep(/Signature\s+:\s+\(none\)/).empty?)
-              Simp::RPM.signrpm(rpm,"#{@build_dir}/build_keys/#{args[:key]}")
-            end
+            rpm_info = Simp::RPM.new(rpm)
+            Simp::RPM.signrpm(rpm, "#{@build_dir}/build_keys/#{args[:key]}") unless rpm_info.signature
           end
         end
 
@@ -458,6 +470,7 @@ module Simp::Rake::Build
             fail("Could not find files at #{args[:rpm_dir]}!") if rpm_dirs.empty?
 
             temp_gpg_dir = Dir.mktmpdir
+            at_exit { FileUtils.remove_entry(temp_gpg_dir) if File.exist?(temp_gpg_dir) }
 
             rpm_cmd = %{rpm --dbpath #{temp_gpg_dir}}
 
@@ -465,6 +478,7 @@ module Simp::Rake::Build
 
             public_keys = Dir.glob(File.join(args[:key_dir], '*'))
             public_keys += Dir.glob(File.join(@build_dir, 'build_keys', '*', 'RPM-GPG-KEY*'))
+            public_keys += Array(@gpg_keys)
 
             # Only import thngs that look like GPG keys...
             public_keys.each do |key|
@@ -676,7 +690,7 @@ protect=1
 
                 new_rpm = Simp::Rake::Pkg.new(Dir.pwd, unique_namespace, @simp_version)
 
-                new_rpm_info = Simp::RPM.get_info(new_rpm.spec_file)
+                new_rpm_info = Simp::RPM.new(new_rpm.spec_file)
 
                 # Pull down any newer versions of the target RPM if we've been
                 # given a source yum configuration
@@ -688,23 +702,24 @@ protect=1
                 rescue Simp::YUM::Error
                 end
 
-                downloaded = false
                 if yum_helper
-                  begin
-                    yum_helper.download("#{new_rpm_info[:name]}-#{new_rpm_info[:full_version]}", :target_dir => 'dist')
-                    downloaded = true
+                  new_rpm_info.packages.map{|x| x = File.basename(x, '.rpm')}.each do |new_rpm|
+                    begin
+                      published_rpm = yum_helper.available_package(new_rpm)
 
-                    $stderr.puts "Found existing match for #{new_rpm_info[:name]}" if @verbose
-                  rescue Simp::YUM::Error => e
-                    downloaded = false
-
-                    $stderr.puts e if @verbose
+                      if published_rpm
+                        unless new_rpm_info.newer?(published_rpm)
+                          yum_helper.download("#{new_rpm}", :target_dir => 'dist')
+                          $stderr.puts "Found newer remote RPM for #{new_rpm}" if @verbose
+                        end
+                      end
+                    rescue Simp::YUM::Error => e
+                      $stderr.puts e if @verbose
+                    end
                   end
                 end
 
-                unless downloaded
-                  Rake::Task["#{unique_namespace}:pkg:rpm"].invoke
-                end
+                Rake::Task["#{unique_namespace}:pkg:rpm"].invoke
 
                 built_rpm = true
 

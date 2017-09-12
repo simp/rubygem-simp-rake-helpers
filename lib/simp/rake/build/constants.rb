@@ -22,6 +22,7 @@ module Simp::Rake::Build::Constants
     @src_dir           = File.join(@base_dir, 'src')
     @spec_dir          = File.join(@src_dir, 'build')
     @spec_file         = FileList[File.join(@spec_dir, '*.spec')]
+    @gpg_keys          = Dir.glob(File.join(@src_dir, 'assets', 'gpgkeys', 'GPGKEYS', '*'))
     @simp_version      = Simp::RPM.get_info(File.join(@src_dir, 'assets', 'simp', 'build', 'simp.spec'))[:full_version]
     @simp_dvd_dirs     = ["SIMP","ks","Config"]
     @member_vars_initialized = true

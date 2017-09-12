@@ -19,20 +19,25 @@ module Simp
       end
 
       # Only need to look these up once!
-      @@yumdownloader ||= %x(which yumdownloader).strip
-      raise(Error, "Error: Could not find 'yumdownloader'. Please install and try again.") if @@yumdownloader.empty?
+      @@yum_cmd ||= %x(which yum).strip
+      raise(Error, "Error: Could not find 'yum'. Please install and try again.") if @@yum_cmd.empty?
 
       tmp_dir = ENV['TMPDIR'] || '/tmp'
 
       # Ensure that yumdownloader uses a fresh cache directory for each run of a given platform
-      @@yumdownloader_cache ||= File.join(tmp_dir, 'yumdownloader_cache-' +
+      @@yum_cache ||= File.join(tmp_dir, 'yum_cache-' +
         Facter.fact('operatingsystem').value + '-' +
         Facter.fact('operatingsystemmajrelease').value + '-' +
         Facter.fact('architecture').value)
 
-      FileUtils.mkdir_p(@@yumdownloader_cache)
+      FileUtils.mkdir_p(@@yum_cache)
 
-      @@yumdownloader = "TMPDIR=#{@@yumdownloader_cache} #{@@yumdownloader}"
+      @@yum ||= "TMPDIR=#{@@yum_cache} #{@@yum_cmd} -c #{@yum_conf}"
+
+      @@yumdownloader_cmd ||= %x(which yumdownloader).strip
+      raise(Error, "Error: Could not find 'yumdownloader'. Please install and try again.") if @@yumdownloader_cmd.empty?
+
+      @@yumdownloader ||= "TMPDIR=#{@@yum_cache} #{@@yumdownloader_cmd} -c #{@yum_conf}"
 
       @@curl ||= %x(which curl).strip
       raise(Error, "Error: Could not find 'curl'. Please install and try again.") if @@curl.empty?
@@ -41,10 +46,10 @@ module Simp
       raise(Error, "Error: Could not find 'file'. Please install and try again.") if @@file.empty?
     end
 
-    def clean_yumdownloader_cache_dir
+    def clean_yum_cache_dir
       # Make this as safe as we can
-      if @@yumdownloader_cache =~ /yumdownloader_cache/
-        FileUtils.remove_entry(@@yumdownloader_cache)
+      if @@yum_cache =~ /yum_cache/
+        FileUtils.remove_entry(@@yum_cache)
       end
     end
 
@@ -104,13 +109,25 @@ module Simp
       return yum_conf
     end
 
-    def get_sources(rpm)
+    # Returns the full name of the latest package of the given name
+    #
+    # Returns nil if nothing found
+    def available_package(rpm)
+      yum_output = %x(#{@@yum} -C list #{rpm} 2>/dev/null)
 
-      if rpm =~ %r((/|\.rpm$))
-        raise(Error, "get_sources can only accept short RPM names, got '#{rpm}'")
+      found_rpm = nil
+      if $?.success?
+        pkg_name, pkg_version = yum_output.lines.last.strip.split(/\s+/)
+        pkg_name, pkg_arch = pkg_name.split('.')
+
+        found_rpm = %(#{pkg_name}-#{pkg_version}.#{pkg_arch}.rpm)
       end
 
-      sources = %x(#{@@yumdownloader} -c #{@yum_conf} --urls #{File.basename(rpm,'.rpm')} 2>/dev/null).split("\n").grep(%r(\.rpm$))
+      return found_rpm
+    end
+
+    def get_sources(rpm)
+      sources = %x(#{@@yumdownloader} --urls #{File.basename(rpm,'.rpm')} 2>/dev/null).split("\n").grep(%r(\.rpm$))
 
       raise(Error, "No sources found for '#{rpm}'") if sources.empty?
 
@@ -118,7 +135,7 @@ module Simp
     end
 
     def get_source(rpm, arch=nil)
-      sources = get_sources(rpm, arch)
+      sources = get_sources(rpm)
 
       if arch
         native_sources = sources.grep(%r((#{arch}|noarch)\.rpm$))
@@ -140,34 +157,36 @@ module Simp
       end
 
       Dir.mktmpdir do |dir|
-        # If just passed an RPM name, use yumdownloader
-        if rpm !~ %r(://)
-          # In case someone passed a path
-          rpm_name = rpm.split(File::SEPARATOR).last
+        Dir.chdir(dir) do
+          # If just passed an RPM name, use yumdownloader
+          if rpm !~ %r(://)
+            # In case someone passed a path
+            rpm_name = rpm.split(File::SEPARATOR).last
 
-          %x(#{@@yumdownloader} -c #{@yum_conf} #{File.basename(rpm_name, '.rpm')} 2> /dev/null)
-        else
-          # If passed a URL, curl it and fall back to yumdownloader
-          rpm_name = rpm.split('/').last
+            %x(#{@@yumdownloader} #{File.basename(rpm_name, '.rpm')} 2>/dev/null)
+          else
+            # If passed a URL, curl it and fall back to yumdownloader
+            rpm_name = rpm.split('/').last
 
-          %x(#{@@curl} -L --max-redirs 10 -s -o #{rpm_name} -k #{rpm})
+            %x(#{@@curl} -L --max-redirs 10 -s -o #{rpm_name} -k #{rpm})
 
-          # Check what we've just downloaded
-          if !(File.exist?(rpm_name) || %x(#{@@file} #{rpm_name}).include('RPM'))
-            # Fall back on yumdownloader
-            FileUtils.rm_f(rpm_name)
+            # Check what we've just downloaded
+            if !(File.exist?(rpm_name) || %x(#{@@file} #{rpm_name}).include('RPM'))
+              # Fall back on yumdownloader
+              FileUtils.rm_f(rpm_name)
 
-            %x(#{@@yumdownloader} -c #{@yum_conf} #{File.basename(rpm_name, '.rpm')} 2> /dev/null)
+              %x(#{@@yumdownloader} #{File.basename(rpm_name, '.rpm')} 2> /dev/null)
+            end
           end
-        end
 
-        rpms = Dir.glob('*.rpm')
-        raise(Error, "Could not find any remote RPMs for #{rpm}") if rpms.empty?
+          rpms = Dir.glob('*.rpm')
+          raise(Error, "Could not find any remote RPMs for #{rpm}") if rpms.empty?
 
-        # Copy over all of the RPMs
-        rpms.each do |new_rpm|
-          FileUtils.mkdir_p(target_dir)
-          FileUtils.mv(new_rpm, target_dir)
+          # Copy over all of the RPMs
+          rpms.each do |new_rpm|
+            FileUtils.mkdir_p(target_dir)
+            FileUtils.mv(new_rpm, target_dir)
+          end
         end
       end
     end

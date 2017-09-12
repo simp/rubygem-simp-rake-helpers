@@ -8,7 +8,8 @@ module Simp
     require 'rake'
 
     @@gpg_keys = Hash.new
-    attr_accessor :basename, :version, :release, :full_version, :name, :sources, :verbose
+    attr_reader :basename, :version, :release, :full_version, :name
+    attr_reader :verbose, :packages, :signature, :arch, :package_name
 
     if Gem.loaded_specs['rake'].version >= Gem::Version.new('0.9')
       def self.sh(args)
@@ -16,8 +17,8 @@ module Simp
       end
     end
 
-    # Constructs a new Simp::RPM object. Requires the path to the spec file
-    # from which information will be gathered.
+    # Constructs a new Simp::RPM object. Requires the path to the spec file, or
+    # RPM, from which information will be gathered.
     #
     # The following information will be retreived:
     # [basename] The name of the package (as it would be queried in yum)
@@ -27,15 +28,61 @@ module Simp
     #           encountered!
     # [full_version] The full version of the package: [version]-[release]
     # [name] The full name of the package: [basename]-[full_version]
+    # [packages] An Array of package names belonging to the spec file or RPM
     def initialize(rpm_source)
       info = Simp::RPM.get_info(rpm_source)
+
       @basename = info[:name]
       @version = info[:version]
       @release = info[:release]
       @full_version = info[:full_version]
       @name = "#{@basename}-#{@full_version}"
-      @sources = Array.new
+      @arch = info[:arch]
+      @package_name = "#{@name}.#{@arch}.rpm"
       @verbose = false
+      @packages = info[:packages]
+      @signature = info[:signature]
+
+      @@vercmp ||= %x(which rpmdev-vercmp).strip
+      raise(Error, "Error: Could not find 'rpmdev-vercmp'. Please install and try again.") if @@vercmp.empty?
+    end
+
+    # Returns whether or not the current RPM is newer than the passed RPM
+    def newer?(rpm)
+      Simp::RPM.newer(@package_name, rpm) == @package_name
+    end
+
+    # Returns the name of the newer RPM
+    #
+    # Will simply return the second RPM name if the two are equal
+    def self.newer(rpm1, rpm2)
+      if rpm1.nil? || rpm1.empty?
+        fail('You must pass at least one RPM')
+      end
+
+      return rpm1 if rpm2.nil? || rpm2.empty?
+
+      unless rpm1.match(%r(\.rpm$)) && rpm2.match(%r(\.rpm$))
+        fail("You must pass valid RPM names! Got: '#{rpm1}' and '#{rpm2}'")
+      end
+
+      %x(#{@@vercmp} #{rpm1} #{rpm2})
+
+      status = $?.exitstatus
+
+      case status
+      when 0
+        # Equal
+        return rpm2
+      when 11
+        # RPM1 Newer
+        return rpm1
+      when 12
+        # RPM2 Newer
+        return rpm2
+      else
+        fail("Could not compare RPMs '#{rpm1}' and '#{rpm2}'")
+      end
     end
 
     # Copies specific content from one directory to another.
@@ -82,10 +129,13 @@ module Simp
     # into a hash.
     def self.get_info(rpm_source)
       info = {
-        :has_dist_tag => false
+        :has_dist_tag => false,
+        :packages => Array.new
       }
 
-      rpm_cmd = "rpm -q --queryformat '%{NAME} %{VERSION} %{RELEASE} %{ARCH}\n'"
+      rpm_cmd = %(rpm -q --queryformat '%{NAME} %{VERSION} %{RELEASE} %{ARCH}\n' 2>/dev/null)
+
+      rpm_signature_query = %(rpm -q --queryformat '%|DSAHEADER?{%{DSAHEADER:pgpsig}}:{%|RSAHEADER?{%{RSAHEADER:pgpsig}}:{%|SIGGPG?{%{SIGGPG:pgpsig}}:{%|SIGPGP?{%{SIGPGP:pgpsig}}:{(none)}|}|}|}|\n\')
 
       if File.readable?(rpm_source)
         if File.read(rpm_source).include?('%{?dist}')
@@ -94,6 +144,12 @@ module Simp
 
         if rpm_source.split('.').last == 'rpm'
           results = execute("#{rpm_cmd} -p #{rpm_source}")
+
+          signature = %x(#{rpm_signature_query} -p #{rpm_source} 2>/dev/null).strip
+
+          unless signature.include?('none')
+            info[:signature] = signature
+          end
         else
           results = execute("#{rpm_cmd} --specfile #{rpm_source}")
         end
@@ -106,7 +162,16 @@ module Simp
 EOE
         end
 
-        info[:name], info[:version], info[:release], info[:arch] = results[:stdout].strip.split("\n").first.split(' ')
+        results[:stdout].strip.lines.each do |line|
+          parts = line.split(' ')
+
+          unless info[:name]
+            info[:name], info[:version], info[:release], info[:arch] = parts
+          end
+
+          info[:packages] << parts.first
+        end
+
       else
         raise "Error: unable to read '#{rpm_source}'"
       end
