@@ -155,6 +155,8 @@ module Simp
         end
 
         if results[:exit_status] != 0
+          require 'pry'
+          binding.pry
           raise <<-EOE
 #{indent('Error getting RPM info:', 2)}
 #{indent(results[:stderr].strip, 5)}
