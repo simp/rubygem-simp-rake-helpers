@@ -424,9 +424,8 @@ module Simp::Rake::Build
                   # Don't obsolete yourself!
                   next unless new_pkg_info.basename == old_pkg_info.basename
 
-                  %x(rpmdev-vercmp #{new_pkg_info.full_version} #{old_pkg_info.full_version})
-                  exit_status = $?.exitstatus
-                  if exit_status == 11
+
+                  if new_pkg_info.newer?(old_pkg_info.package_name)
                     mkdir('obsolete') unless File.directory?('obsolete')
 
                     puts("Retiring #{old_pkg}") if verbose

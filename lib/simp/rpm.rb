@@ -42,14 +42,16 @@ module Simp
       @verbose = false
       @packages = info[:packages]
       @signature = info[:signature]
-
-      @@vercmp ||= %x(which rpmdev-vercmp).strip
-      raise(Error, "Error: Could not find 'rpmdev-vercmp'. Please install and try again.") if @@vercmp.empty?
     end
 
     # Returns whether or not the current RPM is newer than the passed RPM
     def newer?(rpm)
-      Simp::RPM.newer(@package_name, rpm) == @package_name
+      return Simp::RPM.newer(@package_name, rpm) == @package_name
+    end
+
+    # Returns whether or not the first RPM is newer than the second RPM
+    def self.newer?(rpm1, rpm2)
+      return Simp::RPM.newer(rpm1, rpm2) == rpm1
     end
 
     # Returns the name of the newer RPM
@@ -66,21 +68,16 @@ module Simp
         fail("You must pass valid RPM names! Got: '#{rpm1}' and '#{rpm2}'")
       end
 
-      %x(#{@@vercmp} #{rpm1} #{rpm2})
+      begin
+        ver1 = Gem::Version.new(File.basename(rpm1, '.rpm').split('-')[-1..-1].join('-'))
+        ver2 = Gem::Version.new(File.basename(rpm2, '.rpm').split('-')[-1..-1].join('-'))
 
-      status = $?.exitstatus
-
-      case status
-      when 0
-        # Equal
-        return rpm2
-      when 11
-        # RPM1 Newer
-        return rpm1
-      when 12
-        # RPM2 Newer
-        return rpm2
-      else
+        if ver1 > ver2
+          return ver1
+        else
+          return ver2
+        end
+      rescue ArgumentError, NoMethodError
         fail("Could not compare RPMs '#{rpm1}' and '#{rpm2}'")
       end
     end

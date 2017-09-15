@@ -17,6 +17,7 @@ module Simp::Rake::Build
       init_member_vars( base_dir )
 
       @verbose = ENV.fetch('SIMP_PKG_verbose','no') == 'yes'
+      @rpm_build_metadata = 'last_rpm_build_metadata.yaml'
 
       define_tasks
     end
@@ -265,10 +266,9 @@ module Simp::Rake::Build
           FileUtils.mkdir_p(rpm_dir)
           FileUtils.mkdir_p(srpm_dir)
 
-          rpm_metadata_filename = 'last_rpm_build_metadata.yaml'
-          rpm_metadata = %x(find -P #{@src_dir} -xdev -type f -name #{rpm_metadata_filename}).lines.map(&:strip).sort
+          rpm_metadata = %x(find -P #{@src_dir} -xdev -type f -name #{@rpm_build_metadata}).lines.map(&:strip).sort
 
-          fail("No #{rpm_metadata_filename} files found under #{@src_dir}") if rpm_metadata.empty?
+          fail("No #{@rpm_build_metadata} files found under #{@src_dir}") if rpm_metadata.empty?
 
           rpm_metadata.each do |mf|
             metadata = YAML.load_file(mf)
@@ -774,7 +774,7 @@ protect=1
         #
         # The task must be passed so that we can output the calling name in the
         # status bar.
-        def build(dirs, task)
+        def build(dirs, task, rebuild_for_arch=false)
           _verbose = ENV.fetch('SIMP_PKG_verbose','no') == 'yes'
 
           Parallel.map(
@@ -797,6 +797,7 @@ protect=1
                 unique_namespace = generate_namespace
                 require_rebuild?(dir, { :unique_namespace => unique_namespace, :fetch => true })
 
+                #TODO if File.exist?('logs', @rpm_build_metadata)
                 Rake::Task["#{unique_namespace}:pkg:rpm"].invoke
 
 

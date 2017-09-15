@@ -81,8 +81,8 @@ module Simp::Rake
       ].flatten
 
       # Workaround for CentOS system builds
-      dist = `rpm -E '%{dist}'`.strip.gsub('.centos','')
-      dist_macro = %(%dist #{dist})
+      @dist = `rpm -E '%{dist}'`.strip.gsub('.centos','')
+      dist_macro = %(%dist #{@dist})
 
       rpmmacros = [dist_macro]
 
