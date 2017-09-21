@@ -11,7 +11,7 @@ module Simp
 
     attr_reader :yum_conf
 
-    def initialize(yum_conf)
+    def initialize(yum_conf, initialize_cache = false)
       if File.exist?(yum_conf)
         @yum_conf = File.absolute_path(yum_conf)
       else
@@ -44,12 +44,25 @@ module Simp
 
       @@file ||= %x(which file).strip
       raise(Error, "Error: Could not find 'file'. Please install and try again.") if @@file.empty?
+
+      generate_cache if initialize_cache
     end
 
     def clean_yum_cache_dir
       # Make this as safe as we can
       if @@yum_cache =~ /yum_cache/
         FileUtils.remove_entry(@@yum_cache)
+      end
+    end
+
+    def generate_cache
+      puts "Attempting to generate build-specific YUM cache from #{@yum_conf}"
+
+      %x(#{@@yum} clean all 2>/dev/null)
+      %x(#{@@yum} makecache 2>/dev/null)
+
+      unless $?.success?
+        puts "WARNING: Unable to generate build-specific YUM cache from #{@yum_conf}"
       end
     end
 
@@ -163,6 +176,8 @@ module Simp
             # In case someone passed a path
             rpm_name = rpm.split(File::SEPARATOR).last
 
+            #FIXME Should really report stderr output so user can
+            # diagnose the problem
             %x(#{@@yumdownloader} #{File.basename(rpm_name, '.rpm')} 2>/dev/null)
           else
             # If passed a URL, curl it and fall back to yumdownloader

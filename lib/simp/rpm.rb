@@ -1,7 +1,9 @@
 require 'securerandom'
+require 'puppet/util'
 
 module Simp
-  # Simp::RPM represents a single package that is built and packaged by the Simp team.
+  # Simp::RPM represents RPM metadata extracted from an RPM or an RPM
+  # spec file.
   class Simp::RPM
     require 'expect'
     require 'pty'
@@ -9,7 +11,7 @@ module Simp
 
     @@gpg_keys = Hash.new
     attr_reader :basename, :version, :release, :full_version, :name
-    attr_reader :verbose, :packages, :signature, :arch, :package_name
+    attr_reader :verbose, :packages, :signature, :arch
 
     if Gem.loaded_specs['rake'].version >= Gem::Version.new('0.9')
       def self.sh(args)
@@ -19,6 +21,9 @@ module Simp
 
     # Constructs a new Simp::RPM object. Requires the path to the spec file, or
     # RPM, from which information will be gathered.
+    #
+    # When the information is from a spec file, multiple
+    # packages may exist.
     #
     # The following information will be retreived:
     # [basename] The name of the package (as it would be queried in yum)
@@ -38,47 +43,55 @@ module Simp
       @full_version = info[:full_version]
       @name = "#{@basename}-#{@full_version}"
       @arch = info[:arch]
-      @package_name = "#{@name}.#{@arch}.rpm"
       @verbose = false
       @packages = info[:packages]
       @signature = info[:signature]
     end
 
-    # Returns whether or not the current RPM is newer than the passed RPM
-    def newer?(rpm)
-      return Simp::RPM.newer(@package_name, rpm) == @package_name
+    def package_name(package=@packages.first)
+      package_name = "#{package}-#{@full_version}.#{@arch}.rpm"
     end
 
-    # Returns whether or not the first RPM is newer than the second RPM
-    def self.newer?(rpm1, rpm2)
-      return Simp::RPM.newer(rpm1, rpm2) == rpm1
-    end
-
-    # Returns the name of the newer RPM
+    # Returns whether or not the current RPM package is
+    # newer than the passed RPM.
     #
-    # Will simply return the second RPM name if the two are equal
-    def self.newer(rpm1, rpm2)
-      if rpm1.nil? || rpm1.empty?
-        fail('You must pass at least one RPM')
+    # Uses the first package in the package list as the
+    # current RPM package.
+    def newer?(other_rpm)
+      package_newer?(@packages.first, other_rpm)
+    end
+
+    # Returns whether or not the current RPM sub-package is
+    # newer than the passed RPM.
+    def package_newer?(package, other_rpm)
+      unless @packages.include?(package)
+        raise ArgumentError.new("'#{package}' is not a valid sub-package")
       end
 
-      return rpm1 if rpm2.nil? || rpm2.empty?
+      pkg_name = package_name(package)
 
-      unless rpm1.match(%r(\.rpm$)) && rpm2.match(%r(\.rpm$))
-        fail("You must pass valid RPM names! Got: '#{rpm1}' and '#{rpm2}'")
+      return true if other_rpm.nil? || other_rpm.empty?
+
+      unless other_rpm.match(%r(\.rpm$))
+        raise ArgumentError.new("You must pass valid RPM name! Got: '#{other_rpm}'")
+      end
+
+      if File.readable?(other_rpm)
+        other_full_version = Simp::RPM.get_info(other_rpm)[:full_version]
+      else
+        # determine RPM info in a hacky way, ASSUMING, the other RPM has the
+        # same basename and arch
+        other_full_version = other_rpm.gsub(/#{package}\-/,'').gsub(/.rpm$/,'')
+        other_full_version.gsub!(/.#{@arch}/,'') unless @arch.nil? or @arch.empty?
       end
 
       begin
-        ver1 = Gem::Version.new(File.basename(rpm1, '.rpm').split('-')[-1..-1].join('-'))
-        ver2 = Gem::Version.new(File.basename(rpm2, '.rpm').split('-')[-1..-1].join('-'))
+        # Puppet::Util::Package::versioncmp can handle simp-doc-UNKNOWN-0.el7, whereas
+        # Gem::Version can't
+        return Puppet::Util::Package::versioncmp(@full_version, other_full_version) > 0
 
-        if ver1 > ver2
-          return ver1
-        else
-          return ver2
-        end
       rescue ArgumentError, NoMethodError
-        fail("Could not compare RPMs '#{rpm1}' and '#{rpm2}'")
+        fail("Could not compare RPMs '#{pkg_name}' and '#{other_rpm}'")
       end
     end
 
@@ -124,6 +137,9 @@ module Simp
 
     # Parses information, such as the version, from the given specfile or RPM
     # into a hash.
+    # FIXME: This does not handle sub-RPMs for which the packages have different
+    # versions (e.g., rubygem-simp-cli which has a highline sub-package with its
+    # own version)
     def self.get_info(rpm_source)
       info = {
         :has_dist_tag => false,
@@ -152,8 +168,8 @@ module Simp
         end
 
         if results[:exit_status] != 0
-          require 'pry'
-          binding.pry
+#          require 'pry'
+#          binding.pry
           raise <<-EOE
 #{indent('Error getting RPM info:', 2)}
 #{indent(results[:stderr].strip, 5)}

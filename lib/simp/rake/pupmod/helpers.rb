@@ -231,16 +231,19 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
           if files_changed.empty?
             puts "  No new tag required: No significant files have changed since '#{last_tag}' tag"
           else
-            # determine latest CHANGELOG version
-            line = IO.readlines('CHANGELOG')[0]
-            match = line.match(/^\*\s+((?:Mon|Tue|Wed|Thu|Fri|Sat|Sun) (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{2} \d{4})\s+(.+<.+>)(?:\s+|\s*-\s*)?(\d+\.\d+\.\d+)/)
-            unless match
-              fail("ERROR: Invalid CHANGELOG entry. Unable to extract version from '#{line}'")
-            end
+            unless ignore_owner
+              # determine latest version from CHANGELOG, which will present
+              # for all SIMP Puppet modules
+              line = IO.readlines('CHANGELOG')[0]
+              match = line.match(/^\*\s+((?:Mon|Tue|Wed|Thu|Fri|Sat|Sun) (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{2} \d{4})\s+(.+<.+>)(?:\s+|\s*-\s*)?(\d+\.\d+\.\d+)/)
+              unless match
+                fail("ERROR: Invalid CHANGELOG entry. Unable to extract version from '#{line}'")
+              end
 
-            changelog_version = match[3]
-            unless module_version == changelog_version
-              fail("ERROR: Version mismatch.  module version=#{module_version}  changelog version=#{changelog_version}")
+              changelog_version = match[3]
+              unless module_version == changelog_version
+                fail("ERROR: Version mismatch.  module version=#{module_version}  changelog version=#{changelog_version}")
+              end
             end
 
             cmp_result = Puppet::Util::Package::versioncmp(module_version, last_tag)
