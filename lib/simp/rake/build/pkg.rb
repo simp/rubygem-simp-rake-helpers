@@ -862,6 +862,7 @@ protect=1
                   Rake::Task["#{unique_namespace}:pkg:rpm"].invoke
                 else
                   $stderr.puts("#{dbg_prefix}Downloaded rpm for #{File.basename(dir)}") if _verbose
+                  Simp::RPM::create_rpm_build_metadata(File.expand_path(dir))
                 end
 
                 built_rpm = true
@@ -902,6 +903,7 @@ protect=1
                   end
                 else
                   $stderr.puts("#{dbg_prefix}Downloaded rpm for #{File.basename(dir)}") if _verbose
+                  Simp::RPM::create_rpm_build_metadata(File.expand_path(dir))
                   built_rpm = true
                 end
               else

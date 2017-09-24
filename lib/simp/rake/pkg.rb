@@ -401,7 +401,7 @@ module Simp::Rake
               # Prevent overwriting the last good metadata file
               raise %(Could not find any valid RPMs for '#{@spec_info.basename}') if rpms.empty?
 
-              # Update the dist/.last_rpm_build_metadata file
+              # Update the dist/logs/last_rpm_build_metadata.yaml file
               last_build = {
                 'git_hash' => %x(git rev-list --max-count=1 HEAD).chomp,
                 'srpms'    => {},

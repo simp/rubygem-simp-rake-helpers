@@ -2,8 +2,11 @@ require 'securerandom'
 require 'puppet/util'
 
 module Simp
-  # Simp::RPM represents RPM metadata extracted from an RPM or an RPM
-  # spec file.
+  # An Simp::RPM instance represents RPM metadata extracted from an
+  # RPM or an RPM spec file.
+  #
+  # Simp::RPM also contains class methods that are useful for
+  # processing RPMs in the SIMP build process.
   class Simp::RPM
     require 'expect'
     require 'pty'
@@ -198,6 +201,33 @@ EOE
 
     def self.indent(message, indent_length)
        message.split("\n").map {|line| ' '*indent_length + line }.join("\n")
+    end
+
+    def self.create_rpm_build_metadata(project_dir)
+      last_build = {
+        'git_hash' => %x(git rev-list --max-count=1 HEAD).chomp,
+        'srpms'    => {},
+        'rpms'     => {}
+      }
+      Dir.chdir(File.join(project_dir, 'dist')) do
+        rpms = Dir.glob('*.rpm')
+        rpms.each do |rpm|
+          file_stat = File.stat(rpm)
+
+          last_build['rpms'][File.basename(rpm)] = {
+            'metadata' => Simp::RPM.get_info(rpm),
+            'size'      => file_stat.size,
+            #FIXME get build timestamp from RPM itself
+            'timestamp' => file_stat.ctime,
+            'path'     => File.absolute_path(rpm)
+           }
+        end
+      end
+
+      FileUtils.mkdir_p(File.join(project_dir,'dist', 'logs'))
+      File.open('logs/last_rpm_build_metadata.yaml','w') do |fh|
+        fh.puts(last_build.to_yaml)
+      end
     end
 
     # Loads metadata for a GPG key. The GPG key is to be used to sign RPMs. The
