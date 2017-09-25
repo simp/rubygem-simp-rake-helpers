@@ -879,7 +879,7 @@ protect=1
               # and RPM spec file.
               elsif File.exist?('Rakefile')
                 if require_rebuild?(dir, yum_helper, { :fetch => true, :verbose => _verbose, :prefix => dbg_prefix })
-                  $stderr.puts("#{dbg_prefix}Running 'rake pkg:rpm' on #{File.basename(dir)}") if _verbose
+                  $stderr.puts("#{dbg_prefix}Running 'rake pkg:rpm' in #{File.basename(dir)}") if _verbose
                   rake_flags = Rake.application.options.trace ? '--trace' : ''
                   cmd = %{SIMP_BUILD_version=#{@simp_version} rake pkg:rpm #{rake_flags} 2>&1}
 
@@ -897,7 +897,7 @@ protect=1
 
                   unless build_success
                     if _verbose
-                      $stderr.puts("First 'rake pkg:rpm' attempt failed, running bundle and trying again.")
+                      $stderr.puts("First 'rake pkg:rpm' attempt for #{dir} failed, running bundle and trying again.")
                     end
 
                     ::Bundler.with_clean_env do
@@ -905,7 +905,7 @@ protect=1
                       output = %x{#{cmd} 2>&1}
 
                       unless $?.success?
-                        raise("Error running #{cmd}\n#{output}")
+                        raise("Error in #{dir} running #{cmd}\n#{output}")
                       end
                     end
                   end

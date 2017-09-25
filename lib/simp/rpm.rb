@@ -207,6 +207,7 @@ EOE
         'srpms'    => {},
         'rpms'     => {}
       }
+
       Dir.chdir(File.join(project_dir, 'dist')) do
         if srpms.nil? or rpms.nil?
           all_rpms = Dir.glob('*.rpm')
@@ -236,11 +237,11 @@ EOE
             'path'     => File.absolute_path(rpm)
            }
         end
-      end
 
-      FileUtils.mkdir_p(File.join(project_dir,'dist', 'logs'))
-      File.open('logs/last_rpm_build_metadata.yaml','w') do |fh|
-        fh.puts(last_build.to_yaml)
+        FileUtils.mkdir_p(File.join(project_dir, 'dist', 'logs'))
+        File.open('logs/last_rpm_build_metadata.yaml','w') do |fh|
+          fh.puts(last_build.to_yaml)
+        end
       end
     end
 
