@@ -330,7 +330,7 @@ module Simp::Rake::Build
             ENV vars:
               - Set `SIMP_PKG_verbose=yes` to report file operations as they happen.
               - Set `SIMP_YUM_makecache=no` if you do NOT want to rebuild the
-                 build-specific YUM cache
+                build-specific YUM cache
         EOM
 =end
         task :build,[:docs,:key] => [:prep,:key_prep] do |t,args|
@@ -341,6 +341,13 @@ module Simp::Rake::Build
           args.with_defaults(:docs => 'true')
 
           check_dvd_env
+
+          begin
+            yum_helper = Simp::YUM.new(
+              Simp::YUM.generate_yum_conf(File.join(@distro_build_dir, 'yum_data')),
+              ENV.fetch('SIMP_YUM_makecache','yes') == 'yes')
+          rescue Simp::YUM::Error
+          end
 
           Rake::Task['pkg:aux'].invoke
           if "#{args.docs}" == 'true'
@@ -361,8 +368,6 @@ module Simp::Rake::Build
 
             ENV vars:
               - Set `SIMP_PKG_verbose=yes` to report file operations as they happen.
-              - Set `SIMP_YUM_makecache=no` if you do NOT want to rebuild the
-                build-specific YUM cache
         EOM
         task :modules,[:method] => [:prep] do |t,args|
           build(@build_dirs[:modules],t)
@@ -401,6 +406,13 @@ module Simp::Rake::Build
             mod_path = local_module[:path]
           end
 
+          begin
+            yum_helper = Simp::YUM.new(
+              Simp::YUM.generate_yum_conf(File.join(@distro_build_dir, 'yum_data')),
+              ENV.fetch('SIMP_YUM_makecache','yes') == 'yes')
+          rescue Simp::YUM::Error
+          end
+
           ENV['SIMP_PKG_rand_name'] = 'yes'
           build(Array(mod_path), t)
 
@@ -412,8 +424,6 @@ module Simp::Rake::Build
 
             ENV vars:
               - Set `SIMP_PKG_verbose=yes` to report file operations as they happen.
-              - Set `SIMP_YUM_makecache=no` if you do NOT want to rebuild the
-                build-specific YUM cache
         EOM
         task :aux => [:prep]  do |t,args|
           build(@build_dirs[:aux],t)
@@ -424,8 +434,6 @@ module Simp::Rake::Build
 
             ENV vars:
               - Set `SIMP_PKG_verbose=yes` to report file operations as they happen.
-              - Set `SIMP_YUM_makecache=no` if you do NOT want to rebuild the
-                build-specific YUM cache
         EOM
         task :doc => [:prep] do |t,args|
           build(@build_dirs[:doc],t)
@@ -828,14 +836,14 @@ protect=1
         #
         # The task must be passed so that we can output the calling name in the
         # status bar.
-        def build(dirs, task, rebuild_for_arch=false)
+        def build(dirs, task, rebuild_for_arch=false, remake_yum_cache = false)
           _verbose = ENV.fetch('SIMP_PKG_verbose','no') == 'yes'
           dbg_prefix = '  ' # prefix for debug messages
 
           begin
             yum_helper = Simp::YUM.new(
-              Simp::YUM.generate_yum_conf(File.join(@distro_build_dir, 'yum_data')),
-              ENV.fetch('SIMP_YUM_makecache','yes') == 'yes')
+              Simp::YUM.generate_yum_conf(File.join(@distro_build_dir, 'yum_data'))
+            )
           rescue Simp::YUM::Error
           end
 

@@ -171,8 +171,6 @@ module Simp
         end
 
         if results[:exit_status] != 0
-#          require 'pry'
-#          binding.pry
           raise <<-EOE
 #{indent('Error getting RPM info:', 2)}
 #{indent(results[:stderr].strip, 5)}
@@ -203,14 +201,30 @@ EOE
        message.split("\n").map {|line| ' '*indent_length + line }.join("\n")
     end
 
-    def self.create_rpm_build_metadata(project_dir)
+    def self.create_rpm_build_metadata(project_dir, srpms=nil, rpms=nil)
       last_build = {
         'git_hash' => %x(git rev-list --max-count=1 HEAD).chomp,
         'srpms'    => {},
         'rpms'     => {}
       }
       Dir.chdir(File.join(project_dir, 'dist')) do
-        rpms = Dir.glob('*.rpm')
+        if srpms.nil? or rpms.nil?
+          all_rpms = Dir.glob('*.rpm')
+          srpms = Dir.glob('src.rpm')
+          rpms = all_rpms - srpms
+        end
+
+        srpms.each do |srpm|
+          file_stat = File.stat(srpm)
+
+          last_build['srpms'][File.basename(srpm)] = {
+            'metadata'  => Simp::RPM.get_info(srpm),
+            'size'      => file_stat.size,
+            'timestamp' => file_stat.ctime,
+            'path'      => File.absolute_path(srpm)
+          }
+        end
+
         rpms.each do |rpm|
           file_stat = File.stat(rpm)
 

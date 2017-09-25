@@ -401,38 +401,7 @@ module Simp::Rake
               # Prevent overwriting the last good metadata file
               raise %(Could not find any valid RPMs for '#{@spec_info.basename}') if rpms.empty?
 
-              # Update the dist/logs/last_rpm_build_metadata.yaml file
-              last_build = {
-                'git_hash' => %x(git rev-list --max-count=1 HEAD).chomp,
-                'srpms'    => {},
-                'rpms'     => {}
-              }
-
-              srpms.each do |srpm|
-                file_stat = File.stat(srpm)
-
-                last_build['srpms'][File.basename(srpm)] = {
-                  'metadata'  => Simp::RPM.get_info(srpm),
-                  'size'      => file_stat.size,
-                  'timestamp' => file_stat.ctime,
-                  'path'      => File.absolute_path(srpm)
-                }
-              end
-
-              rpms.each do |rpm|
-                file_stat = File.stat(rpm)
-
-                last_build['rpms'][File.basename(rpm)] = {
-                  'metadata' => Simp::RPM.get_info(rpm),
-                  'size'      => file_stat.size,
-                  'timestamp' => file_stat.ctime,
-                  'path'     => File.absolute_path(rpm)
-                }
-              end
-
-              File.open('logs/last_rpm_build_metadata.yaml','w') do |fh|
-                fh.puts(last_build.to_yaml)
-              end
+              Simp::RPM.create_rpm_build_metadata(File.expand_path(@base_dir), srpms, rpms)
             end
           end
         end
