@@ -431,6 +431,8 @@ module Simp::Rake::Build
                 puts(%(    * Context: #{iso_status[iso]['backtrace'].first}))
               end
             end
+
+            exit(1)
           end
         end
       end
