@@ -39,6 +39,12 @@ module Simp
     #   apply when +rpm_source+ is an RPM spec file.
     # [rpm_name] The full name of the rpm
     def initialize(rpm_source)
+      unless defined?(@@macros_updated)
+        update_rpmmacros
+
+        @@macros_updated = true
+      end
+
       # Simp::RPM.get_info returns a Hash or an Array of Hashes.
       # Steps below prevent single Hash from implicitly being converted
       # to Array using Hash.to_a.
@@ -52,6 +58,35 @@ module Simp
       end
 
       @packages = @info.keys
+    end
+
+    # Work around the silliness with 'centos' being tacked onto things via the
+    # 'dist' flag
+    def update_rpmmacros
+      # Workaround for CentOS system builds
+      dist = '.' + %x(rpm -E '%{dist}').strip.split('.')[1]
+      dist_macro = %(%dist #{dist})
+
+      rpmmacros = [dist_macro]
+
+      rpmmacros_file = File.join(ENV['HOME'], '.rpmmacros')
+
+      if File.exist?(rpmmacros_file)
+        rpmmacros = File.read(rpmmacros_file).split("\n")
+
+        dist_index = rpmmacros.each_index.select{|i| rpmmacros[i] =~ /^%dist\s+/}.first
+
+        if dist_index
+          rpmmacros[dist_index] = dist_macro
+        else
+          rpmmacros << dist_macro
+        end
+      end
+
+      File.open(rpmmacros_file, 'w') do |fh|
+        fh.puts rpmmacros.join("\n")
+        fh.flush
+      end
     end
 
     # @returns The name of the package (as it would be queried in yum)
@@ -108,6 +143,16 @@ module Simp
     def rpm_name(package=@packages.first)
       valid_package?(package)
       @info[package][:rpm_name]
+    end
+
+    def has_dist_tag?(package=@packages.first)
+      valid_package?(package)
+      @info[package][:has_dist_tag]
+    end
+
+    def dist(package=@packages.first)
+      valid_package?(package)
+      @info[package][:dist]
     end
 
     # Returns whether or not the current RPM package is
@@ -202,7 +247,7 @@ module Simp
     #
     # If the information from only single RPM is extracted, returns a
     # single Hash with the following possible keys:
-    #   :has_dist_flag = a boolean indicating whether the RPM release
+    #   :has_dist_tag = a boolean indicating whether the RPM release
     #                    has a distribution field; only evaluated when
     #                    rpm_source is a spec file, otherwise false
     #   :basename      = The name of the package (as it would be
@@ -214,7 +259,7 @@ module Simp
     #                      <version>-<release>
     #   :name          = The full name of the package:
     #                      <basename>-<full_version>
-    #   :rpm_name      = The full name of the RPM: 
+    #   :rpm_name      = The full name of the RPM:
     #                      <basename>-<full_version>.<arch>.rpm
     #   :signature     = RPM signature key id; only present if
     #                    rpm_source is an RPM and the RPM is signed
@@ -227,20 +272,24 @@ module Simp
 
       info_array = []
       common_info = {
-        #FIXME  Remove this metadata item?  The code only extracts this if the source
-        # is an RPM spec file.  This leads to stupid output.  For example it will
-        # be set to false when the source is 'simp-rsync-6.1.0-0.el7.noarch.rpm'.
-        :has_dist_tag => false
+        :has_dist_tag => false,
+        :dist => '.' + %x(rpm -E '%{dist}').strip.split('.')[1]
       }
-
 
       rpm_version_query = %(rpm -q --queryformat '%{NAME} %{VERSION} %{RELEASE} %{ARCH}\n' 2>/dev/null)
 
       rpm_signature_query = %(rpm -q --queryformat '%|DSAHEADER?{%{DSAHEADER:pgpsig}}:{%|RSAHEADER?{%{RSAHEADER:pgpsig}}:{%|SIGGPG?{%{SIGGPG:pgpsig}}:{%|SIGPGP?{%{SIGPGP:pgpsig}}:{(none)}|}|}|}|\n\')
 
-      source_is_rpm =  rpm_source.split('.').last == 'rpm'
+      source_is_rpm = rpm_source.split('.').last == 'rpm'
+      if source_is_rpm
+        dist_info = rpm_source.split('-').last.split('.')[1..-3]
 
-      if !source_is_rpm && File.read(rpm_source).include?('%{?dist}')
+        unless dist_info.empty?
+          common_info[:has_dist_tag] = true
+          common_info[:dist] = '.' + dist_info.first
+        end
+
+      elsif File.read(rpm_source).include?('%{?dist}')
         common_info[:has_dist_tag] = true
       end
 
@@ -262,7 +311,7 @@ module Simp
 EOE
       end
 
-      unless signature_results.nil? 
+      unless signature_results.nil?
         if signature_results[:exit_status] != 0
           raise <<-EOE
 #{indent('Error getting RPM signature:', 2)}

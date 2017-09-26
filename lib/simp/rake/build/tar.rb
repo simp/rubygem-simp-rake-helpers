@@ -32,7 +32,8 @@ module Simp::Rake::Build
         def get_simp_version
           simp_rpm = Dir.glob("#{@build_dir}/SIMP/RPMS/*/simp-[0-9]*.rpm").max_by {|f| File.mtime(f)}
           fail("Could not find simp main RPM in output directory!") unless simp_rpm
-          simp_version = File.basename(simp_rpm).gsub(".noarch.rpm","").gsub("simp-","")
+
+          simp_version = Simp::RPM.new(simp_rpm).full_version
 
           # For picking up the correct RPM template
           ENV['SIMP_BUILD_version'] ||= simp_version

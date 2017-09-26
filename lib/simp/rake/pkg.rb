@@ -80,31 +80,6 @@ module Simp::Rake
         %(#{@base_dir}/metadata.json)
       ].flatten
 
-      # Workaround for CentOS system builds
-      @dist = `rpm -E '%{dist}'`.strip.gsub('.centos','')
-      dist_macro = %(%dist #{@dist})
-
-      rpmmacros = [dist_macro]
-
-      rpmmacros_file = File.join(ENV['HOME'], '.rpmmacros')
-
-      if File.exist?(rpmmacros_file)
-        rpmmacros = File.read(rpmmacros_file).split("\n")
-
-        dist_index = rpmmacros.each_index.select{|i| rpmmacros[i] =~ /^%dist\s+/}.first
-
-        if dist_index
-          rpmmacros[dist_index] = dist_macro
-        else
-          rpmmacros << dist_macro
-        end
-      end
-
-      File.open(rpmmacros_file, 'w') do |fh|
-        fh.puts rpmmacros.join("\n")
-        fh.flush
-      end
-
       ::CLEAN.include( @pkg_dir )
 
       yield self if block_given?
@@ -368,7 +343,7 @@ module Simp::Rake
                     rpm
                   end
 
-                  yum_install_cmd = %(yum -y install #{rpm_build_deps.join(' ')})
+                  yum_install_cmd = %(yum -y install '#{rpm_build_deps.join("' '")}')
                   unless Process.uid == 0
                     yum_install_cmd = 'sudo ' + yum_install_cmd
                   end

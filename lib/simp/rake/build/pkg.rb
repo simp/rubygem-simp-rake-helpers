@@ -480,7 +480,7 @@ module Simp::Rake::Build
 =end
         task :checksig,[:rpm_dir,:key_dir] => [:prep] do |t,args|
           begin
-            
+
             default_key_dir = File.join(@src_dir, 'assets', 'gpgkeys', 'GPGKEYS')
             args.with_defaults(:rpm_dir => @pkg_dirs[:simp])
             args.with_defaults(:key_dir => default_key_dir)
@@ -498,7 +498,7 @@ module Simp::Rake::Build
 
             public_keys = Dir.glob(File.join(args[:key_dir], '*'))
 
-            if public_keys.empty? 
+            if public_keys.empty?
               key_dirs_tried = [ args[:key_dir] ]
 
               # try path to GPG keys for SIMP 6.1+
@@ -720,7 +720,7 @@ protect=1
         # If 'check_git' is true => Print the git tag status if 'verbose' is true
         # 'prefix' is used to prepend verbose messages
         #
-        # FIXME 
+        # FIXME
         # - Method is too long
         # - Method needs to be passed in class variables (@xxx) so that it
         #   can be pulled out into a library that is easily unit-testable
@@ -921,7 +921,7 @@ protect=1
                       %x{#{cmd}}
                       build_success = $?.success?
                     end
-  
+
                     built_rpm = true
                   rescue
                     build_success = false
