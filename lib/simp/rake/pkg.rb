@@ -309,7 +309,7 @@ module Simp::Rake
                   Gem::Version.new(latest_rpm.full_version) >=
                   Gem::Version.new(@spec_info.full_version)
               )
-                f = latest_rpm.package_name
+                f = latest_rpm.rpm_name
               else
                 f = "#{f}-#{@spec_info.full_version}-#{@spec_info.arch}.rpm"
               end

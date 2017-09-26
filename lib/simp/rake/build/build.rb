@@ -229,7 +229,7 @@ module Simp::Rake::Build
 
             Dir.chdir(target_dir) do
               Dir.glob('packages/*.rpm').each do |pkg|
-                downloaded_packages[Simp::RPM.get_info(pkg)[:name]] = { :rpm_name => File.basename(pkg) }
+                downloaded_packages[Simp::RPM.get_info(pkg)[:basename]] = { :rpm_name => File.basename(pkg) }
               end
             end
 
@@ -425,7 +425,7 @@ module Simp::Rake::Build
                   next unless new_pkg_info.basename == old_pkg_info.basename
 
 
-                  if new_pkg_info.newer?(old_pkg_info.package_name)
+                  if new_pkg_info.newer?(old_pkg_info.rpm_name)
                     mkdir('obsolete') unless File.directory?('obsolete')
 
                     puts("Retiring #{old_pkg}") if verbose

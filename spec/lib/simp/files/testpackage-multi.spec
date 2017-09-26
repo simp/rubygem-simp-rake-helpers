@@ -1,4 +1,4 @@
-Name:           testpackage-multi-1
+Name:           testpackage
 Version:        1
 Release:        0
 Summary:        dummy test package #2
@@ -27,12 +27,14 @@ exit 0
 %doc
 
 
-%package testpackage-multi-2
-Summary:        dummy test package #2
+%package doc
+Summary:        Documentation for dummy test package #2
 License:        Apache-2.0
+Version:        1.0.1
+Release:        2
 
-%description testpackage-multi-2
-A dummy package used to test Simp::RPM methods
+%description doc
+Documentation for the 2nd dummy package used to test Simp::RPM methods
 
 
 %changelog

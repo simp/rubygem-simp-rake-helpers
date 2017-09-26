@@ -56,7 +56,7 @@ module Simp
     end
 
     def generate_cache
-      puts "Attempting to generate build-specific YUM cache from #{@yum_conf}"
+      puts "Attempting to generate build-specific YUM cache from\n  #{@yum_conf}"
 
       %x(#{@@yum} clean all 2>/dev/null)
       %x(#{@@yum} makecache 2>/dev/null)

@@ -475,13 +475,15 @@ module Simp::Rake::Build
 
             Checks all RPM files in a directory to see if they are trusted.
               * :rpm_dir - A directory containing RPM files to check. Default #{@build_dir}/SIMP
-              * :key_dir - The path to the GPG keys you want to check the packages against. Default #{@src_dir}/assets/simp-gpgkeys/
+              * :key_dir - The path to the GPG keys you want to check the packages against. Default #{@src_dir}/assets/gpgkeys/
         EOM
 =end
         task :checksig,[:rpm_dir,:key_dir] => [:prep] do |t,args|
           begin
+            
+            default_key_dir = File.join(@src_dir, 'assets', 'gpgkeys', 'GPGKEYS')
             args.with_defaults(:rpm_dir => @pkg_dirs[:simp])
-            args.with_defaults(:key_dir => "#{@src_dir}/assets/simp-gpgkeys")
+            args.with_defaults(:key_dir => default_key_dir)
 
             rpm_dirs = Dir.glob(args[:rpm_dir])
 
@@ -495,8 +497,30 @@ module Simp::Rake::Build
             %x{#{rpm_cmd} --initdb}
 
             public_keys = Dir.glob(File.join(args[:key_dir], '*'))
+
+            if public_keys.empty? 
+              key_dirs_tried = [ args[:key_dir] ]
+
+              # try path to GPG keys for SIMP 6.1+
+              if (args[:key_dir] != default_key_dir) and File.exist?(default_key_dir)
+                key_dirs_tried << default_key_dir
+                public_keys = Dir.glob(File.join(default_key_dir, '*'))
+              end
+
+              if public_keys.empty?
+                # try path to GPG keys for SIMP 6.0
+                old_key_dir = File.join(@src_dir, 'assets', 'simp-gpgkeys', 'GPGKEYS')
+                if File.exist?(old_key_dir)
+                  key_dirs_tried << old_key_dir
+                  public_keys = Dir.glob(File.join(old_key_dir, '*'))
+                end
+              end
+
+              if public_keys.empty?
+                $stderr.puts "pkg:checksig: Warning no GPG keys found in #{key_dirs_tried}"
+              end
+            end
             public_keys += Dir.glob(File.join(@build_dir, 'build_keys', '*', 'RPM-GPG-KEY*'))
-            public_keys += Array(@gpg_keys)
 
             # Only import thngs that look like GPG keys...
             public_keys.each do |key|
@@ -789,32 +813,40 @@ protect=1
                   if published_rpm
                     if new_rpm_info.package_newer?(package, published_rpm)
                       if opts[:verbose]
-                        $stderr.puts "#{opts[:prefix]}RPM Publish Required: #{published_rpm} => #{new_rpm_info.package_name(package)}"
+                        $stderr.puts "#{opts[:prefix]}RPM Publish Required: #{published_rpm} => #{new_rpm_info.rpm_name(package)}"
 
                       end
                       result = true
                     else
                       $stderr.puts "#{opts[:prefix]}Found Existing Remote RPM: #{published_rpm}" if opts[:verbose]
-                      # We know the package exists. So in a brute-force fashion,
-                      # we're going to retry a couple of times.
-                      # (Real fix is for user to update retry and timeout parameters
-                      # in their yum config).
-                      tries = ENV.fetch('SIMP_YUM_retries','3').to_i
-                      begin
-                        yum_helper.download("#{package}", :target_dir => 'dist') if opts[:fetch]
-                      rescue Simp::YUM::Error
-                        tries -= 1
-                        if tries > 0
-                          retry
+                      if opts[:fetch]
+                        # Download remote RPM, unless already downloaded it.
+                        if File.exist?(File.join('dist', published_rpm))
+                          $stderr.puts "#{opts[:prefix]}#{published_rpm} previously downloaded" if opts[:verbose]
                         else
-                          $stderr.puts ">>Failed to download existing remote RPM: #{published_rpm}. RPM will be locally rebuilt"
-                          result = true
+                          # We know the package exists. So in a brute-force fashion,
+                          # we're going to retry a couple of times.
+                          # (Real fix is for user to update retry and timeout parameters
+                          # in their yum config).
+                          tries = ENV.fetch('SIMP_YUM_retries','3').to_i
+                          begin
+                            yum_helper.download("#{package}", :target_dir => 'dist')
+                            $stderr.puts "#{opts[:prefix]}Downloaded #{published_rpm}" if opts[:verbose]
+                          rescue Simp::YUM::Error
+                            tries -= 1
+                            if tries > 0
+                              retry
+                            else
+                              $stderr.puts ">>Failed to download existing remote RPM: #{published_rpm}. RPM will be locally rebuilt"
+                              result = true
+                            end
+                          end
                         end
                       end
                     end
                   else
                     if opts[:verbose]
-                      $stderr.puts "#{opts[:prefix]}RPM Publish Required: #{new_rpm_info.package_name(package)}"
+                      $stderr.puts "#{opts[:prefix]}RPM Publish Required: #{new_rpm_info.rpm_name(package)}"
                     end
                     result = true
                   end
@@ -869,7 +901,7 @@ protect=1
                   $stderr.puts("#{dbg_prefix}Running 'rake pkg:rpm' on #{File.basename(dir)}") if _verbose
                   Rake::Task["#{unique_namespace}:pkg:rpm"].invoke
                 else
-                  $stderr.puts("#{dbg_prefix}Downloaded rpm for #{File.basename(dir)}") if _verbose
+                  # Record metadata for the downloaded RPM
                   Simp::RPM::create_rpm_build_metadata(File.expand_path(dir))
                 end
 
@@ -910,7 +942,7 @@ protect=1
                     end
                   end
                 else
-                  $stderr.puts("#{dbg_prefix}Downloaded rpm for #{File.basename(dir)}") if _verbose
+                  # Record metadata for the downloaded RPM
                   Simp::RPM::create_rpm_build_metadata(File.expand_path(dir))
                   built_rpm = true
                 end
@@ -934,7 +966,7 @@ protect=1
 
               if _verbose
                 rpms = Dir.glob('dist/*.rpm')
-                $stderr.puts("#{dbg_prefix}RPMS: #{rpms.join("\n#{dbg_prefix}      ")}")
+#                $stderr.puts("#{dbg_prefix}RPMS: #{rpms.join("\n#{dbg_prefix}      ")}")
                 $stderr.puts("Finished  #{File.basename(dir)}")
               end
             end
