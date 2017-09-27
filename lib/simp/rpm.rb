@@ -39,11 +39,7 @@ module Simp
     #   apply when +rpm_source+ is an RPM spec file.
     # [rpm_name] The full name of the rpm
     def initialize(rpm_source)
-      unless defined?(@@macros_updated)
-        update_rpmmacros
-
-        @@macros_updated = true
-      end
+      update_rpmmacros
 
       # Simp::RPM.get_info returns a Hash or an Array of Hashes.
       # Steps below prevent single Hash from implicitly being converted
@@ -60,36 +56,63 @@ module Simp
       @packages = @info.keys
     end
 
-    # Work around the silliness with 'centos' being tacked onto things via the
-    # 'dist' flag
-    def update_rpmmacros
-      # Workaround for CentOS system builds
-      dist = '.' + %x(rpm -E '%{dist}').strip.split('.')[1]
-      dist_macro = %(%dist #{dist})
+    # @returns The RPM '.dist' of the system. 'nil' will be will be returned if
+    # the dist is not found.
+    def self.system_dist
+      # We can only have one of these
+      unless defined?(@@system_dist)
+        dist = %x(rpm -E '%{dist}' 2> /dev/null).strip.split('.')
 
-      rpmmacros = [dist_macro]
-
-      rpmmacros_file = File.join(ENV['HOME'], '.rpmmacros')
-
-      if File.exist?(rpmmacros_file)
-        rpmmacros = File.read(rpmmacros_file).split("\n")
-
-        dist_index = rpmmacros.each_index.select{|i| rpmmacros[i] =~ /^%dist\s+/}.first
-
-        if dist_index
-          rpmmacros[dist_index] = dist_macro
+        if dist.size > 1
+          @@system_dist = '.' + dist[1]
         else
-          rpmmacros << dist_macro
+          @@system_dist = nil
         end
       end
 
-      File.open(rpmmacros_file, 'w') do |fh|
-        fh.puts rpmmacros.join("\n")
-        fh.flush
+      return @@system_dist
+    end
+
+    def system_dist
+      return Simp::RPM.system_dist
+    end
+
+    # Work around the silliness with 'centos' being tacked onto things via the
+    # 'dist' flag
+    def update_rpmmacros
+      unless defined?(@@macros_updated)
+
+        # Workaround for CentOS system builds
+        dist = system_dist
+        dist_macro = %(%dist #{dist})
+
+        rpmmacros = [dist_macro]
+
+        rpmmacros_file = File.join(ENV['HOME'], '.rpmmacros')
+
+        if File.exist?(rpmmacros_file)
+          rpmmacros = File.read(rpmmacros_file).split("\n")
+
+          dist_index = rpmmacros.each_index.select{|i| rpmmacros[i] =~ /^%dist\s+/}.first
+
+          if dist_index
+            rpmmacros[dist_index] = dist_macro
+          else
+            rpmmacros << dist_macro
+          end
+        end
+
+        File.open(rpmmacros_file, 'w') do |fh|
+          fh.puts rpmmacros.join("\n")
+          fh.flush
+        end
+
+        @@macros_updated = true
       end
     end
 
     # @returns The name of the package (as it would be queried in yum)
+    #
     # @fails if package is invalid
     def basename(package=@packages.first)
       valid_package?(package)
@@ -97,6 +120,7 @@ module Simp
     end
 
     # @returns The version of the package
+    #
     # @fails if package is invalid
     def version(package=@packages.first)
       valid_package?(package)
@@ -104,6 +128,7 @@ module Simp
     end
 
     # @returns The release version of the package
+    #
     # @fails if package is invalid
     def release(package=@packages.first)
       valid_package?(package)
@@ -111,6 +136,7 @@ module Simp
     end
 
     # @returns The full version of the package: [version]-[release]
+    #
     # @fails if package is invalid
     def full_version(package=@packages.first)
       valid_package?(package)
@@ -125,6 +151,7 @@ module Simp
     end
 
     # @returns The machine architecture of the package
+    #
     # @fails if package is invalid
     def arch(package=@packages.first)
       valid_package?(package)
@@ -134,22 +161,34 @@ module Simp
     # @returns The signature key of the package, if it exists or nil
     #   otherwise. Will always be nil when the information for this
     #   object was derived from an RPM spec file.
+    #
     # @fails if package is invalid
     def signature(package=@packages.first)
       valid_package?(package)
       @info[package][:signature]
     end
 
+    # @returns The full name of the RPM
+    #
+    # @fails if package is invalid
     def rpm_name(package=@packages.first)
       valid_package?(package)
       @info[package][:rpm_name]
     end
 
+    # @returns Whether or not the package has a `dist` tag
+    #
+    # @fails if package is invalid
     def has_dist_tag?(package=@packages.first)
       valid_package?(package)
       @info[package][:has_dist_tag]
     end
 
+    # @returns The `dist` of the package. If no `dist` is found, returns the
+    # `dist` of the OS itself. Logic should check both `has_dist_tag?` and
+    # `dist`
+    #
+    # @fails if package is invalid
     def dist(package=@packages.first)
       valid_package?(package)
       @info[package][:dist]
@@ -273,7 +312,7 @@ module Simp
       info_array = []
       common_info = {
         :has_dist_tag => false,
-        :dist => '.' + %x(rpm -E '%{dist}').strip.split('.')[1]
+        :dist => system_dist
       }
 
       rpm_version_query = %(rpm -q --queryformat '%{NAME} %{VERSION} %{RELEASE} %{ARCH}\n' 2>/dev/null)

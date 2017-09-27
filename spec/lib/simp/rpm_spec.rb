@@ -3,6 +3,8 @@ require 'spec_helper'
 
 describe Simp::RPM do
   before :all do
+    Simp::RPM.stubs(:system_dist).returns('.testdist')
+
     dir          = File.expand_path( 'files', File.dirname( __FILE__ ) )
     @spec_file   = File.join( dir, 'testpackage.spec' )
     @spec_obj    = Simp::RPM.new( @spec_file )
@@ -12,6 +14,12 @@ describe Simp::RPM do
 
     @rpm_file    = File.join( dir, 'testpackage-1-0.noarch.rpm' )
     @rpm_obj     = Simp::RPM.new( @rpm_file )
+
+    @d_spec_file = File.join( dir, 'testpackage-dist.spec' )
+    @d_spec_obj  = Simp::RPM.new( @d_spec_file )
+
+    @d_rpm_file    = File.join( dir, 'testpackage-1-0.el7.noarch.rpm' )
+    @d_rpm_obj     = Simp::RPM.new( @d_rpm_file )
 
 #FIXME
 #    @signed_rpm_file = File.join( dir, 'testpackage-1-0.noarch.rpm' )
@@ -196,6 +204,42 @@ describe Simp::RPM do
       end
     end
 
+    context '#has_dist_tag?' do
+      it 'returns has_dist_tag?' do
+        expect( @rpm_obj.has_dist_tag?).to eq false
+#        expect( @signed_rpm_obj.has_dist_tag?).to eq false
+        expect( @d_rpm_obj.has_dist_tag?).to eq true
+        expect( @spec_obj.has_dist_tag?).to eq false
+        expect( @d_spec_obj.has_dist_tag?).to eq true
+      end
+
+      it 'fails when invalid package specified' do
+        expect { @rpm_obj.has_dist_tag?('oops') }.to raise_error(ArgumentError)
+#        expect { @signed_rpm_obj.has_dist_tag?('oops') }.to raise_error(ArgumentError)
+        expect { @d_rpm_obj.has_dist_tag?('oops') }.to raise_error(ArgumentError)
+        expect { @spec_obj.has_dist_tag?('oops') }.to raise_error(ArgumentError)
+        expect { @m_spec_obj.has_dist_tag?('oops') }.to raise_error(ArgumentError)
+        expect { @d_spec_obj.has_dist_tag?('oops') }.to raise_error(ArgumentError)
+      end
+    end
+
+    context '#dist' do
+      it 'returns dist' do
+        expect( @rpm_obj.dist ).to eq '.testdist'
+        expect( @d_rpm_obj.dist ).to eq '.el7'
+        expect( @spec_obj.dist ).to eq '.testdist'
+        expect( @d_spec_obj.dist ).to eq '.testdist'
+      end
+
+      it 'fails when invalid package specified' do
+        expect { @rpm_obj.dist('oops') }.to raise_error(ArgumentError)
+#        expect { @signed_rpm_obj.dist('oops') }.to raise_error(ArgumentError)
+        expect { @d_rpm_obj.dist('oops') }.to raise_error(ArgumentError)
+        expect { @spec_obj.dist('oops') }.to raise_error(ArgumentError)
+        expect { @m_spec_obj.dist('oops') }.to raise_error(ArgumentError)
+        expect { @d_spec_obj.dist('oops') }.to raise_error(ArgumentError)
+      end
+    end
   end
 
 =begin
