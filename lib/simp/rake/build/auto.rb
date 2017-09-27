@@ -3,6 +3,7 @@
 require 'simp/rake'
 require 'json'
 require 'simp/rake/build/constants'
+require 'simp/rake/helpers'
 
 include Simp::Rake
 
@@ -14,6 +15,58 @@ module Simp; end
 module Simp::Rake; end
 module Simp::Rake::Build
   class Auto < ::Rake::TaskLib
+
+    # Commands that are required by some part of the rake stack
+    BUILD_REQUIRED_COMMANDS = [
+      'basename',
+      'cat',
+      'checkmodule',
+      'chmod',
+      'cp',
+      'cpio',
+      'createrepo',
+      'date',
+      'diff',
+      'dirname',
+      'file',
+      'find',
+      'gawk',
+      'git',
+      'gpg',
+      'grep',
+      'gzip',
+      'install',
+      'isoinfo',
+      'm4',
+      'make',
+      'mkdir',
+      'mktemp',
+      'python',
+      'readlink',
+      'repoclosure',
+      'rm',
+      'rpm',
+      'rpmbuild',
+      'rpmdb',
+      'rpmkeys',
+      'rpmsign',
+      'rpmspec',
+      'sed',
+      'semodule_package',
+      'setfacl',
+      'sh',
+      'sort',
+      'tail',
+      'tar',
+      'uname',
+      'uniq',
+      'wc',
+      'which',
+      'xargs',
+      'yum',
+      'yumdownloader'
+    ]
+
     include Simp::Rake::Build::Constants
 
     def initialize( run_dir )
@@ -71,6 +124,8 @@ module Simp::Rake::Build
                      :do_checksum,
                      :key_name
                     ] do |t, args|
+
+          Simp::Rake::Helpers.check_required_commands(BUILD_REQUIRED_COMMANDS)
 
           args.with_defaults(
             :iso_paths    => ENV['SIMP_BUILD_isos'] || Dir.pwd,
