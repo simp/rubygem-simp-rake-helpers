@@ -12,7 +12,6 @@ module Simp::Rake::Build
     def initialize( base_dir )
       init_member_vars( base_dir )
 
-      @mock = ENV['mock'] || '/usr/bin/mock'
       define_tasks
     end
 
@@ -94,6 +93,7 @@ module Simp::Rake::Build
           end
         end # End of prune_packages
 
+=begin
         desc <<-EOM
       Build the SIMP ISO(s).
        * :tarball - Path of the source tarball or directory containing the source
@@ -106,6 +106,7 @@ module Simp::Rake::Build
        ENV vars:
          - Set `SIMP_ISO_verbose=yes` to report file operations as they happen.
            EOM
+=end
         task :build,[:tarball,:unpacked_dvds,:prune] => [:prep] do |t,args|
           args.with_defaults(:unpacked_dvds => "#{@run_dir}", :prune => 'true')
 
@@ -320,22 +321,23 @@ module Simp::Rake::Build
           fail('Error: No ISO was built!') unless @simp_output_iso
         end
 
+=begin
         desc <<-EOM
         Build the source ISO.
           Note: The process clobbers the temporary and built files, rebuilds the
           tarball(s) and packages the source ISO. Therefore it will take a
           while.
             * :key - The GPG key to sign the RPMs with. Defaults to 'prod'.
-            * :chroot - An optional Mock Chroot. If this is passed, the tar:build task will be called.
         EOM
-        task :src,[:prep, :key,:chroot] do |t,args|
+=end
+        task :src,[:prep, :key] do |t,args|
           args.with_defaults(:key => 'prod')
 
-          if Dir.glob("#{@dvd_dir}/*.gz").empty? && !args.chroot
-            fail("Error: Could not find compiled source tarballs, please pass a chroot.")
+          if Dir.glob("#{@dvd_dir}/*.gz").empty?
+            fail("Error: Could not find compiled source tarballs")
           end
 
-          Rake::Task['tar:build'].invoke(args.chroot) if args.chroot
+          Rake::Task['tar:build']
 
           Dir.chdir(@base_dir) do
             File.basename(Dir.glob("#{@dvd_dir}/*.tar.gz").first,'.tar.gz') =~ /SIMP-DVD-[^-]+-(.+)/

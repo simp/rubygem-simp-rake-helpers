@@ -10,7 +10,6 @@ module Simp::Rake::Build
     def initialize( base_dir )
       init_member_vars( base_dir )
 
-      @mock = ENV['mock'] || '/usr/bin/mock'
       define_tasks
     end
 
@@ -23,8 +22,10 @@ module Simp::Rake::Build
         end
 
 
+=begin
         desc "Bump spec files. Bump all spec files' release numbers up by one.
        * :list - Flag to just print the current version numbers."
+=end
         task :bump,[:list] => [:prep] do |t,args|
           (
             Dir.glob("#{@spec_dir}/*.spec") +

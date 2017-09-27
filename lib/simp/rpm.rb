@@ -1,14 +1,19 @@
 require 'securerandom'
+require 'puppet/util'
 
 module Simp
-  # Simp::RPM represents a single package that is built and packaged by the Simp team.
+  # An Simp::RPM instance represents RPM metadata extracted from an
+  # RPM or an RPM spec file.
+  #
+  # Simp::RPM also contains class methods that are useful for
+  # processing RPMs in the SIMP build process.
   class Simp::RPM
     require 'expect'
     require 'pty'
     require 'rake'
 
     @@gpg_keys = Hash.new
-    attr_accessor :basename, :version, :release, :full_version, :name, :sources, :verbose
+    attr_reader :verbose, :packages
 
     if Gem.loaded_specs['rake'].version >= Gem::Version.new('0.9')
       def self.sh(args)
@@ -16,26 +21,224 @@ module Simp
       end
     end
 
-    # Constructs a new Simp::RPM object. Requires the path to the spec file
-    # from which information will be gathered.
+    # Constructs a new Simp::RPM object. Requires the path to the spec file, or
+    # RPM, from which information will be gathered.
     #
-    # The following information will be retreived:
+    # When the information is from a spec file, multiple
+    # packages may exist.
+    #
+    # The following information will be retrieved per package:
+    #
     # [basename] The name of the package (as it would be queried in yum)
     # [version] The version of the package
     # [release] The release version of the package
-    #   * NOTE: If this is a 'spec' file, it will stop on the first '%'
-    #           encountered!
     # [full_version] The full version of the package: [version]-[release]
     # [name] The full name of the package: [basename]-[full_version]
+    # [arch] The machine architecture of the package
+    # [signature] The signature key of the package, if it exists. Will not
+    #   apply when +rpm_source+ is an RPM spec file.
+    # [rpm_name] The full name of the rpm
     def initialize(rpm_source)
-      info = Simp::RPM.get_info(rpm_source)
-      @basename = info[:name]
-      @version = info[:version]
-      @release = info[:release]
-      @full_version = info[:full_version]
-      @name = "#{@basename}-#{@full_version}"
-      @sources = Array.new
-      @verbose = false
+      update_rpmmacros
+
+      # Simp::RPM.get_info returns a Hash or an Array of Hashes.
+      # Steps below prevent single Hash from implicitly being converted
+      # to Array using Hash.to_a.
+      info_array = []
+      info_array << Simp::RPM.get_info(rpm_source)
+      info_array.flatten!
+
+      @info = {}
+      info_array.each do |package_info|
+        @info[package_info[:basename]] = package_info
+      end
+
+      @packages = @info.keys
+    end
+
+    # @returns The RPM '.dist' of the system. 'nil' will be will be returned if
+    # the dist is not found.
+    def self.system_dist
+      # We can only have one of these
+      unless defined?(@@system_dist)
+        dist = %x(rpm -E '%{dist}' 2> /dev/null).strip.split('.')
+
+        if dist.size > 1
+          @@system_dist = '.' + dist[1]
+        else
+          @@system_dist = nil
+        end
+      end
+
+      return @@system_dist
+    end
+
+    def system_dist
+      return Simp::RPM.system_dist
+    end
+
+    # Work around the silliness with 'centos' being tacked onto things via the
+    # 'dist' flag
+    def update_rpmmacros
+      unless defined?(@@macros_updated)
+
+        # Workaround for CentOS system builds
+        dist = system_dist
+        dist_macro = %(%dist #{dist})
+
+        rpmmacros = [dist_macro]
+
+        rpmmacros_file = File.join(ENV['HOME'], '.rpmmacros')
+
+        if File.exist?(rpmmacros_file)
+          rpmmacros = File.read(rpmmacros_file).split("\n")
+
+          dist_index = rpmmacros.each_index.select{|i| rpmmacros[i] =~ /^%dist\s+/}.first
+
+          if dist_index
+            rpmmacros[dist_index] = dist_macro
+          else
+            rpmmacros << dist_macro
+          end
+        end
+
+        File.open(rpmmacros_file, 'w') do |fh|
+          fh.puts rpmmacros.join("\n")
+          fh.flush
+        end
+
+        @@macros_updated = true
+      end
+    end
+
+    # @returns The name of the package (as it would be queried in yum)
+    #
+    # @fails if package is invalid
+    def basename(package=@packages.first)
+      valid_package?(package)
+      @info[package][:basename]
+    end
+
+    # @returns The version of the package
+    #
+    # @fails if package is invalid
+    def version(package=@packages.first)
+      valid_package?(package)
+      @info[package][:version]
+    end
+
+    # @returns The release version of the package
+    #
+    # @fails if package is invalid
+    def release(package=@packages.first)
+      valid_package?(package)
+      @info[package][:release]
+    end
+
+    # @returns The full version of the package: [version]-[release]
+    #
+    # @fails if package is invalid
+    def full_version(package=@packages.first)
+      valid_package?(package)
+      @info[package][:full_version]
+    end
+
+    # @returns The full name of the package: [basename]-[full_version]
+    # @fails if package is invalid
+    def name(package=@packages.first)
+      valid_package?(package)
+      @info[package][:name]
+    end
+
+    # @returns The machine architecture of the package
+    #
+    # @fails if package is invalid
+    def arch(package=@packages.first)
+      valid_package?(package)
+      @info[package][:arch]
+    end
+
+    # @returns The signature key of the package, if it exists or nil
+    #   otherwise. Will always be nil when the information for this
+    #   object was derived from an RPM spec file.
+    #
+    # @fails if package is invalid
+    def signature(package=@packages.first)
+      valid_package?(package)
+      @info[package][:signature]
+    end
+
+    # @returns The full name of the RPM
+    #
+    # @fails if package is invalid
+    def rpm_name(package=@packages.first)
+      valid_package?(package)
+      @info[package][:rpm_name]
+    end
+
+    # @returns Whether or not the package has a `dist` tag
+    #
+    # @fails if package is invalid
+    def has_dist_tag?(package=@packages.first)
+      valid_package?(package)
+      @info[package][:has_dist_tag]
+    end
+
+    # @returns The `dist` of the package. If no `dist` is found, returns the
+    # `dist` of the OS itself. Logic should check both `has_dist_tag?` and
+    # `dist`
+    #
+    # @fails if package is invalid
+    def dist(package=@packages.first)
+      valid_package?(package)
+      @info[package][:dist]
+    end
+
+    # Returns whether or not the current RPM package is
+    # newer than the passed RPM.
+    #
+    # Uses the first package in the package list as the
+    # current RPM package.
+    def newer?(other_rpm)
+      package_newer?(@packages.first, other_rpm)
+    end
+
+    # Returns whether or not the current RPM sub-package is
+    # newer than the passed RPM.
+    def package_newer?(package, other_rpm)
+      valid_package?(package)
+      return true if other_rpm.nil? || other_rpm.empty?
+
+      unless other_rpm.match(%r(\.rpm$))
+        raise ArgumentError.new("You must pass valid RPM name! Got: '#{other_rpm}'")
+      end
+
+      if File.readable?(other_rpm)
+        other_full_version = Simp::RPM.get_info(other_rpm)[:full_version]
+      else
+        # determine RPM info in a hacky way, ASSUMING, the other RPM has the
+        # same basename and arch
+        other_full_version = other_rpm.gsub(/#{package}\-/,'').gsub(/.rpm$/,'')
+        package_arch = arch(package)
+        unless package_arch.nil? or package_arch.empty?
+          other_full_version.gsub!(/.#{package_arch}/,'')
+        end
+      end
+
+      begin
+        # Puppet::Util::Package::versioncmp can handle simp-doc-UNKNOWN-0.el7, whereas
+        # Gem::Version can't
+        return Puppet::Util::Package::versioncmp(full_version(package), other_full_version) > 0
+
+      rescue ArgumentError, NoMethodError
+        fail("Could not compare RPMs '#{rpm_name(package)}' and '#{other_rpm}'")
+      end
+    end
+
+    def valid_package?(package)
+      unless @packages.include?(package)
+        raise ArgumentError.new("'#{package}' is not a valid sub-package")
+      end
     end
 
     # Copies specific content from one directory to another.
@@ -78,74 +281,154 @@ module Simp
       FileUtils.rm_f([outfile, errfile])
     end
 
-    # Parses information, such as the version, from the given specfile or RPM
-    # into a hash.
+    # Parses information, such as the version, from the given specfile
+    # or RPM into a hash.
     #
-    # Can take an optional mock hash that should have the following structure:
-    # {
-    #   :command    => The actual mock command to run
-    #   :rpm_extras => Extra arguments to pass to RPM. This will probably be a
-    #                  reference to the spec file itself
-    # }
-    def self.get_info(rpm_source, mock_hash=nil)
-      info = {
-        :has_dist_tag => false
+    # If the information from only single RPM is extracted, returns a
+    # single Hash with the following possible keys:
+    #   :has_dist_tag = a boolean indicating whether the RPM release
+    #                    has a distribution field; only evaluated when
+    #                    rpm_source is a spec file, otherwise false
+    #   :basename      = The name of the package (as it would be
+    #                    queried in yum)
+    #   :version       = The version of the package
+    #   :release       = The release version of the package
+    #   :arch          = The machine architecture of the package
+    #   :full_version  = The full version of the package:
+    #                      <version>-<release>
+    #   :name          = The full name of the package:
+    #                      <basename>-<full_version>
+    #   :rpm_name      = The full name of the RPM:
+    #                      <basename>-<full_version>.<arch>.rpm
+    #   :signature     = RPM signature key id; only present if
+    #                    rpm_source is an RPM and the RPM is signed
+    #
+    # If the information from more than one RPM is extracted, as is the case
+    # when a spec file specifies sub-packages, returns an Array of Hashes.
+    #
+    def self.get_info(rpm_source)
+      raise "Error: unable to read '#{rpm_source}'" unless File.readable?(rpm_source)
+
+      info_array = []
+      common_info = {
+        :has_dist_tag => false,
+        :dist => system_dist
       }
 
-      rpm_cmd = "rpm -q --queryformat '%{NAME} %{VERSION} %{RELEASE} %{ARCH}\n'"
+      rpm_version_query = %(rpm -q --queryformat '%{NAME} %{VERSION} %{RELEASE} %{ARCH}\n' 2>/dev/null)
 
-      if mock_hash
-        # Suppression of error messages is a hack for the following
-        # scenario:
-        # * The RPM spec file has an invalid date in its %changelog.
-        # * The 'bogus date' warning message from rpmbuild
-        #   is sent to stderr, while RPM name, version, and release
-        #   info is sent to stdout.
-        # * mock combines stdout and stderr in the command run.
-        # * The 'bogus date' warning message is parsed to generate
-        #   the RPM info, instead of the RPM info message.
-        rpm_cmd = mock_hash[:command] + ' ' + '"' + rpm_cmd + ' ' + mock_hash[:rpm_extras] + ' 2>/dev/null"'
+      rpm_signature_query = %(rpm -q --queryformat '%|DSAHEADER?{%{DSAHEADER:pgpsig}}:{%|RSAHEADER?{%{RSAHEADER:pgpsig}}:{%|SIGGPG?{%{SIGGPG:pgpsig}}:{%|SIGPGP?{%{SIGPGP:pgpsig}}:{(none)}|}|}|}|\n\')
+
+      source_is_rpm = rpm_source.split('.').last == 'rpm'
+      if source_is_rpm
+        dist_info = rpm_source.split('-').last.split('.')[1..-3]
+
+        unless dist_info.empty?
+          common_info[:has_dist_tag] = true
+          common_info[:dist] = '.' + dist_info.first
+        end
+
+      elsif File.read(rpm_source).include?('%{?dist}')
+        common_info[:has_dist_tag] = true
       end
 
-      if File.readable?(rpm_source)
-        if File.read(rpm_source).include?('%{?dist}')
-          info[:has_dist_tag] = true
-        end
-
-        if rpm_source.split('.').last == 'rpm'
-          results = execute("#{rpm_cmd} -p #{rpm_source}")
-        elsif mock_hash
-          results = execute("#{rpm_cmd}")
-
-          if info[:has_dist_tag]
-            info[:dist_tag] = execute(%(#{mock_hash[:command]} --chroot 'rpm --eval "%{dist}"' 2>/dev/null))[:stdout].strip
-
-            info[:dist_tag] = nil if (info[:dist_tag][0].chr == '%')
-          end
-        else
-          results = execute("#{rpm_cmd} --specfile #{rpm_source}")
-        end
-
-        if results[:exit_status] != 0
-          raise <<-EOE
-#{indent('Error getting RPM info:', 2)}
-#{indent(results[:stderr].strip, 5)}
-#{indent("Run '#{rpm_cmd.gsub("\n",'\\n')} --specfile #{rpm_source}' to recreate the issue.", 2)}
-EOE
-        end
-
-        info[:name], info[:version], info[:release], info[:arch] = results[:stdout].strip.split("\n").first.split(' ')
+      if source_is_rpm
+        query_source = "-p #{rpm_source}"
+        version_results = execute("#{rpm_version_query} #{query_source}")
+        signature_results = execute("#{rpm_signature_query} #{query_source}")
       else
-        raise "Error: unable to read '#{rpm_source}'"
+        query_source = "--specfile #{rpm_source}"
+        version_results = execute("#{rpm_version_query} #{query_source}")
+        signature_results = nil
       end
 
-      info[:full_version] = "#{info[:version]}-#{info[:release]}"
+      if version_results[:exit_status] != 0
+        raise <<-EOE
+#{indent('Error getting RPM info:', 2)}
+#{indent(version_results[:stderr].strip, 5)}
+#{indent("Run '#{rpm_version_query.gsub("\n",'\\n')} #{query_source}' to recreate the issue.", 2)}
+EOE
+      end
 
-      return info
+      unless signature_results.nil?
+        if signature_results[:exit_status] != 0
+          raise <<-EOE
+#{indent('Error getting RPM signature:', 2)}
+#{indent(signature_results[:stderr].strip, 5)}
+#{indent("Run '#{rpm_signature_query.gsub("\n",'\\n')} #{query_source}' to recreate the issue.", 2)}
+EOE
+       else
+         signature = signature_results[:stdout].strip
+       end
+      end
+
+      version_results[:stdout].strip.lines.each do |line|
+        info = common_info.dup
+        parts = line.split(' ')
+
+        info[:basename], info[:version], info[:release], info[:arch] = parts
+        info[:signature]    = signature unless signature.nil? or signature.include?('none')
+        info[:full_version] = "#{info[:version]}-#{info[:release]}"
+        info[:name]         = "#{info[:basename]}-#{info[:full_version]}"
+        info[:rpm_name]     = "#{info[:name]}.#{info[:arch]}.rpm"
+
+        info_array << info
+      end
+
+      if info_array.size == 1
+        return info_array[0]
+      else
+        # will only happen when source is spec file and that spec file
+        # specifies sub-packages
+        return info_array
+      end
     end
 
     def self.indent(message, indent_length)
        message.split("\n").map {|line| ' '*indent_length + line }.join("\n")
+    end
+
+    def self.create_rpm_build_metadata(project_dir, srpms=nil, rpms=nil)
+      last_build = {
+        'git_hash' => %x(git rev-list --max-count=1 HEAD).chomp,
+        'srpms'    => {},
+        'rpms'     => {}
+      }
+
+      Dir.chdir(File.join(project_dir, 'dist')) do
+        if srpms.nil? or rpms.nil?
+          all_rpms = Dir.glob('*.rpm')
+          srpms = Dir.glob('src.rpm')
+          rpms = all_rpms - srpms
+        end
+
+        srpms.each do |srpm|
+          file_stat = File.stat(srpm)
+
+          last_build['srpms'][File.basename(srpm)] = {
+            'metadata'  => Simp::RPM.get_info(srpm),
+            'size'      => file_stat.size,
+            'timestamp' => file_stat.ctime,
+            'path'      => File.absolute_path(srpm)
+          }
+        end
+
+        rpms.each do |rpm|
+          file_stat = File.stat(rpm)
+
+          last_build['rpms'][File.basename(rpm)] = {
+            'metadata' => Simp::RPM.get_info(rpm),
+            'size'      => file_stat.size,
+            'timestamp' => file_stat.ctime,
+            'path'     => File.absolute_path(rpm)
+           }
+        end
+
+        FileUtils.mkdir_p(File.join(project_dir, 'dist', 'logs'))
+        File.open('logs/last_rpm_build_metadata.yaml','w') do |fh|
+          fh.puts(last_build.to_yaml)
+        end
+      end
     end
 
     # Loads metadata for a GPG key. The GPG key is to be used to sign RPMs. The

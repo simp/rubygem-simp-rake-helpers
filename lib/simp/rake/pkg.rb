@@ -24,7 +24,7 @@ module Simp::Rake
     # path to the project's RPM specfile
     attr_accessor :spec_file
 
-    # path to the directory to place generated assets (e.g., rpm, srpm, tar.gz)
+    # path to the directory to place generated assets (e.g., rpm, tar.gz)
     attr_accessor :pkg_dir
 
     # array of items to exclude from the tarball
@@ -38,26 +38,28 @@ module Simp::Rake
 
     attr_reader   :spec_info
 
-    def initialize( base_dir, unique_name=nil, unique_namespace=nil, simp_version=nil )
+    def initialize( base_dir, unique_namespace = nil, simp_version=nil )
       @base_dir            = base_dir
       @pkg_name            = File.basename(@base_dir)
       @pkg_dir             = File.join(@base_dir, 'dist')
       @pkg_tmp_dir         = File.join(@pkg_dir, 'tmp')
-      @pkg_stash_dir       = File.join(@pkg_tmp_dir, '.stash')
       @exclude_list        = [ File.basename(@pkg_dir) ]
       @clean_list          = []
       @ignore_changes_list = [
         'Gemfile.lock',
+        'dist/logs',
+        'dist/tmp',
+        'dist/*.rpm',
+        'dist/rpmbuild',
         'spec/fixtures/modules'
       ]
-      @chroot_name         = unique_name
+
+      FileUtils.mkdir_p(@pkg_tmp_dir)
 
       local_spec = Dir.glob(File.join(@base_dir, 'build', '*.spec'))
       unless local_spec.empty?
         @spec_file = local_spec.first
       else
-        FileUtils.mkdir_p(@pkg_stash_dir) unless File.directory?(@pkg_stash_dir)
-
         @spec_tempfile = File.open(File.join(@pkg_tmp_dir, "#{@pkg_name}.spec"), 'w')
         @spec_tempfile.write(rpm_template(simp_version))
 
@@ -73,11 +75,10 @@ module Simp::Rake
       # LUA-based RPM template
 
       @puppet_module_info_files = [
-        @spec_file,
-        %(#{@base_dir}/build),
+        Dir.glob(%(#{@base_dir}/build/rpm_metadata/*)),
         %(#{@base_dir}/CHANGELOG),
         %(#{@base_dir}/metadata.json)
-      ]
+      ].flatten
 
       ::CLEAN.include( @pkg_dir )
 
@@ -102,94 +103,46 @@ module Simp::Rake
       define_clean
       define_clobber
       define_pkg_tar
-      define_pkg_srpm
       define_pkg_rpm
-      define_pkg_scrub
       define_pkg_check_version
       task :default => 'pkg:tar'
 
-      Rake::Task['pkg:tar'].enhance(['pkg:restore_stash'])
-      Rake::Task['pkg:srpm'].enhance(['pkg:restore_stash'])
-      Rake::Task['pkg:rpm'].enhance(['pkg:restore_stash'])
+      Rake::Task['pkg:tar']
+      Rake::Task['pkg:rpm']
 
       self
     end
 
-    # Add a file to the pkg stash
-    # These will be restored to the @pkg_dir at the end of the run
-    def stash(file)
-      FileUtils.mv(file, @pkg_stash_dir)
-    end
-
-    # Restore everything from the stash dir
-    def restore_stash
-      Dir.glob(File.join(@pkg_stash_dir, '*')).each do |file|
-        FileUtils.mv(file, @pkg_dir)
-      end
-    end
-
-    # Initialize the mock space if passed and retrieve the spec info from that
-    # space directly.
-    #
     # Ensures that the correct file names are used across the board.
-    def initialize_spec_info(chroot, unique='false')
+    def initialize_spec_info
       unless @spec_info
         # This gets the resting spec file and allows us to pull out the name
-        @spec_info   = Simp::RPM.get_info(@spec_file)
-        @spec_info_dir = @base_dir
+        @spec_info ||= Simp::RPM.new(@spec_file)
+        @spec_info_dir ||= @base_dir
 
-        if chroot
-          @chroot_name = @chroot_name || "#{@spec_info[:name]}__#{ENV.fetch( 'USER', 'USER' )}"
+        @dir_name ||= "#{@spec_info.basename}-#{@spec_info.version}"
+        @full_pkg_name ||= "#{@dir_name}-#{@spec_info.release}"
 
-          if ENV['SIMP_PKG_rand_name'] && (ENV['SIMP_PKG_rand_name'] != 'no')
-            @chroot_name = @chroot_name + '__' + Time.now.strftime('%s%L')
-          end
+        _rpmbuild_srcdir = `rpm -E '%{_sourcedir}'`.strip
 
-          if @spec_info[:has_dist_tag]
-            mock_cmd = mock_pre_check( chroot, @chroot_name, unique ) + " --root #{chroot}"
-
-            # Need to do this in case there is already a directory in /tmp
-            rand_dirname = (0...10).map { ('a'..'z').to_a[rand(26)] }.join
-            rand_tmpdir = %(/tmp/#{rand_dirname}_tmp)
-
-            # Hack to work around the fact that we have conflicting '-D' entries
-            # TODO: Refactor this
-            mock_cmd = mock_cmd.split(/-D '.*?'/).join
-            mock_cmd = "#{mock_cmd} -D 'pup_module_info_dir #{rand_tmpdir}'"
-
-            sh %Q(#{mock_cmd} --chroot 'mkdir -p #{rand_tmpdir}')
-
-            @puppet_module_info_files.each do |copy_in|
-              if File.exist?(copy_in)
-                sh %Q(#{mock_cmd} --copyin #{copy_in} #{rand_tmpdir})
-              end
-            end
-
-            sh %Q(#{mock_cmd} --chroot 'chmod -R ugo+rwX #{rand_tmpdir}')
-
-            info_hash = {
-              :command    => %Q(#{mock_cmd} --chroot --cwd='#{rand_tmpdir}'),
-              :rpm_extras => %(--specfile #{rand_tmpdir}/#{File.basename(@spec_file)} )
-            }
-
-            @spec_info = Simp::RPM.get_info(@spec_file, info_hash)
-          end
+        unless File.exist?(_rpmbuild_srcdir)
+          sh 'rpmdev-setuptree'
         end
 
-        @dir_name       = "#{@spec_info[:name]}-#{@spec_info[:version]}"
-        _full_pkg_name = "#{@dir_name}-#{@spec_info[:release]}"
-        @full_pkg_name  = _full_pkg_name.gsub("%{?snapshot_release}","")
-        @tar_dest       = "#{@pkg_dir}/#{@full_pkg_name}.tar.gz"
+        @rpm_srcdir ||= "#{@pkg_dir}/rpmbuild/SOURCES"
+        FileUtils.mkdir_p(@rpm_srcdir)
 
-        if @tar_dest =~ /UNKNOWN/
-          fail("Error: Could not determine package information from 'metadata.json'. Got '#{File.basename(@tar_dest)}'")
+        @tar_dest ||= "#{@pkg_dir}/#{@full_pkg_name}.tar.gz"
+
+        if @full_pkg_name =~ /UNKNOWN/
+          fail("Error: Could not determine package information from 'metadata.json'. Got '#{@full_pkg_name}'")
         end
       end
     end
 
     def define_clean
       desc <<-EOM
-      Clean build artifacts for #{@pkg_name} (except for mock)
+      Clean build artifacts for #{@pkg_name}
       EOM
       task :clean do |t,args|
         # this is provided by 'rake/clean' and the ::CLEAN constant
@@ -198,7 +151,7 @@ module Simp::Rake
 
     def define_clobber
       desc <<-EOM
-      Clobber build artifacts for #{@pkg_name} (except for mock)
+      Clobber build artifacts for #{@pkg_name}
       EOM
       task :clobber do |t,args|
       end
@@ -208,47 +161,21 @@ module Simp::Rake
       namespace :pkg do
         directory @pkg_dir
 
-        task :restore_stash do |t,args|
-          at_exit { restore_stash }
-        end
-
-        task :initialize_spec_info,[:chroot,:unique] => [@pkg_dir] do |t,args|
-          args.with_defaults(:chroot => nil)
-          args.with_defaults(:unique => false)
-
-          initialize_spec_info(args[:chroot], args[:unique])
+        task :initialize_spec_info => [@pkg_dir] do |t,args|
+          initialize_spec_info
         end
 
         # :pkg:tar
         # -----------------------------
         desc <<-EOM
         Build the #{@pkg_name} tar package.
-            * :snapshot_release - Add snapshot_release (date and time) to rpm
-                                  version, rpm spec file must have macro for
-                                  this to work.
         EOM
-        task :tar,[:chroot,:unique,:snapshot_release] => [:initialize_spec_info] do |t,args|
-          args.with_defaults(:snapshot_release => 'false')
-          args.with_defaults(:chroot => nil)
-          args.with_defaults(:unique => 'false')
-
-          l_date = ''
-          if args[:snapshot_release] == 'true'
-            l_date = '.' + "#{TIMESTAMP}"
-            @tar_dest = "#{@pkg_dir}/#{@full_pkg_name}#{l_date}.tar.gz"
-          end
-
-          # Remove any tar files that are not from this version
-          tar_files = Dir.glob(%(#{@pkg_dir}/#{@spec_info[:name]}-#{@spec_info[:version]}*.tar.gz))
-          tar_files.delete(@tar_dest)
-          tar_files.each do |tf|
-            stash(tf)
-          end
-
+        task :tar => [:initialize_spec_info] do |t,args|
           target_dir = File.basename(@base_dir)
 
           Dir.chdir(%(#{@base_dir}/..)) do
             require_rebuild = false
+
             if File.exist?(@tar_dest)
               Find.find(target_dir) do |path|
                 filename = File.basename(path)
@@ -261,7 +188,7 @@ module Simp::Rake
 
                 next if File.directory?(path)
 
-                unless uptodate?(@tar_dest,[path])
+                if require_rebuild?(@tar_dest, path)
                   require_rebuild = true
                   break
                 end
@@ -278,156 +205,180 @@ module Simp::Rake
       end
     end
 
-    def define_pkg_srpm
-      namespace :pkg do
-        desc <<-EOM
-        Build the #{@pkg_name} SRPM.
-          Building RPMs requires a working Mock setup (http://fedoraproject.org/wiki/Projects/Mock)
-            * :chroot - The Mock chroot configuration to use. See the '--root' option in mock(1)."
-            * :unique - Whether or not to build the SRPM in a unique Mock environment.
-                        This can be very useful for parallel builds of all modules.
-            * :snapshot_release - Add snapshot_release (date and time) to rpm version.
-                        Rpm spec file must have macro for this to work.
-
-            By default, the package will be built to support a SIMP-6.X file structure.
-            To build the package for a different version of SIMP, export SIMP_BUILD_version=<5.X,4.X>
-       EOM
-        task :srpm,[:chroot,:unique,:snapshot_release] => [:tar] do |t,args|
-          args.with_defaults(:unique => 'false')
-          args.with_defaults(:snapshot_release => 'false')
-
-          l_date = ''
-          if args[:snapshot_release] == 'true'
-            l_date = '.' + "#{TIMESTAMP}"
-            mocksnap = "-D 'snapshot_release #{l_date}'"
-            @tar_dest = "#{@pkg_dir}/#{@full_pkg_name}#{l_date}.tar.gz"
-          end
-
-          srpms = Dir.glob(%(#{@pkg_dir}/#{@spec_info[:name]}*-#{@spec_info[:version]}-*#{l_date}*.src.rpm))
-
-          # Get rid of any SRPMs that are not of this distribution build if we
-          # have found one
-          if @spec_info[:dist_tag]
-            srpms.delete_if do |srpm|
-              if srpm.split(@spec_info[:dist_tag]).last != '.src.rpm'
-                if File.exist?(srpm)
-                  stash(srpm)
-                end
-
-                true
-              else
-                false
-              end
-            end
-          end
-
-          if require_rebuild?(srpms, @tar_dest)
-
-            mock_cmd = mock_pre_check( args[:chroot], @chroot_name, args[:unique] )
-
-            @puppet_module_info_files.each do |file|
-              next unless File.exist?(file)
-
-              Find.find(file) do |path|
-                next if File.directory?(path)
-
-                tgt_file = File.join(@pkg_dir, File.basename(path))
-                FileUtils.remove_entry_secure(tgt_file) if File.exist?(tgt_file)
-                FileUtils.cp(path, @pkg_dir) if File.exist?(path)
-              end
-            end
-
-            cmd = %Q(#{mock_cmd} --root #{args[:chroot]} #{mocksnap} --buildsrpm --spec #{@spec_file} --sources #{@pkg_dir})
-
-            sh cmd
-          end
-        end
-      end
-    end
-
     def define_pkg_rpm
       namespace :pkg do
         desc <<-EOM
         Build the #{@pkg_name} RPM.
-          Building RPMs requires a working Mock setup (http://fedoraproject.org/wiki/Projects/Mock)
-            * :chroot - The Mock chroot configuration to use. See the '--root' option in mock(1)."
-            * :unique - Whether or not to build the RPM in a unique Mock environment.
-                        This can be very useful for parallel builds of all modules.
-            * :snapshot_release - Add snapshot_release (date and time) to rpm version.
-                        Rpm spec file must have macro for this to work.
 
             By default, the package will be built to support a SIMP-6.X file structure.
             To build the package for a different version of SIMP, export SIMP_BUILD_version=<5.X,4.X>
         EOM
-        task :rpm,[:chroot,:unique,:snapshot_release] => [:srpm] do |t,args|
-          args.with_defaults(:unique => 'false')
-          args.with_defaults(:snapshot_release => 'false')
+        task :rpm => [:tar] do |t,args|
+          rpm_opts = [
+            %(-D 'buildroot #{@pkg_dir}/rpmbuild/BUILDROOT'),
+            %(-D 'builddir #{@pkg_dir}/rpmbuild/BUILD'),
+            %(-D '_sourcedir #{@rpm_srcdir}'),
+            %(-D '_rpmdir #{@pkg_dir}'),
+            %(-D '_srcrpmdir #{@pkg_dir}'),
+            %(-D '_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm')
+          ]
 
-          l_date = ''
-          if args[:snapshot_release] == 'true'
-            l_date = '.' + "#{TIMESTAMP}"
-            mocksnap = "-D 'snapshot_release #{l_date}'"
-            @tar_dest = "#{@pkg_dir}/#{@full_pkg_name}#{l_date}.tar.gz"
-          end
+          Dir.chdir(@pkg_dir) do
 
-          rpms = Dir.glob(%(#{@pkg_dir}/#{@spec_info[:name]}-*#{@spec_info[:version]}-*#{l_date}*.rpm))
+            # Copy in the materials required for the module builds
+            @puppet_module_info_files.each do |f|
+              if File.exist?(f)
+                FileUtils.cp_r(f, @rpm_srcdir)
+              end
+            end
 
-          srpms = rpms.select{|x| x =~ /src\.rpm$/}
-          rpms = (rpms - srpms)
+            # Link in any misc artifacts that got dumped into 'dist' by other code
+            extra_deps = Dir.glob("*")
+            extra_deps.delete_if{|x| x =~ /(\.rpm$|(^(rpmbuild|logs|tmp$)))/}
 
-          # Get rid of any RPMs that are not of this distribution build if we
-          # have found one
-          if @spec_info[:dist_tag]
-            rpms.delete_if do |rpm|
-              if rpm.split(@spec_info[:dist_tag]).last != ".#{@spec_info[:arch]}.rpm"
-                if File.exist?(rpm)
-                  stash(rpm)
+            Dir.chdir(@rpm_srcdir) do
+              extra_deps.each do |dep|
+                unless File.exist?(dep)
+                  FileUtils.cp_r("../../#{dep}", dep)
+                end
+              end
+            end
+
+            FileUtils.mkdir_p('logs')
+            FileUtils.mkdir_p('rpmbuild/BUILDROOT')
+            FileUtils.mkdir_p('rpmbuild/BUILD')
+
+            srpms = [@full_pkg_name + '.src.rpm']
+            if require_rebuild?(srpms.first, @tar_dest)
+              # Need to build the SRPM so that we can get the build dependencies
+              %x(rpmbuild #{rpm_opts.join(' ')} -bs #{@spec_file} > logs/build.out 2> logs/build.err)
+
+              srpms = File.read('logs/build.out').scan(%r(Wrote:\s+(.*\.rpm))).flatten
+
+              if srpms.empty?
+                raise <<-EOM
+  Could not create SRPM for '#{@spec_info.basename}
+    Error: #{File.read('logs/build.err')}
+                EOM
+              end
+            end
+
+            # Collect the built, or downloaded, RPMs
+            rpms = []
+
+            @spec_info.packages
+            expected_rpms = @spec_info.packages.map{|f|
+              latest_rpm = Dir.glob("#{f}-#{@spec_info.version}*.rpm").select{|x|
+                # Get all local RPMs that are not SRPMs
+                x !~ /\.src\.rpm$/
+              }.map{|x|
+                # Convert them to objects
+                x = Simp::RPM.new(x)
+              }.sort_by{|x|
+                # Sort by the full version of the package and return the one
+                # with the highest version
+                Gem::Version.new(x.full_version)
+              }.last
+
+              if latest_rpm && (
+                  Gem::Version.new(latest_rpm.full_version) >=
+                  Gem::Version.new(@spec_info.full_version)
+              )
+                f = latest_rpm.rpm_name
+              else
+                f = "#{f}-#{@spec_info.full_version}-#{@spec_info.arch}.rpm"
+              end
+            }
+
+            if expected_rpms.empty? || require_rebuild?(expected_rpms, srpms)
+
+              expected_rpms_data = expected_rpms.map{ |f|
+                if File.exist?(f)
+                  f = Simp::RPM.new(f)
+                else
+                  f = nil
+                end
+              }
+
+              require_rebuild = true
+
+              # We need to rebuild if not *all* of the expected RPMs are present
+              unless expected_rpms_data.include?(nil)
+                # If all of the RPMs are signed, we do not need a rebuild
+                require_rebuild = !expected_rpms_data.compact.select{|x| !x.signature}.empty?
+              end
+
+              if !require_rebuild
+                # We found all expected RPMs and they all had valid signatures
+                #
+                # Record the existing RPM metadata in the output file
+                rpms = expected_rpms
+              else
+                # Try a build
+                %x(rpmbuild #{rpm_opts.join(' ')} --rebuild #{srpms.first} > logs/build.out 2> logs/build.err)
+
+                # If the build failed, it was probably due to missing dependencies
+                unless $?.success?
+                  # Find the RPM build dependencies
+                  rpm_build_deps = %x(rpm -q -R -p #{srpms.first}).strip.split("\n")
+
+                  # RPM stuffs this in every time
+                  rpm_build_deps.delete_if {|x| x =~ /^rpmlib/}
+
+                  # See if we have the ability to install things
+                  unless Process.uid == 0
+                    unless %x(sudo -ln) =~ %r(NOPASSWD:\s+(ALL|yum( install)?))
+                      raise <<-EOM
+    Please install the following dependencies and try again:
+    #{rpm_build_deps.map{|x| x = "  * #{x}"}.join("\n")}
+    EOM
+                    end
+                  end
+
+                  rpm_build_deps.map! do |rpm|
+                    if rpm =~ %r((.*)\s+(?:<=|=|==)\s+(.+))
+                      rpm = "#{$1}-#{$2}"
+                    end
+
+                    rpm
+                  end
+
+                  yum_install_cmd = %(yum -y install '#{rpm_build_deps.join("' '")}')
+                  unless Process.uid == 0
+                    yum_install_cmd = 'sudo ' + yum_install_cmd
+                  end
+
+                  install_output = %x(#{yum_install_cmd} 2>&1)
+
+                  if !$?.success? || (install_output =~ %r((N|n)o package))
+                    raise <<-EOM
+    Could not run #{yum_install_cmd}
+      Error: #{install_output}
+                    EOM
+                  end
                 end
 
-                true
-              else
-                false
+                # Try it again!
+                #
+                # If this doesn't work, something we can't fix automatically is wrong
+                %x(rpmbuild #{rpm_opts.join(' ')} --rebuild #{srpms.first} > logs/build.out 2> logs/build.err)
+
+                rpms = File.read('logs/build.out').scan(%r(Wrote:\s+(.*\.rpm))).flatten - srpms
+
+                if rpms.empty?
+                  raise <<-EOM
+    Could not create RPM for '#{@spec_info.basename}
+      Error: #{File.read('logs/build.err')}
+                  EOM
+                end
               end
+
+              # Prevent overwriting the last good metadata file
+              raise %(Could not find any valid RPMs for '#{@spec_info.basename}') if rpms.empty?
+
+              Simp::RPM.create_rpm_build_metadata(File.expand_path(@base_dir), srpms, rpms)
             end
           end
-
-          srpms.each do |srpm|
-            dirname = File.dirname(srpm)
-            basename = File.basename(srpm,'.src.rpm')
-            srpm_info = Simp::RPM.get_info(srpm)
-
-            rpm = [File.join(dirname, basename), srpm_info[:arch], 'rpm'].join('.')
-            if require_rebuild?(rpm, srpm)
-              mock_cmd = mock_pre_check(args[:chroot], @chroot_name, args[:unique])
-
-              cmd = %Q(#{mock_cmd} --root #{args[:chroot]} #{mocksnap} #{srpm})
-
-              sh cmd
-
-              # remote chroot unless told not to (saves LOTS of space during ISO builds)
-              unless ENV['SIMP_RAKE_MOCK_cleanup'] == 'no'
-                cmd = %Q(#{mock_cmd} --root #{args[:chroot]} --clean)
-                sh cmd
-              end
-            end
-          end
-        end
-      end
-    end
-
-    def define_pkg_scrub
-      namespace :pkg do
-        # :pkg:scrub
-        # -----------------------------
-        desc <<-EOM
-        Scrub the #{@pkg_name} mock build directory.
-        EOM
-        task :scrub,[:chroot,:unique] do |t,args|
-          args.with_defaults(:unique => 'false')
-
-          mock_cmd = mock_pre_check( args[:chroot], @chroot_name, args[:unique], false )
-          cmd = %Q(#{mock_cmd} --scrub=all)
-          sh cmd
         end
       end
     end
@@ -506,103 +457,17 @@ module Simp::Rake
     # ------------------------------------------------------------------------------
     # helper methods
     # ------------------------------------------------------------------------------
-    # Get a list of all of the mock configs available on the system.
-    def Pkg.get_mock_configs
-      Dir.glob('/etc/mock/*.cfg').sort.map{ |x| x = File.basename(x,'.cfg')}
-    end
-
     # Return True if any of the 'old' Array are newer than the 'new' Array
     def require_rebuild?(new, old)
       return true if ( Array(old).empty? || Array(new).empty?)
 
       Array(new).each do |new_file|
-        unless File.exist?(new_file)
-          return true
-        end
+        return true unless File.exist?(new_file)
 
-        unless uptodate?(new_file, Array(old))
-          return true
-        end
+        return true unless uptodate?(new_file, Array(old))
       end
 
       return false
-    end
-
-    # Run some pre-checks to make sure that mock will work properly.
-    #
-    # chroot   = name of mock chroot to use
-    # unique_ext = TODO
-    # Pass init=false if you do not want the function to initialize.
-    #
-    # Returns a String that contains the appropriate mock command.
-    def mock_pre_check( chroot, unique_ext, unique='false', init=true )
-
-      mock = ENV['mock'] || '/usr/bin/mock'
-
-      raise(StandardError,"Could not find mock on your system, exiting") unless File.executable?(mock)
-
-      mock_configs = Pkg.get_mock_configs
-      unless chroot
-        raise(StandardError,
-          "Error: No mock chroot provided. Your choices are:\n  #{mock_configs.join("\n  ")}"
-        )
-      end
-
-      # If you pass a config file, just take it
-      unless chroot.split('.').last == 'cfg'
-        unless mock_configs.include?(chroot)
-          raise(StandardError,
-            "Error: Invalid mock chroot provided. Your choices are:\n  #{mock_configs.join("\n  ")}"
-          )
-        end
-      end
-
-      raise %Q(unique_ext must be a String ("#{unique_ext}" = #{unique_ext.class})) unless unique_ext.is_a?(String)
-
-      # if true, restrict yum to the chroot's local yum cache (defaults to false)
-      mock_offline = ENV.fetch( 'SIMP_RAKE_MOCK_OFFLINE', 'N' ).chomp.index( %r{^(1|Y|true|yes)$} ) || false
-
-      mock_cmd =  "#{mock} --quiet"
-      mock_cmd += " --uniqueext=#{unique_ext}" if unique
-      mock_cmd += ' --offline'                 if mock_offline
-
-      initialized = is_mock_initialized(mock_cmd, chroot)
-
-      unless initialized && init
-        sh %Q(#{mock_cmd} --root #{chroot} --init #{unique_ext})
-      else
-        # Remove any old build cruft from the mock directory.
-        # This is kludgy but WAY faster than rebuilding them all, even with a cache.
-        sh %Q(#{mock_cmd} --root #{chroot} --chroot "/bin/rm -rf /builddir/build/BUILDROOT /builddir/build/*/*")
-      end
-
-      # Install useful stock packages
-      if ENV.fetch( 'SIMP_RAKE_MOCK_EXTRAS', 'yes' ) == 'yes'
-        pkgs = ['openssl', 'openssl-devel']
-
-        env_pkgs = ENV.fetch('SIMP_RAKE_MOCK_PKGS','')
-        unless env_pkgs.empty?
-          pkgs = pkgs + env_pkgs.split(',')
-        end
-
-        pkgs.each do |pkg|
-          sh %Q(#{mock_cmd} --root #{chroot} --install #{pkg})
-        end
-      end
-
-      return mock_cmd + " --no-clean --no-cleanup-after --resultdir=#{@pkg_dir} --disable-plugin=package_state"
-    end
-
-    def is_mock_initialized( mock_cmd, chroot )
-      @@initialized_mocks ||= []
-      return true if @@initialized_mocks.include?(chroot)
-
-      %x{#{mock_cmd} --root #{chroot} --chroot "test -d /tmp" &> /dev/null }
-      initialized = $?.success?
-      @@initialized_mocks << chroot
-
-      # A simple test to see if the chroot is initialized.
-      initialized
     end
   end
 end

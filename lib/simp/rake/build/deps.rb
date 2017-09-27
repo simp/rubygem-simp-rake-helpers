@@ -36,7 +36,14 @@ class R10KHelper
         end
 
         unless repo_status
-          untracked_files = %x(git ls-files -o -d --exclude-standard)
+          # Things that may be out of date but which should stop the updating
+          # of the git repo
+          our_exclusions=[
+            'build/rpm_metadata',
+            'dist/'
+          ]
+
+          untracked_files = %x(git ls-files -o -d --exclude-standard --exclude=#{our_exclusions.join(' --exclude=')})
 
           if $?.success?
             unless untracked_files.empty?

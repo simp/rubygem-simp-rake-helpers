@@ -8,6 +8,7 @@ module Simp::Rake
   require 'shellwords'
   require 'parallel'
   require 'tempfile'
+  require 'facter'
   require 'simp/rpm'
   require 'simp/rake/pkg'
 
@@ -98,27 +99,11 @@ module Simp::Rake
   # Originally snarfed from
   # http://stackoverflow.com/questions/2108727/which-in-ruby-checking-if-program-exists-in-path-from-ruby
   def which(cmd)
-    File.executable?(cmd) and return cmd
+    command = Facter::Core::Execution.which(cmd)
 
-    cmd = File.basename(cmd)
+    warn "Warning: Command #{cmd} not found on the system." unless command
 
-    exts = ENV['PATHEXT'] ? ENV['PATHEXT'].split(';') : ['']
-    ENV['PATH'].split(File::PATH_SEPARATOR).each do |path|
-      exts.each { |ext|
-        exe = File.join(path, "#{cmd}#{ext}")
-        return exe if File.executable? exe
-      }
-    end
-
-    warn "Warning: Command #{cmd} not found on the system."
-    return nil
-  end
-
-  # Return whether or not the user is in the mock group
-  def validate_in_mock_group?
-    if not %x{groups}.split.include?('mock')
-      raise(Exception,"You need to be in the 'mock' group.")
-    end
+    return command
   end
 
   def help

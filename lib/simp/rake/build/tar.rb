@@ -32,7 +32,8 @@ module Simp::Rake::Build
         def get_simp_version
           simp_rpm = Dir.glob("#{@build_dir}/SIMP/RPMS/*/simp-[0-9]*.rpm").max_by {|f| File.mtime(f)}
           fail("Could not find simp main RPM in output directory!") unless simp_rpm
-          simp_version = File.basename(simp_rpm).gsub(".noarch.rpm","").gsub("simp-","")
+
+          simp_version = Simp::RPM.new(simp_rpm).full_version
 
           # For picking up the correct RPM template
           ENV['SIMP_BUILD_version'] ||= simp_version
@@ -45,10 +46,6 @@ module Simp::Rake::Build
         ##############################################################################
 
         task :validate => [:prep] do |t,args|
-          rpm_dir = File.join(@build_dir,'SIMP','RPMS')
-
-          fail("Could not find output dir: '#{rpm_dir}'") unless File.directory?(rpm_dir)
-
           required_rpms = {
             'noarch' => [
               'rubygem-simp-cli',
@@ -59,10 +56,13 @@ module Simp::Rake::Build
             ]
           }
 
+          rpm_dir = File.join(@build_dir,'SIMP','RPMS')
+          fail("Could not find directory '#{rpm_dir}'") unless File.directory?(rpm_dir)
+
           Dir.chdir(rpm_dir) do
             failures = []
             required_rpms.keys.each do |dir|
-              fail("Could not find directory '#{File.join(rpm_dir,dir)}'") unless File.directory?(dir)
+              fail("Could not find directory '#{File.join(rpm_dir, dir)}'") unless File.directory?(dir)
 
               Dir.chdir(dir) do
                 required_rpms[dir].each do |pkg|
@@ -85,18 +85,16 @@ module Simp::Rake::Build
           end
         end
 
+=begin
         desc <<-EOM
           Build the DVD tarball(s).
 
-            * :chroot - The mock chroot to use for pkg:build
             * :key - What key to use for signing the RPMs
             * :docs - Whether or not to build the documentation
-            * :snapshot_release - Append the timestamp to the SIMP tarball(s)
         EOM
-        task :build,[:chroot,:key,:docs,:snapshot_release] => ['pkg:build','pkg:checksig','tar:validate'] do |t,args|
+=end
+        task :build,[:key,:docs] => ['pkg:build','pkg:checksig','tar:validate'] do |t,args|
           args.with_defaults(:docs => 'true')
-
-          validate_in_mock_group?
 
           if $tarball_tgt
             target_dists = ['simp6']
@@ -161,7 +159,7 @@ module Simp::Rake::Build
                   raise(StandardError,"Error: Could not find simp-doc*.rpm in the build, something went very wrong")
                 end
 
-                Dir.mktmpdir { |dir|
+                Dir.mktmpdir do |dir|
                   Dir.chdir(dir) do
                     %x{rpm2cpio #{simp_doc_rpm} | cpio -u --quiet --warning none -ivd ./usr/share/doc/simp-*/pdf/SIMP*.pdf 2>&1 > /dev/null}
                     pdf_docs = Dir.glob("usr/share/doc/simp-*/pdf/*.pdf")
@@ -174,7 +172,7 @@ module Simp::Rake::Build
                       cp(pdf,base_dir)
                     end
                   end
-                }
+                end
               end
             end
           end

@@ -1,6 +1,6 @@
 Name:           testpackage
 Version:        1
-Release:        0
+Release:        0%{?dist}
 Summary:        dummy test package #2
 BuildArch:      noarch
 
