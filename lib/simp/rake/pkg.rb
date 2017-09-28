@@ -340,7 +340,7 @@ module Simp::Rake
                       rpm = "#{$1}-#{$2}"
                     end
 
-                    rpm
+                    rpm.strip
                   end
 
                   yum_install_cmd = %(yum -y install '#{rpm_build_deps.join("' '")}')

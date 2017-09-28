@@ -1,3 +1,9 @@
+### 5.0.1 / 2017-09-28
+* Removed rpmkeys and rpmspec from the required list of commands,
+  as they are not present in CentOS 6 and are automatically
+  installed when the required rpmbuild command is installed in
+  CentOS 7.
+
 ### 5.0.0 / 2017-09-12
 * Removed all 'mock' support
 * Bound the build to only the OS upon which you are building
