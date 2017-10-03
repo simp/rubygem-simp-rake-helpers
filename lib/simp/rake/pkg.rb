@@ -71,15 +71,6 @@ module Simp::Rake
         FileUtils.chmod(0640, @spec_file)
       end
 
-      # The following are required to build successful RPMs using the new
-      # LUA-based RPM template
-
-      @puppet_module_info_files = [
-        Dir.glob(%(#{@base_dir}/build/rpm_metadata/*)),
-        %(#{@base_dir}/CHANGELOG),
-        %(#{@base_dir}/metadata.json)
-      ].flatten
-
       ::CLEAN.include( @pkg_dir )
 
       yield self if block_given?
@@ -226,7 +217,15 @@ module Simp::Rake
           Dir.chdir(@pkg_dir) do
 
             # Copy in the materials required for the module builds
-            @puppet_module_info_files.each do |f|
+            # The following are required to build successful RPMs using
+            # the new LUA-based RPM template
+            puppet_module_info_files = [
+              Dir.glob(%(#{@base_dir}/build/rpm_metadata/*)),
+              %(#{@base_dir}/CHANGELOG),
+              %(#{@base_dir}/metadata.json)
+            ].flatten
+
+            puppet_module_info_files.each do |f|
               if File.exist?(f)
                 FileUtils.cp_r(f, @rpm_srcdir)
               end

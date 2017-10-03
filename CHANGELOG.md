@@ -1,3 +1,8 @@
+### 5.0.2 / 2017-10-03
+* Determine the build/rpm_metadata/* files when the pkg:rpm
+  rake task is called, not when the rake object is constructed.
+  This is required for simp-doc RPM building.
+
 ### 5.0.1 / 2017-09-28
 * Removed rpmkeys and rpmspec from the required list of commands,
   as they are not present in CentOS 6 and are automatically
