@@ -1,3 +1,8 @@
+### 5.1.0 / 2017-10-03
+* Fixed bug in `deps:record` that prevented recording to Puppetfile.[:method]
+* Added new `:reference` parameter to `deps:record` for identifying repos to
+  record
+
 ### 5.0.2 / 2017-10-03
 * Determine the build/rpm_metadata/* files when the pkg:rpm
   rake task is called, not when the rake object is constructed.

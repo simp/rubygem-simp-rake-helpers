@@ -319,13 +319,16 @@ module Simp::Rake::Build
         Records the current dependencies into Puppetfile.stable.
 
         Arguments:
-          * :source => The source Puppetfile to use (Default => 'tracking')
+          * :method    => Save to Puppetfile.[method] (Default => 'stable')
+          * :reference => Use Puppetfile.[reference] to reference which repos
+                          should be recorded (Default => 'tracking')
         EOM
-        task :record, [:method] do |t,args|
-          args.with_defaults(:source => 'tracking')
-          r10k_helper = R10KHelper.new("Puppetfile.#{args[:source]}")
+        task :record, [:method,:reference] do |t,args|
+          args.with_defaults(:method => 'stable')
+          args.with_defaults(:reference => 'tracking')
 
-          File.open('Puppetfile.stable','w'){|f| f.puts r10k_helper.puppetfile }
+          r10k_helper = R10KHelper.new("Puppetfile.#{args[:reference]}")
+          File.open("Puppetfile.#{args[:method]}",'w'){|f| f.puts r10k_helper.puppetfile }
         end
 
         desc <<-EOM
