@@ -54,6 +54,16 @@ module Simp::Rake
         'spec/fixtures/modules'
       ]
 
+      # This is only meant to be used to work around the case where particular
+      # packages need to ignore some set of artifacts that get updated out of
+      # band. This should not be set as a regular environment variable and
+      # should be fixed properly at some time in the future.
+      #
+      # Presently, this is used by simp-doc
+      if ENV['SIMP_INTERNAL_pkg_ignore']
+        @ignore_changes_list += ENV['SIMP_INTERNAL_pkg_ignore'].split(',')
+      end
+
       FileUtils.mkdir_p(@pkg_tmp_dir)
 
       local_spec = Dir.glob(File.join(@base_dir, 'build', '*.spec'))
