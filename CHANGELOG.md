@@ -1,3 +1,7 @@
+### 5.1.1 / 2017-10-04
+* Renamed 'RHEL' to 'RedHat' in the 'unpack' task for compatibility with the
+  rest of the new code base
+
 ### 5.1.0 / 2017-10-03
 * Fixed bug in `deps:record` that prevented recording to Puppetfile.[:method]
 * Added new `:reference` parameter to `deps:record` for identifying repos to
