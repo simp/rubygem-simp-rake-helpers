@@ -54,6 +54,16 @@ module Simp::Rake
         'spec/fixtures/modules'
       ]
 
+      # This is only meant to be used to work around the case where particular
+      # packages need to ignore some set of artifacts that get updated out of
+      # band. This should not be set as a regular environment variable and
+      # should be fixed properly at some time in the future.
+      #
+      # Presently, this is used by simp-doc
+      if ENV['SIMP_INTERNAL_pkg_ignore']
+        @ignore_changes_list += ENV['SIMP_INTERNAL_pkg_ignore'].split(',')
+      end
+
       FileUtils.mkdir_p(@pkg_tmp_dir)
 
       local_spec = Dir.glob(File.join(@base_dir, 'build', '*.spec'))
@@ -70,15 +80,6 @@ module Simp::Rake
 
         FileUtils.chmod(0640, @spec_file)
       end
-
-      # The following are required to build successful RPMs using the new
-      # LUA-based RPM template
-
-      @puppet_module_info_files = [
-        Dir.glob(%(#{@base_dir}/build/rpm_metadata/*)),
-        %(#{@base_dir}/CHANGELOG),
-        %(#{@base_dir}/metadata.json)
-      ].flatten
 
       ::CLEAN.include( @pkg_dir )
 
@@ -226,7 +227,15 @@ module Simp::Rake
           Dir.chdir(@pkg_dir) do
 
             # Copy in the materials required for the module builds
-            @puppet_module_info_files.each do |f|
+            # The following are required to build successful RPMs using
+            # the new LUA-based RPM template
+            puppet_module_info_files = [
+              Dir.glob(%(#{@base_dir}/build/rpm_metadata/*)),
+              %(#{@base_dir}/CHANGELOG),
+              %(#{@base_dir}/metadata.json)
+            ].flatten
+
+            puppet_module_info_files.each do |f|
               if File.exist?(f)
                 FileUtils.cp_r(f, @rpm_srcdir)
               end

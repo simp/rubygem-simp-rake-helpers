@@ -436,6 +436,13 @@ module Simp::Rake::Build
               - Set `SIMP_PKG_verbose=yes` to report file operations as they happen.
         EOM
         task :doc => [:prep] do |t,args|
+          # Need to make sure that the docs have the version updated
+          # appropriately prior to building
+
+          Dir.chdir(@build_dirs[:doc]) do
+            sh %{rake munge:prep}
+          end
+
           build(@build_dirs[:doc],t)
         end
 
