@@ -61,7 +61,7 @@ module Simp::Rake::Build
           # RHEL structure as provided from RHN:
           #   rhel-server-<version>-<arch>-<whatever>
           'rhel' => {
-            'baseos'  => 'RHEL',
+            'baseos'  => 'RedHat',
             'version' => version || pieces[2],
             'arch'    => pieces[3]
           },
