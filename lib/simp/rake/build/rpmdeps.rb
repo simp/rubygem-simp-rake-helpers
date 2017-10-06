@@ -60,7 +60,7 @@ module Simp::Rake::Build::RpmDeps
       if Gem::Version.new(module_version) >
         Gem::Version.new(version.split('-').first)
 
-        rpm_metadata_content << "Obsoletes: #{pkg} > #{version}"
+        rpm_metadata_content << "Obsoletes: #{pkg} >= #{version}"
       else
         puts "Ignoring 'obsoletes' for #{pkg}: module version" +
          " #{module_version} from metadata.json is not >" +
