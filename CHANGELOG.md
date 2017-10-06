@@ -1,3 +1,6 @@
+### 5.1.2 / 2017-10-06
+* Fixed 'Obsoletes' in the RPM spec files
+
 ### 5.1.1 / 2017-10-04
 * Renamed 'RHEL' to 'RedHat' in the 'unpack' task for compatibility with the
   rest of the new code base
