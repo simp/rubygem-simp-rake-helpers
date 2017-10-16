@@ -1,3 +1,7 @@
+### 5.1.3 / 2017-10-16
+* Ensure that the first package run uses the existing Bundle environment and
+  falls back to a clean Bundle environment on failure.
+
 ### 5.1.2 / 2017-10-06
 * Fixed 'Obsoletes' in the RPM spec files
 

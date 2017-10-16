@@ -924,10 +924,8 @@ protect=1
 
                   build_success = true
                   begin
-                    ::Bundler.with_clean_env do
-                      %x{#{cmd}}
-                      build_success = $?.success?
-                    end
+                    %x{#{cmd}}
+                    build_success = $?.success?
 
                     built_rpm = true
                   rescue
