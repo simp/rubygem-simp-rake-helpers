@@ -220,7 +220,7 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
         if tags.empty?
           puts "No tags exist from #{tags_source}"
         else
-          last_tag = (tags.sort { |a,b| Puppet::Util::Package::versioncmp(a,b) })[-1]
+          last_tag = (tags.sort { |a,b| Gem::Version.new(a) <=> Gem::Version.new(b) })[-1]
 
           # determine mission-impacting files that have changed
           files_changed = `git diff tags/#{last_tag} --name-only`.strip.split("\n")
@@ -246,10 +246,12 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
               end
             end
 
-            cmp_result = Puppet::Util::Package::versioncmp(module_version, last_tag)
-            if cmp_result < 0
+            curr_module_version = Gem::Version.new(module_version)
+            last_tag_version = Gem::Version.new(last_tag)
+
+            if curr_module_version < last_tag_version
               fail("ERROR: Version regression. '#{module_version}' < last tag '#{last_tag}'")
-            elsif cmp_result == 0
+            elsif curr_module_version == last_tag_version
               fail("ERROR: Version update beyond last tag '#{last_tag}' is required for changes to #{files_changed}")
             else
               puts "  New tag of version '#{module_version}' is required for changes to #{files_changed}"
