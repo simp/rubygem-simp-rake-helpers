@@ -1,5 +1,4 @@
 require 'securerandom'
-require 'puppet/util'
 
 module Simp
   # An Simp::RPM instance represents RPM metadata extracted from an

@@ -201,7 +201,6 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
     EOM
     task :compare_latest_tag, [:tags_source, :ignore_owner, :verbose] do |t,args|
       require 'json'
-      require 'puppet/util/package'
 
       tags_source = args[:tags_source].nil? ? 'origin' : args[:tags_source]
       ignore_owner = true if args[:ignore_owner].to_s == 'true'
