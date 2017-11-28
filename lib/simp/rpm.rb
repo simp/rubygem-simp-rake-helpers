@@ -1,5 +1,4 @@
 require 'securerandom'
-require 'puppet/util'
 
 module Simp
   # An Simp::RPM instance represents RPM metadata extracted from an
@@ -226,9 +225,8 @@ module Simp
       end
 
       begin
-        # Puppet::Util::Package::versioncmp can handle simp-doc-UNKNOWN-0.el7, whereas
-        # Gem::Version can't
-        return Puppet::Util::Package::versioncmp(full_version(package), other_full_version) > 0
+
+        return Gem::Version.new(full_version(package)) > Gem::Version.new(other_full_version)
 
       rescue ArgumentError, NoMethodError
         fail("Could not compare RPMs '#{rpm_name(package)}' and '#{other_rpm}'")

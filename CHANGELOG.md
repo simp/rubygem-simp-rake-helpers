@@ -1,3 +1,7 @@
+### 5.1.4 / 2017-11-27
+* Switch back to using Gem::Version.new instead of Puppet's vercmp since
+  Gem::Version matches the standard RPM version semantics and Puppet does not.
+
 ### 5.1.3 / 2017-10-16
 * Ensure that the first package run uses the existing Bundle environment and
   falls back to a clean Bundle environment on failure.
