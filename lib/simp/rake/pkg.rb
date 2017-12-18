@@ -6,6 +6,7 @@ require 'rake/clean'
 require 'rake/tasklib'
 require 'fileutils'
 require 'find'
+require 'simp/relchecks'
 require 'simp/rpm'
 require 'simp/rake/helpers/rpm_spec'
 
@@ -106,6 +107,8 @@ module Simp::Rake
       define_pkg_tar
       define_pkg_rpm
       define_pkg_check_version
+      define_pkg_compare_latest_tag
+      define_pkg_create_tag_changelog
       task :default => 'pkg:tar'
 
       Rake::Task['pkg:tar']
@@ -459,6 +462,118 @@ module Simp::Rake
           else
             puts "#{@pkg_name}: No metadata.json found"
           end
+        end
+      end
+    end
+
+    def define_pkg_compare_latest_tag
+      namespace :pkg do
+        desc <<-EOM
+        Compare to latest tag.
+          ARGS:
+            * :tags_source => Set to the remote from which the tags for this
+                              project can be fetched. Defaults to 'origin'.
+            * :verbose => Set to 'true' if you want to see detailed messages
+
+          NOTES:
+          Compares mission-impacting (significant) files with the latest
+          tag and identifies the relevant files that have changed.
+
+          Fails if
+          (1) There is any version validation or changelog parsing failure
+              that would prevent an annotated changelog tag from being
+              created. (See pkg::create_tag_changelog)
+          (2) A version bump is required but not recorded in both the
+              CHANGELOG and metadata.json files.
+          (3) The latest version is < latest tag.
+
+          Changes to the following files/directories are not considered
+          significant:
+          - Any hidden file/directory (entry that begins with a '.')
+          - Gemfile
+          - Gemfile.lock
+          - Rakefile
+          - spec directory
+          - doc directory
+        EOM
+        task :compare_latest_tag, [:tags_source, :verbose] do |t,args|
+          tags_source = args[:tags_source].nil? ? 'origin' : args[:tags_source]
+          if args[:verbose].to_s == 'true'
+            verbose = true
+          else
+            verbose = false
+          end
+          Simp::RelChecks::compare_latest_tag(@base_dir, tags_source, verbose)
+        end
+      end
+    end
+
+    def define_pkg_create_tag_changelog
+      namespace :pkg do
+        # :pkg:create_tag_changelog
+        # -----------------------------
+        desc <<-EOM
+        Generate an appropriate changelog for an annotated tag from a
+        component's CHANGELOG or RPM spec file.  
+
+        The changelog text will be for the latest version and contain
+        1 or more changelog entries for that version, in reverse
+        chronological order.
+
+        ARGS:
+          * verbose => Set to 'true' if you want to see
+            non-catestrophic warning messages.
+
+        NOTES:
+          * Changelog entries must follow the following rules:
+            - An entry must start with * and be terminated
+              by a blank line.
+            - The first line must be of the form
+              * Wed Jul 05 2017 Author Name <author@simp.com> - 1.2.3-4
+            - The date string must be RPM compatible.
+            - Dates must be in reverse chronological order, with the
+              newest dates occurring at the top of the changelog.
+            - Both an author name and email are required.
+            - The author email must be contained in < >.
+            - The version is required and must be of the form
+              <major>.<minor>.<patch>.
+            - The version may contain a release qualifier.
+            - When the release qualifier is present, it must appear
+              at the end of the version string and be separated from
+              the version by a '-'.
+
+          * This task will fail if any of the following occur:
+            - The metadata.json file for a Puppet module component
+              cannot be parsed.
+            - The CHANGELOG file for a Puppet module component does
+              not exist.
+            - The CHANGELOG entries for the latest version are
+              malformed.
+            - The RPM spec file or a non-Puppet module component does
+              not exist.
+            - More than 1 RPM spec file for a non-Puppet module
+              component exists.
+            - No valid changelog entries for the version specified in
+              the metadata.json/spec file are found.
+            - The latest changelog version is greater than the version
+              in the metadata.json or the RPM spec file.
+            - The RPM release specified in the spec file does not match
+              the release in a changelog entry for the version.
+            - Any changelog entry below the first entry has a version
+              greater than that of the first entry.
+            - The changelog entries for the latest version are out of
+              date order.
+            - The weekday for a changelog entry for the latest version
+              does not match the date specified.
+
+        EOM
+        task :create_tag_changelog, [:verbose] do |t,args|
+          if args[:verbose].to_s == 'true'
+            verbose = true
+          else
+            verbose = false
+          end
+          puts Simp::RelChecks::create_tag_changelog(@base_dir, verbose)
         end
       end
     end
