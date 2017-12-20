@@ -1,3 +1,8 @@
+### 5.1.5 / 2017-12-20
+* Fix broken acceptance tests 
+  - Remove logic to build SIMP 4 and SIMP 5 RPMs.
+  - Remove mock logic
+
 ### 5.1.4 / 2017-11-27
 * Switch back to using Gem::Version.new instead of Puppet's vercmp since
   Gem::Version matches the standard RPM version semantics and Puppet does not.
