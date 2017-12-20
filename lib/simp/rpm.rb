@@ -387,6 +387,8 @@ EOE
     end
 
     def self.create_rpm_build_metadata(project_dir, srpms=nil, rpms=nil)
+      require 'yaml' 
+
       last_build = {
         'git_hash' => %x(git rev-list --max-count=1 HEAD).chomp,
         'srpms'    => {},

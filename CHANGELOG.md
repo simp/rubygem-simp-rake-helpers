@@ -12,6 +12,9 @@
   - Now supports non-Puppet SIMP assets for which version and changelog
     information is specified in an RPM spec files.
   - Does the same validation as the new pkg:create_tag_changelog task.
+* Fix broken acceptance tests 
+  - Remove logic to build SIMP 4 and SIMP 5 RPMs.
+  - Remove mock logic
 
 ### 5.1.4 / 2017-11-27
 * Switch back to using Gem::Version.new instead of Puppet's vercmp since
