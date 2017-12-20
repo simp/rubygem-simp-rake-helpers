@@ -101,6 +101,11 @@ describe 'Simp::ComponentInfo changelog regex' do
       expect( line.match(Simp::ComponentInfo::CHANGELOG_ENTRY_REGEX) ).to be nil
     end
 
+    it 'does not match line missing version' do
+      line = '* Mon Nov 06 2017 Tom Smith <tom.smith@simp.com>'
+      expect( line.match(Simp::ComponentInfo::CHANGELOG_ENTRY_REGEX) ).to be nil
+    end
+
     it 'does not match line with a version less than 3 parts' do
       line = '* Mon Nov 01 20170 Tom Smith <tom.smith@simp.com> - 3.8'
       expect( line.match(Simp::ComponentInfo::CHANGELOG_ENTRY_REGEX) ).to be nil
@@ -110,5 +115,6 @@ describe 'Simp::ComponentInfo changelog regex' do
       line = '* Mon Nov 06 2017 Tom Smith <tom.smith@simp.com>  3.8.0.0'
       expect( line.match(Simp::ComponentInfo::CHANGELOG_ENTRY_REGEX) ).to be nil
     end
+
   end
 end

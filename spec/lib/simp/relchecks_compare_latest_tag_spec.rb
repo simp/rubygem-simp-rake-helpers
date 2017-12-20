@@ -44,7 +44,13 @@ describe 'Simp::RelChecks.compare_latest_tag' do
       Simp::RelChecks.expects(:`).with('git diff tags/1.0.0 --name-only').returns(
          "CHANGELOG\nmetadata.json\nmanifest/init.pp\n")
 
-      msg = "  New tag of version '1.1.0' is required for changes to [\"CHANGELOG\", \"metadata.json\", \"manifest/init.pp\"]\n"
+      msg = <<-EOM
+NOTICE: New tag of version '1.1.0' is required for 3 changed files:
+  * CHANGELOG
+  * metadata.json
+  * manifest/init.pp
+      EOM
+
       expect{ Simp::RelChecks.compare_latest_tag(component_dir) }.
         to output(msg).to_stdout
     end
@@ -68,7 +74,7 @@ describe 'Simp::RelChecks.compare_latest_tag' do
          "manifest/init.pp\n")
 
       expect{ Simp::RelChecks.compare_latest_tag(component_dir) }.
-        to raise_error(/ERROR: Version update beyond last tag '1.1.0' is required for changes to \[\"manifest\/init.pp\"\]/)
+        to raise_error(/ERROR: Version update beyond last tag '1.1.0' is required for 1 changed files:/)
     end
 
     # spot check just one of many failures handled by

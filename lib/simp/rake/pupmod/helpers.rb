@@ -251,9 +251,9 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
             if curr_module_version < last_tag_version
               fail("ERROR: Version regression. '#{module_version}' < last tag '#{last_tag}'")
             elsif curr_module_version == last_tag_version
-              fail("ERROR: Version update beyond last tag '#{last_tag}' is required for changes to #{files_changed}")
+              fail("ERROR: Version update beyond last tag '#{last_tag}' is required for #{files_changed.count} changed files:\n  * #{files_changed.join("\n  * ")}")
             else
-              puts "  New tag of version '#{module_version}' is required for changes to #{files_changed}"
+              puts "NOTICE: New tag of version '#{module_version}' is required for #{files_changed.count} changed files:\n  * #{files_changed.join("\n  * ")}"
             end
           end
         end

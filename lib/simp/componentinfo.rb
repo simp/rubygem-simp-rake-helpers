@@ -7,6 +7,9 @@ module Simp; end
 class Simp::ComponentInfo
   attr_accessor :component_dir, :type, :version, :release, :changelog
 
+  # A helpful method for ensuring that the errors can be easily seen
+  ERR_MARKER = "WARNING: !!! "
+
   # See https://fedoraproject.org/wiki/Packaging:Guidelines?rd=Packaging/Guidelines#Changelogs
   # When matched against this regex
   #   match 1 = date of the form {weekday} {month} {day} {year}
@@ -43,7 +46,7 @@ class Simp::ComponentInfo
   #         author info =  {author name} <{author email}>
   #      - Weekday must be correct for the specified date
   #      - Entries must be separated by a blank line
-  #      
+  #
   #      NOTE: This currently does not support the valid RPM `%changelog`
   #       format that places the version number on the next line:
   #
@@ -179,7 +182,7 @@ class Simp::ComponentInfo
         prev_entry_date = current_entry_date if prev_entry_date.nil?
         if current_entry_date > prev_entry_date
           fail("ERROR:  Changelog entries are not properly date ordered")
-        end 
+        end
 
         if valid_date_weekday?(match[1], verbose)
           entry = {
@@ -213,7 +216,7 @@ class Simp::ComponentInfo
 
     valid = true
     if actual_weekday != expected_weekday
-      err_msg = "'#{actual_weekday}' should be '#{expected_weekday}' for" +
+      err_msg = ERR_MARKER + "'#{actual_weekday}' should be '#{expected_weekday}' for" +
         " changelog timestamp '#{changelog_date}'"
       warn err_msg if verbose
       valid = false

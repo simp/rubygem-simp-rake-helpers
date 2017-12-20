@@ -28,7 +28,7 @@ class Simp::RelChecks
   #
   # +component_dir+:: The root directory of the component project.
   # +tags_source+::   The remote from which the tags for this project
-  #                   can be fetched. 
+  #                   can be fetched.
   # +verbose+::       Set to 'true' if you want to see detailed messages
   def self.compare_latest_tag(component_dir, tags_source = 'origin', verbose = false)
     info, changelogs = load_and_validate_changelog(component_dir, verbose)
@@ -59,9 +59,9 @@ class Simp::RelChecks
           if curr_version < last_tag_version
             fail("ERROR: Version regression. '#{info.version}' < last tag '#{last_tag}'")
           elsif curr_version == last_tag_version
-            fail("ERROR: Version update beyond last tag '#{last_tag}' is required for changes to #{files_changed}")
+            fail("ERROR: Version update beyond last tag '#{last_tag}' is required for #{files_changed.count} changed files:\n  * #{files_changed.join("\n  * ")}")
           else
-            puts "  New tag of version '#{info.version}' is required for changes to #{files_changed}"
+            puts "NOTICE: New tag of version '#{info.version}' is required for #{files_changed.count} changed files:\n  * #{files_changed.join("\n  * ")}"
           end
         end
       end
@@ -100,7 +100,7 @@ class Simp::RelChecks
   #   failures.
   def self.create_tag_changelog(component_dir, verbose = false)
     info, changelogs = load_and_validate_changelog(component_dir,verbose)
-    
+
     result = "\nRelease of #{info.version}\n"
     changelogs.each do |entry|
       result += "\n#{entry[:content].first}\n"
@@ -162,13 +162,11 @@ class Simp::RelChecks
   def self.load_and_validate_changelog(component_dir, verbose)
     # only get valid changelog entries for the latest version
     # (up to the first malformed entry)
-    info = Simp::ComponentInfo.new(component_dir, true, verbose)
+    info = Simp::ComponentInfo.new(component_dir, true)
 
     changelogs = extract_version_changelog(info.changelog, info.version,
         info.release, verbose)
 
     [info, changelogs]
   end
-
-
 end
