@@ -1,0 +1,7 @@
+* Tue Jun 20 2017 Mary Jones <mary.jones@simp.com> - 3.8.0
+- Added a define, mod::instance
+  - Creates standalone connections with their own configurations
+    and services
+  - Adds systemd support
+- Updated puppet requirement in metadata.json
+

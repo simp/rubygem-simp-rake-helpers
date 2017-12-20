@@ -1,0 +1,44 @@
+{
+  "name": "simp-module",
+  "version": "3.8.0",
+  "author": "SIMP Team",
+  "summary": "A collection of common SIMP functions, facts, and types",
+  "license": "Apache-2.0",
+  "source": "https://github.com/simp/pupmod-simp-simplib",
+  "project_page": "https://github.com/simp/pupmod-simp-simplib",
+  "issues_url": "https://simp-project.atlassian.net",
+  "tags": [
+    "simp",
+    "functions",
+    "facts",
+    "types",
+    "alias",
+    "library"
+  ],
+  "dependencies": [
+
+  ],
+  "operatingsystem_support": [
+    {
+      "operatingsystem": "RedHat",
+      "operatingsystemrelease": [
+        "6",
+        "7"
+      ]
+    },
+    {
+      "operatingsystem": "CentOS",
+      "operatingsystemrelease": [
+        "6",
+        "7"
+      ]
+    }
+  ],
+  "requirements": [
+    {
+      "name": "puppet",
+      "version_requirement": ">= 4.7.0 < 6.0.0"
+    }
+  ],
+  "package_release_version": "0"
+}

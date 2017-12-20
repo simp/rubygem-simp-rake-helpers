@@ -1,0 +1,8 @@
+* Wed Nov 15 2017 Mary Jones <mary.jones@simp.com> - 3.8.0-0
+- Disable deprecation warnings by default
+
+* Mon Nov 6 2017 Tom Smith <tom.smith@simp.com> - 3.8.0-0
+- This has a one digit day when two digits are required (oops).
+
+* Thu Oct 26 2017 Mary Jones <mary.jones@simp.com> - 3.8.0-0
+- Add Mod::Macaddress data type

@@ -1,0 +1,14 @@
+* Wed Nov 15 2017 Mary Jones <mary.jones@simp.com> - 3.7.0-0
+- Disable deprecation warnings by default
+
+* Mon Nov 06 2017 Tom Smith <tom.smith@simp.com> - 3.8.0-0
+- Fixes split failure when "findmnt" does not exist on Linux
+
+* Thu Oct 26 2017 Mary Jones <mary.jones@simp.com> - 3.7.0-0
+- Add Mod::Macaddress data type
+
+* Tue Sep 26 2017 Joe Brown <joe.brown@simp.com> - 3.6.0-0
+- Convert all 'sysctl' 'kernel.shm*' entries to Strings
+  - shmall and shmmax were causing Facter and newer versions of Puppet to crash
+  - See FACT-1732 for additional information
+- Add Puppet function `mod::assert_metadata_os()`

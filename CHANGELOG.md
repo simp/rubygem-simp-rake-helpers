@@ -1,4 +1,17 @@
-### 5.1.5 / 2017-12-20
+### 5.2.0 / 2017-12-20
+* Create pkg:create_tag_changelog, which is a more thorough version
+  of Simp::Rake::Pupmod::Helpers changelog_annotation task.
+  - Now supports non-Puppet SIMP assets for which version and changelog
+    information is specified in an RPM spec files.
+  - Provides more extensive validation of date strings and changelog
+    entry ordering.
+  - Stops processing at the first invalid changelog entry, to minimize
+    non-catestrophic errors from old changelog entries.
+* Create pkg:compare_latest_tag, which is a more general replacement
+  for the Simp::Rake::Pupmod::Helpers compare_latest_tag task.
+  - Now supports non-Puppet SIMP assets for which version and changelog
+    information is specified in an RPM spec files.
+  - Does the same validation as the new pkg:create_tag_changelog task.
 * Fix broken acceptance tests 
   - Remove logic to build SIMP 4 and SIMP 5 RPMs.
   - Remove mock logic
