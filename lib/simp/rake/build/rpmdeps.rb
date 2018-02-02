@@ -120,6 +120,29 @@ module Simp::Rake::Build::RpmDeps
   end
 
   # Generate 'Requires' lines from each dependency specified in the
+  # ext_deps_list array
+  #
+  # returns array of strings, each of which is a 'Requires' line
+  # for use in an RPM spec file
+  #
+  # +ext_deps_list+:: Array of dependency Hashes.  The key of each
+  #    dependency Hash the name of the dependency package and its value
+  #    is a Hash containing the version info.  For example,
+  #   [ 'package1' => { :min => '1.0.0' },
+  #     'package2' => { :min => '3.1-1', :max => '4.0' } ]
+  def self.generate_external_rpm_requires(ext_deps_list)
+    requires = []
+
+    ext_deps_list.each do |pkg_name, options|
+      requires << "Requires: #{pkg_name} >= #{options[:min]}"
+      if options[:max]
+        requires << "Requires: #{pkg_name} < #{options[:max]}"
+      end
+    end
+    requires
+  end
+
+  # Generate 'Requires' lines from each dependency specified in the
   # module_metadata hash
   #
   # returns array of strings, each of which is a 'Requires' line for
@@ -174,6 +197,8 @@ module Simp::Rake::Build::RpmDeps
   # * 'Requires' lines for any requires specified in the
   #   module_rpm_meta hash, where the versions for those
   #   dependencies are pulled from module_metadata.
+  # * 'Requires' line(s) for any external dependencies specified
+  #   in the module_rpm_meta hash.
   #
   # Otherwise, the generated 'requires' file will contain
   # "Requires" lines for each dependency specified module_metadata.
@@ -198,6 +223,10 @@ module Simp::Rake::Build::RpmDeps
       rpm_metadata_content += generate_custom_rpm_requires(module_rpm_meta[:requires], module_metadata)
     else
       rpm_metadata_content += generate_module_rpm_requires(module_metadata)
+    end
+
+    if module_rpm_meta and module_rpm_meta[:external_dependencies]
+      rpm_metadata_content += generate_external_rpm_requires(module_rpm_meta[:external_dependencies])
     end
 
     rpm_metadata_file = File.join(dir, 'build', 'rpm_metadata', 'requires')

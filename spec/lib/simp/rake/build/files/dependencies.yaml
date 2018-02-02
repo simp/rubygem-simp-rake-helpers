@@ -22,6 +22,12 @@
     - 'pupmod-ceritsc-yum'
     - 'pupmod-richardc-datacat'
   :release: '2017.0'
+  :external_dependencies:
+    'rubygem-puppetserver-toml':
+      :min: '0.1.2'
+    'rubygem-puppetserver-blackslate':
+      :min: '2.1.2.4-1'
+      :max: '2.2.0.0'
 'release_only_mod':
   :release: '2017.2'
 'obsoletes_too_new_mod':
