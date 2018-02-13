@@ -1,5 +1,6 @@
 require 'simp/rake/build/rpmdeps'
 require 'spec_helper'
+require 'tmpdir'
 require 'yaml'
 
 describe 'Simp::Rake::Build::RpmDeps#get_version_requires' do
@@ -81,7 +82,7 @@ EOM
     end
   end
 
-  context 'managed component with a subset of metadata.json dependencies and a release' do
+  context 'managed component with a subset of metadata.json deps, external deps and a release' do
     it 'should generate both a requires file and a release file from dependencies.yaml' do
       mod_dir = File.join(@tmp_dir, 'files', 'managed_mod')
       Simp::Rake::Build::RpmDeps::generate_rpm_meta_files(mod_dir, rpm_metadata)
@@ -97,6 +98,9 @@ Requires: pupmod-ceritsc-yum >= 0.9.6
 Requires: pupmod-ceritsc-yum < 1.0.0
 Requires: pupmod-richardc-datacat >= 0.6.2
 Requires: pupmod-richardc-datacat < 1.0.0
+Requires: rubygem-puppetserver-toml >= 0.1.2
+Requires: rubygem-puppetserver-blackslate >= 2.1.2.4-1
+Requires: rubygem-puppetserver-blackslate < 2.2.0.0
 EOM
       actual = IO.read(requires_file)
       expect(actual).to eq expected

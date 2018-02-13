@@ -1,3 +1,7 @@
+### 5.3.0 / 2018-02-02
+* Add ability to specify external, non-module, RPM dependencies for
+  a checked-out repo from `simp-core/build/rpm/dependencies.yaml`
+
 ### 5.2.0 / 2017-12-20
 * Create pkg:create_tag_changelog, which is a more thorough version
   of Simp::Rake::Pupmod::Helpers changelog_annotation task.
