@@ -54,6 +54,7 @@ module Simp::Rake
         'dist/rpmbuild',
         'spec/fixtures/modules'
       ]
+      @verbose = ENV.fetch('SIMP_PKG_verbose','no') == 'yes'
 
       # This is only meant to be used to work around the case where particular
       # packages need to ignore some set of artifacts that get updated out of
@@ -226,6 +227,7 @@ module Simp::Rake
             %(-D '_srcrpmdir #{@pkg_dir}'),
             %(-D '_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm')
           ]
+          rpm_opts << '-v' if @verbose
 
           Dir.chdir(@pkg_dir) do
 
@@ -263,7 +265,9 @@ module Simp::Rake
             srpms = [@full_pkg_name + '.src.rpm']
             if require_rebuild?(srpms.first, @tar_dest)
               # Need to build the SRPM so that we can get the build dependencies
-              %x(rpmbuild #{rpm_opts.join(' ')} -bs #{@spec_file} > logs/build.out 2> logs/build.err)
+              cmd = %(rpmbuild #{rpm_opts.join(' ')} -bs #{@spec_file} > logs/build.out 2> logs/build.err)
+              puts "==== SRPM BUILD ====: #{cmd}" if @verbose
+              %x(#{cmd})
 
               srpms = File.read('logs/build.out').scan(%r(Wrote:\s+(.*\.rpm))).flatten
 
@@ -327,7 +331,9 @@ module Simp::Rake
                 rpms = expected_rpms
               else
                 # Try a build
-                %x(rpmbuild #{rpm_opts.join(' ')} --rebuild #{srpms.first} > logs/build.out 2> logs/build.err)
+                cmd = %(rpmbuild #{rpm_opts.join(' ')} --rebuild #{srpms.first} > logs/build.out 2> logs/build.err)
+                puts "======== #{cmd}" if @verbose
+                %x(#{cmd})
 
                 # If the build failed, it was probably due to missing dependencies
                 unless $?.success?
@@ -373,7 +379,9 @@ module Simp::Rake
                 # Try it again!
                 #
                 # If this doesn't work, something we can't fix automatically is wrong
-                %x(rpmbuild #{rpm_opts.join(' ')} --rebuild #{srpms.first} > logs/build.out 2> logs/build.err)
+                cmd = %(rpmbuild #{rpm_opts.join(' ')} --rebuild #{srpms.first} > logs/build.out 2> logs/build.err)
+                puts "======== #{cmd}" if @verbose
+                %x(#{cmd})
 
                 rpms = File.read('logs/build.out').scan(%r(Wrote:\s+(.*\.rpm))).flatten - srpms
 
@@ -514,7 +522,7 @@ module Simp::Rake
         # -----------------------------
         desc <<-EOM
         Generate an appropriate changelog for an annotated tag from a
-        component's CHANGELOG or RPM spec file.  
+        component's CHANGELOG or RPM spec file.
 
         The changelog text will be for the latest version and contain
         1 or more changelog entries for that version, in reverse
