@@ -4,7 +4,7 @@ cp -a /host_files /home/build_user/; chown -R build_user:build_user /home/build_
 
 export TERM=xterm
 export TOPWD=/home/build_user/host_files
-export TWD=/home/build_user/host_files/spec/acceptance/files/testpackage
+export TWD=${1:-/home/build_user/host_files/spec/acceptance/files/testpackage}
 export TWDSPEC="$TWD/dist/tmp/testpackage.spec"
 alias  twd="cd $TWD"
 rug(){

@@ -27,12 +27,17 @@
 --   * 'CHANGELOG'                      <- optional RPM-formatted CHANGELOG to
 --                                         use in lieu of the minimal changelog
 --                                         entry auto-generated in this file.
---   * 'build/rpm_metadata/scriptlets/' <- optional directory to place files to
+--   * 'build/rpm_metadata/custom/' <- optional directory to place files to
 --                                         add custom scriptlets and triggers.
 --
 -- If this is not found in 'pup_module_info_dir', we will look in '_sourcedir'
 -- for the files, and fall back to the current directory
 --
+
+lua_debug = ((rpm.expand('%{lua_debug}') or '%{lua_debug}') ~= '%{lua_debug}')
+function lua_stderr( msg )
+  if lua_debug then io.stderr:write(msg) end
+end
 
 src_dir = rpm.expand('%{pup_module_info_dir}')
 
@@ -43,20 +48,24 @@ if string.match(src_dir, '^%%') or (posix.stat(src_dir, 'type') ~= 'directory') 
   if (posix.stat((src_dir .. "/metadata.json"), 'type') ~= 'regular') then
     src_dir = posix.getcwd()
   end
-  io.stderr:write("  #stderr# LUA: WARNING: pup_module_info_dir ("..(src_dir or "NIL")..") could not be used!\n")
-  io.stderr:write("  #stderr# LUA:          falling back to src_dir = _sourcedir\n")
+  lua_stderr("  #stderr# LUA: WARNING: pup_module_info_dir ("..(src_dir or "NIL")..") could not be used!\n")
+  lua_stderr("  #stderr# LUA:          falling back to src_dir = _sourcedir\n")
 
   -- FIXME: rpmlint considers the use of _sourcedir to be an Error:
   src_dir = rpm.expand('%{_sourcedir}')
 
   if (posix.stat((src_dir .. "/metadata.json"), 'type') ~= 'regular') then
-    io.stderr:write("  #stderr# LUA: WARNING: couldn't find metadata.json in '"..(src_dir or "NIL").."'!\n")
-    io.stderr:write("  #stderr# LUA:          falling back to src_dir = posix.getcwd() ("..posix.getcwd()..")\n")
+    lua_stderr("  #stderr# LUA: WARNING: couldn't find metadata.json in '"..(src_dir or "NIL").."'!\n")
+    lua_stderr("  #stderr# LUA:          falling back to src_dir = posix.getcwd() ("..posix.getcwd()..")\n")
 
     src_dir = posix.getcwd()
   end
 
 end
+
+custom_content_dir = src_dir .. "/build/rpm_metadata/custom/" -- location (relative to
+custom_content_table = {}                  -- text to add to the spec file
+defined_scriptlets_table = {}              -- list of scriptlets seen so far
 
 -- These UNKNOWN entries should break the build if something bad happens
 
@@ -90,7 +99,6 @@ end
 -- This starts as an empty string so that we can build it later
 module_requires = ''
 
-custom_content_lines = {}
 }
 
 %{lua:
@@ -327,115 +335,122 @@ rm -rf %{buildroot}/%{prefix}/%{module_name}/log
 mkdir -p %{buildroot}/%{prefix}
 
 %{lua:
+
+-- ----------------------------------------------------------------
+-- function: define_custom_content
+--
+-- arguments:
+--   content:              content to insert
+--   custom_content_table: collection of custom content to insert
+-- ----------
+function define_custom_content(content, custom_content_table)
+-- TODO: check for duplcate scriptlets!
+  table.insert( custom_content_table, content )
+end
+
 -- ----------------------------------------------------------------
 -- function: define_scriptlet
 --
 -- arguments:
---
 --   scriptlet_name:    name of scriptlet or trigger section
---                      (e.g., 'pre', 'triggerin -- foo')
+--                      (e.g., '%pre', '%triggerin -- foo')
 --   scriptlet_content: normal content of scriptlet
--- ----------------------------------------------------------------
-function define_scriptlet (scriptlet_name, scriptlet_content, defined_scriptlets)
+-- ----------
+function define_scriptlet (scriptlet_name, scriptlet_content, defined_scriptlets_table, custom_content_table)
   local scriptlet_content = scriptlet_content or ''
-  local scriptlet_pattern = "%f[^\n%z]%%" .. scriptlet_name .. "%f[^%w]"
+  local scriptlet_pattern = "%f[^\n%z]" .. scriptlet_name .. "%f[^%w]"
 
-  if ( not string.match(scriptlet_name, '^%l') ) then
-    io.stderr:write("  #stderr# LUA: WARNING: invalid scriptlet name '"..scriptlet_name.."'\n")
+  if ( not string.match(scriptlet_name, '^%%%l') ) then
+    lua_stderr("  #stderr# LUA: WARNING: invalid scriptlet name '"..scriptlet_name.."'\n")
     do return end
   end
-  if defined_scriptlets then
-    for i,n in ipairs(defined_scriptlets) do
+  if defined_scriptlets_table then
+    for i,n in ipairs(defined_scriptlets_table) do
       if (n == scriptlet_name) then
-        io.stderr:write("  #stderr# LUA: WARNING: skipped duplicate scriptlet '"..scriptlet_name.."'\n")
+        lua_stderr("  #stderr# LUA: WARNING: skipping duplicate scriptlet '"..scriptlet_name.."'\n")
         do return end
       end
     end
   end
 
-  scriptlet_content = scriptlet_content:gsub('%%{scriptlet_name}',scriptlet_name)
-  scriptlet_content = rpm.expand(scriptlet_content)
+  local expanded_content = rpm.expand(scriptlet_content) .. "\n\n"
 
   if not scriptlet_content:match(scriptlet_pattern) then
-    table.insert( custom_content_lines, "%" .. scriptlet_name:match "^%s*(.-)%s*$" )
+    expanded_content = scriptlet_name:match "^%s*(.-)%s*$" .. "\n" .. scriptlet_content
   end
-  -- print the content into the spec
-  table.insert( custom_content_lines, scriptlet_content.. "\n\n")
+  define_custom_content(expanded_content, custom_content_table)
 
-
-  -- add scriptlet name to things we have already defined
-  table.insert(defined_scriptlets,scriptlet_name)
+  -- add name to list of scriplets (also triggers) we have seen
+  table.insert(defined_scriptlets_table,scriptlet_name)
 end
 
-------------------------------------------------------------------------------
-------------------------------------------------------------------------------
--------------------- TODO:                                                  --
----------------------   custom/ directory instead of scriptlets             --
----------------------   scan for known scriptlets in order to override them --
-------------------------------------------------------------------------------
-------------------------------------------------------------------------------
 
-default_scriptlet_content = "/usr/local/sbin/simp_rpm_helper --rpm_dir=%{prefix}/%{module_name} --rpm_section='%{scriptlet_name}' --rpm_status=$1\n\n"
+lua_stderr("   #stderr# LUA _specdir = '"..rpm.expand('%{_specdir}').."'\n")
+lua_stderr("   #stderr# LUA _buildrootdir = '"..rpm.expand('%{_buildrootdir}').."'\n")
+lua_stderr("   #stderr# LUA buildroot = '"..rpm.expand('%{buildroot}').."'\n")
+lua_stderr("   #stderr# LUA RPM_BUILD_ROOT = '"..rpm.expand('%{RPM_BUILD_ROOT}').."'\n")
+lua_stderr("   #stderr# LUA custom_content_dir = '"..custom_content_dir.."'\n# ---\n")
 
-scriptlets_dir = src_dir .. "/scriptlets/"
-
-io.stderr:write("   #stderr# LUA _specdir = '"..rpm.expand('%{_specdir}').."'\n")
-io.stderr:write("   #stderr# LUA _buildrootdir = '"..rpm.expand('%{_buildrootdir}').."'\n")
-io.stderr:write("   #stderr# LUA buildroot = '"..rpm.expand('%{buildroot}').."'\n")
-io.stderr:write("   #stderr# LUA RPM_BUILD_ROOT = '"..rpm.expand('%{RPM_BUILD_ROOT}').."'\n")
-io.stderr:write("   #stderr# LUA scriptlets_dir = '"..scriptlets_dir.."'\n# ---\n")
-
-defined_scriptlets = {}
-if (posix.stat(scriptlets_dir, 'type') == 'directory') then
-  for i,p in pairs(posix.dir(scriptlets_dir)) do
-    local scriptlet_path = scriptlets_dir .. p
+if (posix.stat(custom_content_dir, 'type') == 'directory') then
+  for i,p in pairs(posix.dir(custom_content_dir)) do
+    local scriptlet_path = custom_content_dir .. p
     if (posix.stat(scriptlet_path, 'type') == 'regular') then
       local scriptlet_file = io.open(scriptlet_path)
       if scriptlet_file then
         local scriptlet_content = scriptlet_file:read("*all")
-        define_scriptlet(p,scriptlet_content, defined_scriptlets)
+        define_scriptlet(p,scriptlet_content, defined_scriptlets_table)
       else
-        io.stderr:write("   #stderr# LUA: WARNING: could not read "..scriptlet_path.."\n")
+        lua_stderr("   #stderr# LUA: WARNING: could not read "..scriptlet_path.."\n")
       end
     end
   end
 else
-  io.stderr:write("   #stderr# LUA: WARNING: not found: " .. scriptlets_dir .. "\n")
+  lua_stderr("   #stderr# LUA: WARNING: not found: " .. custom_content_dir .. "\n")
 end
 
+
 -- These are default scriptlets for SIMP 6.1.0
-define_scriptlet('pre',
-"# (default scriptlet for SIMP 6.x)\n" ..
-"# when $1 = 1, this is an install\n" ..
-"# when $1 = 2, this is an upgrade\n" ..
-default_scriptlet_content,
-defined_scriptlets )
+default_scriptlet_content = rpm.expand("/usr/local/sbin/simp_rpm_helper --rpm_dir=%{prefix}/%{module_name} --rpm_section='SECTION' --rpm_status=$1\n\n")
 
-define_scriptlet('post',
-"# (default scriptlet for SIMP 6.x)\n" ..
-"# when $1 = 1, this is an install\n" ..
-"# when $1 = 2, this is an upgrade\n" ..
-default_scriptlet_content,
-defined_scriptlets )
+define_scriptlet('%pre', [[
+# (default scriptlet for SIMP 6.x)
+# when $1 = 1, this is an install
+# when $1 = 2, this is an upgrade
+]] .. default_scriptlet_content:gsub('SECTION','pre'),
+  defined_scriptlets_table,
+  custom_content_table
+)
 
-define_scriptlet('preun',
-"# (default scriptlet for SIMP 6.x)\n" ..
-"# when $1 = 1, this is an install\n" ..
-"# when $1 = 0, this is an upgrade\n" ..
-default_scriptlet_content,
-defined_scriptlets )
+define_scriptlet('%post', [[
+# (default scriptlet for SIMP 6.x)
+# when $1 = 1, this is an install
+# when $1 = 2, this is an upgrade
+]] ..  default_scriptlet_content:gsub('SECTION','post'),
+defined_scriptlets_table,
+custom_content_table)
 
-define_scriptlet('postun',
-"# when $1 = 1, this is an install\n" ..
-"# when $1 = 0, this is an upgrade\n" ..
-default_scriptlet_content,
-defined_scriptlets )
+define_scriptlet('%preun', [[
+# (default scriptlet for SIMP 6.x)
+# when $1 = 1, this is an install
+# when $1 = 0, this is an upgrade
+]] ..  default_scriptlet_content:gsub('SECTION','preun'),
+defined_scriptlets_table,
+custom_content_table)
 
-}
+define_scriptlet('%postun', [[
+# (default scriptlet for SIMP 6.x)
+# when $1 = 1, this is an install
+# when $1 = 0, this is an upgrade
+]] ..  default_scriptlet_content:gsub('SECTION','postun'),
+defined_scriptlets_table,
+custom_content_table)
 
-%{lua:
-  s = table.concat(custom_content_lines, "\n") .. "\n"
-  print(s)
+
+-- insert custom content (e.g., rpm_metadata/custom/*, scriptlets)
+s = table.concat(custom_content_table, "\n") .. "\n"
+print(s)
+
+lua_stderr("  #stderr# LUA: WARNING: custom_content_table:\n----------------\n"..(s or "NIL").."\n-------------------------\n")
 }
 
 
