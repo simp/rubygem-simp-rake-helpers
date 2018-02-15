@@ -112,16 +112,12 @@ describe 'rake pkg:rpm' do
         context "rpm building #{package}" do
           let!(:testpackage_dir) { "/home/build_user/host_files/spec/acceptance/files/#{package}" }
 
-          context 'prep' do
-            it 'should have a local copy of the test directory' do
-              on host, "cp -a /host_files /home/build_user/; chown -R build_user:build_user /home/build_user/host_files"
-            end
+          before :all do
+            on host, "cp -a /host_files /home/build_user/; chown -R build_user:build_user /home/build_user/host_files"
 
-            it 'should set up the Ruby gems' do
-              # all our test packages use the same set of ruby gems, so only bundle
-              # update once to save time
-              on host, %(#{run_cmd} "cd #{testpackage_dir}; rvm use default; bundle update")
-            end
+            # all our test packages use the same set of ruby gems, so only bundle
+            # update once to save time
+            on host, %(#{run_cmd} "cd #{testpackage_dir}; rvm use default; bundle update")
 
           end
 
