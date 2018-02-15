@@ -54,8 +54,7 @@ Summary:        Lorem ipsum
 
 License:        Apache 2.0
 URL:            http://foo.bar
-Source0:        foo
-Source1:        bar
+Source0:        x-0.0.1.tar
 
 #BuildRequires:
 #Requires:
@@ -88,19 +87,43 @@ else
   print "WARNING WARNING WARNING: `things` was nil or empty!\n"
 end
 print('# ~~~~~~~~~~~~~~~~~~~~~~~\n')
+
+
+
+if rpm.expand('%{DEBUG_LUA}') then
+  io.stderr:write("   #stderr# LUA _specdir = '"..rpm.expand('%{_specdir}').."'\n")
+  io.stderr:write("   #stderr# LUA _buildrootdir = '"..rpm.expand('%{_buildrootdir}').."'\n")
+  io.stderr:write("   #stderr# LUA buildroot = '"..rpm.expand('%{buildroot}').."'\n")
+  io.stderr:write("   #stderr# LUA RPM_BUILD_ROOT = '"..rpm.expand('%{RPM_BUILD_ROOT}').."'\n")
+  io.stderr:write("   #stderr# LUA scriptlets_dir = '"..scriptlets_dir.."'\n# ---\n")
+end
+
+defined_scriptlets = {}
+if (posix.stat(scriptlets_dir, 'type') == 'directory') then
+  for i,p in pairs(posix.dir(scriptlets_dir)) do
+    local scriptlet_path = scriptlets_dir .. p
+    if (posix.stat(scriptlet_path, 'type') == 'regular') then
+      local scriptlet_file = io.open(scriptlet_path)
+      if scriptlet_file then
+        local scriptlet_content = scriptlet_file:read("*all")
+        define_scriptlet(p,scriptlet_content, defined_scriptlets)
+      else
+        io.stderr:write("###LUA: WARNING: could not read "..scriptlet_path.."\n")
+     --   print("# WARNING: could not read "..scriptlet_path.."\n")
+      end
+    end
+  end
+else
+   io.stderr:write("###LUA: not found: " .. scriptlets_dir .. "\n")
+end
 }
 %prep
 %setup -q
 
 
 %build
-%configure
-make %{?_smp_mflags}
 
 
-%install
-rm -rf %{buildroot}
-make install DESTDIR=%{buildroot}
 
 
 %clean

@@ -54,7 +54,7 @@ module Simp::Rake
         'dist/rpmbuild',
         'spec/fixtures/modules'
       ]
-      @verbose = ENV.fetch('SIMP_PKG_verbose','no') == 'yes'
+      @verbose = ENV.fetch('SIMP_RAKE_PKG_verbose','no') == 'yes'
 
       # This is only meant to be used to work around the case where particular
       # packages need to ignore some set of artifacts that get updated out of

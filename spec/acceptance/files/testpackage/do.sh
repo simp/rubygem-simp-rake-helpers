@@ -1,4 +1,3 @@
-
 # mimic the beaker setup:
 rm -rf /home/build_user/host_files
 cp -a /host_files /home/build_user/; chown -R build_user:build_user /home/build_user/host_files

@@ -34,15 +34,28 @@
 -- for the files, and fall back to the current directory
 --
 
--- -- -- io.stderr:write( 'XXXXXXXXXXXXX' )
 src_dir = rpm.expand('%{pup_module_info_dir}')
 
 if string.match(src_dir, '^%%') or (posix.stat(src_dir, 'type') ~= 'directory') then
+  -- NOTE: rpmlint considers this an E:
   src_dir = rpm.expand('%{_sourcedir}')
 
   if (posix.stat((src_dir .. "/metadata.json"), 'type') ~= 'regular') then
     src_dir = posix.getcwd()
   end
+  io.stderr:write("  #stderr# LUA: WARNING: pup_module_info_dir ("..(src_dir or "NIL")..") could not be used!\n")
+  io.stderr:write("  #stderr# LUA:          falling back to src_dir = _sourcedir\n")
+
+  -- FIXME: rpmlint considers the use of _sourcedir to be an Error:
+  src_dir = rpm.expand('%{_sourcedir}')
+
+  if (posix.stat((src_dir .. "/metadata.json"), 'type') ~= 'regular') then
+    io.stderr:write("  #stderr# LUA: WARNING: couldn't find metadata.json in '"..(src_dir or "NIL").."'!\n")
+    io.stderr:write("  #stderr# LUA:          falling back to src_dir = posix.getcwd() ("..posix.getcwd()..")\n")
+
+    src_dir = posix.getcwd()
+  end
+
 end
 
 -- These UNKNOWN entries should break the build if something bad happens
@@ -77,6 +90,7 @@ end
 -- This starts as an empty string so that we can build it later
 module_requires = ''
 
+custom_content_lines = {}
 }
 
 %{lua:
@@ -312,10 +326,6 @@ rm -rf %{buildroot}/%{prefix}/%{module_name}/log
 
 mkdir -p %{buildroot}/%{prefix}
 
-%files
-%defattr(0640,root,root,0750)
-%{prefix}/%{module_name}
-
 %{lua:
 -- ----------------------------------------------------------------
 -- function: define_scriptlet
@@ -328,15 +338,16 @@ mkdir -p %{buildroot}/%{prefix}
 -- ----------------------------------------------------------------
 function define_scriptlet (scriptlet_name, scriptlet_content, defined_scriptlets)
   local scriptlet_content = scriptlet_content or ''
+  local scriptlet_pattern = "%f[^\n%z]%%" .. scriptlet_name .. "%f[^%w]"
 
   if ( not string.match(scriptlet_name, '^%l') ) then
--- -- --     io.stderr:write("### WARNING: invalid scriptlet name '"..scriptlet_name.."'\n")
+    io.stderr:write("  #stderr# LUA: WARNING: invalid scriptlet name '"..scriptlet_name.."'\n")
     do return end
   end
   if defined_scriptlets then
     for i,n in ipairs(defined_scriptlets) do
       if (n == scriptlet_name) then
--- -- --         io.stderr:write("### WARNING: skipped duplicate scriptlet '"..scriptlet_name.."'\n")
+        io.stderr:write("  #stderr# LUA: WARNING: skipped duplicate scriptlet '"..scriptlet_name.."'\n")
         do return end
       end
     end
@@ -345,14 +356,14 @@ function define_scriptlet (scriptlet_name, scriptlet_content, defined_scriptlets
   scriptlet_content = scriptlet_content:gsub('%%{scriptlet_name}',scriptlet_name)
   scriptlet_content = rpm.expand(scriptlet_content)
 
-  local scriptlet_pattern = "%f[^\n%z]%%" .. scriptlet_name .. "%f[^%w]"
   if not scriptlet_content:match(scriptlet_pattern) then
-    print( '%' .. scriptlet_name .. "\n" )
+    table.insert( custom_content_lines, "%" .. scriptlet_name:match "^%s*(.-)%s*$" )
   end
   -- print the content into the spec
-  print( scriptlet_content.. "\n\n")
+  table.insert( custom_content_lines, scriptlet_content.. "\n\n")
 
-  -- add scriptlet name to things we've already defined
+
+  -- add scriptlet name to things we have already defined
   table.insert(defined_scriptlets,scriptlet_name)
 end
 
@@ -368,12 +379,11 @@ default_scriptlet_content = "/usr/local/sbin/simp_rpm_helper --rpm_dir=%{prefix}
 
 scriptlets_dir = src_dir .. "/scriptlets/"
 
--- -- -- io.stderr:write("   #stderr# LUA _specdir = '"..rpm.expand('%{_specdir}').."'\n")
--- -- -- io.stderr:write("   #stderr# LUA _buildrootdir = '"..rpm.expand('%{_buildrootdir}').."'\n")
--- -- -- io.stderr:write("   #stderr# LUA buildroot = '"..rpm.expand('%{buildroot}').."'\n")
--- -- -- io.stderr:write("   #stderr# LUA RPM_BUILD_ROOT = '"..rpm.expand('%{RPM_BUILD_ROOT}').."'\n")
--- -- -- io.stderr:write("   #stderr# LUA scriptlets_dir = '"..scriptlets_dir.."'\n# ---\n")
-
+io.stderr:write("   #stderr# LUA _specdir = '"..rpm.expand('%{_specdir}').."'\n")
+io.stderr:write("   #stderr# LUA _buildrootdir = '"..rpm.expand('%{_buildrootdir}').."'\n")
+io.stderr:write("   #stderr# LUA buildroot = '"..rpm.expand('%{buildroot}').."'\n")
+io.stderr:write("   #stderr# LUA RPM_BUILD_ROOT = '"..rpm.expand('%{RPM_BUILD_ROOT}').."'\n")
+io.stderr:write("   #stderr# LUA scriptlets_dir = '"..scriptlets_dir.."'\n# ---\n")
 
 defined_scriptlets = {}
 if (posix.stat(scriptlets_dir, 'type') == 'directory') then
@@ -385,29 +395,31 @@ if (posix.stat(scriptlets_dir, 'type') == 'directory') then
         local scriptlet_content = scriptlet_file:read("*all")
         define_scriptlet(p,scriptlet_content, defined_scriptlets)
       else
--- -- --         io.stderr:write("###LUA: WARNING: could not read "..scriptlet_path.."\n")
-     --   print("# WARNING: could not read "..scriptlet_path.."\n")
+        io.stderr:write("   #stderr# LUA: WARNING: could not read "..scriptlet_path.."\n")
       end
     end
   end
 else
--- -- --   io.stderr:write("###LUA: not found: " .. scriptlets_dir .. "\n")
+  io.stderr:write("   #stderr# LUA: WARNING: not found: " .. scriptlets_dir .. "\n")
 end
 
 -- These are default scriptlets for SIMP 6.1.0
 define_scriptlet('pre',
+"# (default scriptlet for SIMP 6.x)\n" ..
 "# when $1 = 1, this is an install\n" ..
 "# when $1 = 2, this is an upgrade\n" ..
 default_scriptlet_content,
 defined_scriptlets )
 
 define_scriptlet('post',
+"# (default scriptlet for SIMP 6.x)\n" ..
 "# when $1 = 1, this is an install\n" ..
 "# when $1 = 2, this is an upgrade\n" ..
 default_scriptlet_content,
 defined_scriptlets )
 
 define_scriptlet('preun',
+"# (default scriptlet for SIMP 6.x)\n" ..
 "# when $1 = 1, this is an install\n" ..
 "# when $1 = 0, this is an upgrade\n" ..
 default_scriptlet_content,
@@ -420,6 +432,16 @@ default_scriptlet_content,
 defined_scriptlets )
 
 }
+
+%{lua:
+  s = table.concat(custom_content_lines, "\n") .. "\n"
+  print(s)
+}
+
+
+%files
+%defattr(0640,root,root,0750)
+%{prefix}/%{module_name}
 
 %changelog
 %{lua:
