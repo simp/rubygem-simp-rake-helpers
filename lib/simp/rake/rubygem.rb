@@ -49,7 +49,7 @@ module Simp::Rake
         task :install_gem => [:clean, :gem] do
           Dir.chdir @rakefile_dir
           Dir.glob("dist/#{@package}*.gem") do |pkg|
-            sh %Q{bundle exec gem install #{pkg}}
+            sh %Q{bundle exec gem install --no-ri --no-rdoc #{pkg}}
           end
         end
       end

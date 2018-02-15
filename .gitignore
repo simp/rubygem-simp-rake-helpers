@@ -1,4 +1,10 @@
-*.sw[pnoqst]
-Gemfile.lock
+.bundle/
 dist/
+*.gem
+Gemfile.lock
 /log/
+*.old
+/spec/fixtures
+*.swp
+*.sw[pnoqst]
+.vagrant

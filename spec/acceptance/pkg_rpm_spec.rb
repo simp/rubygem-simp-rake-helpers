@@ -99,7 +99,9 @@ describe 'rake pkg:rpm' do
      'testpackage_missing_version',
      'testpackage_with_bad_changelog_date',
      'testpackage_with_release',
-     'testpackage_without_changelog']
+     'testpackage_without_changelog',
+     'testpackage_custom_scriptlet',
+  ]
   }
 
   let(:pkg_root_dir) { '/home/build_user/host_files/spec/acceptance/files' }
@@ -110,7 +112,7 @@ describe 'rake pkg:rpm' do
 
       context 'prep' do
         it 'should have a local copy of the test directory' do
-          on host, %(#{run_cmd} "cp -a /host_files ~")
+          on host, "cp -a /host_files /home/build_user/; chown -R build_user:build_user /home/build_user/host_files"
         end
 
         it 'should set up the Ruby gems' do
@@ -134,7 +136,7 @@ describe 'rake pkg:rpm' do
 
         it "should create an RPM" do
           comment "produces RPM"
-          on test_host, %(#{run_cmd} "cd #{testpackage_dir}; rake pkg:rpm")
+          on test_host, %(#{run_cmd} "cd #{testpackage_dir}; SIMP_PKG_verbose=yes rake pkg:rpm")
           on test_host, %(test -f #{testpackage_rpm})
 
           comment "produces RPM with appropriate dependencies"

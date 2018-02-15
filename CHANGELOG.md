@@ -1,7 +1,9 @@
+### 5.4.0 / 2018-02-12
+* Add custom RPM scriptlet support
+
 ### 5.3.1 / 2018-02-18
 * Add a conditional check so simp-core can build an ISO with a
   pre-existing tarball with no user input
-
 ### 5.3.0 / 2018-02-02
 * Add ability to specify external, non-module, RPM dependencies for
   a checked-out repo from `simp-core/build/rpm/dependencies.yaml`
@@ -20,7 +22,7 @@
   - Now supports non-Puppet SIMP assets for which version and changelog
     information is specified in an RPM spec files.
   - Does the same validation as the new pkg:create_tag_changelog task.
-* Fix broken acceptance tests 
+* Fix broken acceptance tests
   - Remove logic to build SIMP 4 and SIMP 5 RPMs.
   - Remove mock logic
 

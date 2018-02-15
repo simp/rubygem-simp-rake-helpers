@@ -1,36 +1,47 @@
 %{lua:
 
 --
--- When you build you must to pass this along so that we know how
--- to get the preliminary information.
--- This directory should hold the following items:
---   * 'build/rpm_metadata/requires' <- optional list of 'Requires', 'Provides',
---      and 'Obsoletes' to supplement those auto-generated in this spec file
---   * 'build/rpm_metadata/release' <- optional RPM release number to use in
---      lieu of number hard-coded in this spec file
---   * 'CHANGELOG' <- optional RPM formatted Changelog to use in lieu of minimal,
---      changelog entry auto-generated in this spec file
---   * 'metadata.json' <- required file that must contain the following metadata:
---     - 'name' - package name
---     - 'version' - package version
---     - 'license' - package license
---     - 'summary' - package summary
---     - 'source' - package source
+-- When you build, you must define the macro 'pup_module_info_dir' so that we
+-- know where to get preliminary information.
 --
 -- Example:
+--
 --   rpmbuild -D 'pup_module_info_dir /home/user/project/puppet_module' -ba SPECS/specfile.spec
 --
--- If this is not found, we will look in %{_sourcedir} for the files and fall
--- back to the current directory
+-- 'pup_module_info_dir' should be a directory that holds the following items:
+--
+--   * 'metadata.json'                  <- REQUIRED file that must contain the
+--                                         following metadata:
+--                                           - 'name' - package name
+--                                           - 'version' - package version
+--                                           - 'license' - package license
+--                                           - 'summary' - package summary
+--                                           - 'source' - package source
+--   * 'build/rpm_metadata/requires'    <- optional list of 'Requires',
+--                                         'Provides', and 'Obsoletes' to
+--                                         supplement those auto-generated in
+--                                         this spec file.
+--   * 'build/rpm_metadata/release'     <- optional RPM release number to use in
+--                                         lieu of the number '0' hard-coded in
+--                                         this spec file.
+--   * 'CHANGELOG'                      <- optional RPM-formatted CHANGELOG to
+--                                         use in lieu of the minimal changelog
+--                                         entry auto-generated in this file.
+--   * 'build/rpm_metadata/scriptlets/' <- optional directory to place files to
+--                                         add custom scriptlets and triggers.
+--
+-- If this is not found in 'pup_module_info_dir', we will look in '_sourcedir'
+-- for the files, and fall back to the current directory
 --
 
+-- -- -- io.stderr:write( 'XXXXXXXXXXXXX' )
 src_dir = rpm.expand('%{pup_module_info_dir}')
 
 if string.match(src_dir, '^%%') or (posix.stat(src_dir, 'type') ~= 'directory') then
   src_dir = rpm.expand('%{_sourcedir}')
 
   if (posix.stat((src_dir .. "/metadata.json"), 'type') ~= 'regular') then
-    src_dir = './'
+    src_dir = posix.getcwd()
   end
 end
 
@@ -40,20 +51,18 @@ package_name = "UNKNOWN"
 package_version = "UNKNOWN"
 module_license = "UNKNOWN"
 
---
 -- Default to 0
---
-
 package_release = 0
-}
 
-%{lua:
+
+
 -- Pull the Relevant Metadata out of the Puppet module metadata.json.
 
 metadata = ''
-metadata_file = io.open(src_dir .. "/metadata.json","r")
-if metadata_file then
-  metadata = metadata_file:read("*all")
+metadata_file = src_dir .. "/metadata.json"
+metadata_fh   = io.open(metadata_file,'r')
+if metadata_fh then
+  metadata = metadata_fh:read("*all")
 
   -- Ignore the first curly brace
   metadata = metadata:gsub("{}?", '|', 1)
@@ -62,7 +71,7 @@ if metadata_file then
   metadata = metadata:gsub("{.-}", '')
   metadata = metadata:gsub("%[.-%]", '')
 else
-  error("Could not open 'metadata.json'", 0)
+  error("Could not open 'metadata.json': ".. metadata_file, 0)
 end
 
 -- This starts as an empty string so that we can build it later
@@ -238,7 +247,10 @@ URL:       %{lua: print(module_source)}
 BuildRoot: %{_tmppath}/%{package_name}-%{version}-%{release}-buildroot
 BuildArch: noarch
 
-Requires(pre,preun,post,postun): simp-adapter >= 0.0.1
+Requires(pre): simp-adapter >= 0.0.1
+Requires(preun): simp-adapter >= 0.0.1
+Requires(preun): simp-adapter >= 0.0.1
+Requires(postun): simp-adapter >= 0.0.1
 
 %if ("%{package_name}" != "pupmod-simp-simplib") && ("%{package_name}" != "pupmod-puppetlabs-stdlib")
 Requires: pupmod-simp-simplib >= 1.2.6
@@ -304,25 +316,110 @@ mkdir -p %{buildroot}/%{prefix}
 %defattr(0640,root,root,0750)
 %{prefix}/%{module_name}
 
-# when $1 = 1, this is an install
-# when $1 = 2, this is an upgrade
-%pre
-/usr/local/sbin/simp_rpm_helper --rpm_dir=%{prefix}/%{module_name} --rpm_section='pre' --rpm_status=$1
+%{lua:
+-- ----------------------------------------------------------------
+-- function: define_scriptlet
+--
+-- arguments:
+--
+--   scriptlet_name:    name of scriptlet or trigger section
+--                      (e.g., 'pre', 'triggerin -- foo')
+--   scriptlet_content: normal content of scriptlet
+-- ----------------------------------------------------------------
+function define_scriptlet (scriptlet_name, scriptlet_content, defined_scriptlets)
+  local scriptlet_content = scriptlet_content or ''
 
-# when $1 = 1, this is an install
-# when $1 = 2, this is an upgrade
-%post
-/usr/local/sbin/simp_rpm_helper --rpm_dir=%{prefix}/%{module_name} --rpm_section='post' --rpm_status=$1
+  if ( not string.match(scriptlet_name, '^%l') ) then
+-- -- --     io.stderr:write("### WARNING: invalid scriptlet name '"..scriptlet_name.."'\n")
+    do return end
+  end
+  if defined_scriptlets then
+    for i,n in ipairs(defined_scriptlets) do
+      if (n == scriptlet_name) then
+-- -- --         io.stderr:write("### WARNING: skipped duplicate scriptlet '"..scriptlet_name.."'\n")
+        do return end
+      end
+    end
+  end
 
-# when $1 = 1, this is the uninstall of the previous version during an upgrade
-# when $1 = 0, this is the uninstall of the only version during an erase
-%preun
-/usr/local/sbin/simp_rpm_helper --rpm_dir=%{prefix}/%{module_name} --rpm_section='preun' --rpm_status=$1
+  scriptlet_content = scriptlet_content:gsub('%%{scriptlet_name}',scriptlet_name)
+  scriptlet_content = rpm.expand(scriptlet_content)
 
-# when $1 = 1, this is the uninstall of the previous version during an upgrade
-# when $1 = 0, this is the uninstall of the only version during an erase
-%postun
-/usr/local/sbin/simp_rpm_helper --rpm_dir=%{prefix}/%{module_name} --rpm_section='postun' --rpm_status=$1
+  local scriptlet_pattern = "%f[^\n%z]%%" .. scriptlet_name .. "%f[^%w]"
+  if not scriptlet_content:match(scriptlet_pattern) then
+    print( '%' .. scriptlet_name .. "\n" )
+  end
+  -- print the content into the spec
+  print( scriptlet_content.. "\n\n")
+
+  -- add scriptlet name to things we've already defined
+  table.insert(defined_scriptlets,scriptlet_name)
+end
+
+------------------------------------------------------------------------------
+------------------------------------------------------------------------------
+-------------------- TODO:                                                  --
+---------------------   custom/ directory instead of scriptlets             --
+---------------------   scan for known scriptlets in order to override them --
+------------------------------------------------------------------------------
+------------------------------------------------------------------------------
+
+default_scriptlet_content = "/usr/local/sbin/simp_rpm_helper --rpm_dir=%{prefix}/%{module_name} --rpm_section='%{scriptlet_name}' --rpm_status=$1\n\n"
+
+scriptlets_dir = src_dir .. "/scriptlets/"
+
+-- -- -- io.stderr:write("   #stderr# LUA _specdir = '"..rpm.expand('%{_specdir}').."'\n")
+-- -- -- io.stderr:write("   #stderr# LUA _buildrootdir = '"..rpm.expand('%{_buildrootdir}').."'\n")
+-- -- -- io.stderr:write("   #stderr# LUA buildroot = '"..rpm.expand('%{buildroot}').."'\n")
+-- -- -- io.stderr:write("   #stderr# LUA RPM_BUILD_ROOT = '"..rpm.expand('%{RPM_BUILD_ROOT}').."'\n")
+-- -- -- io.stderr:write("   #stderr# LUA scriptlets_dir = '"..scriptlets_dir.."'\n# ---\n")
+
+
+defined_scriptlets = {}
+if (posix.stat(scriptlets_dir, 'type') == 'directory') then
+  for i,p in pairs(posix.dir(scriptlets_dir)) do
+    local scriptlet_path = scriptlets_dir .. p
+    if (posix.stat(scriptlet_path, 'type') == 'regular') then
+      local scriptlet_file = io.open(scriptlet_path)
+      if scriptlet_file then
+        local scriptlet_content = scriptlet_file:read("*all")
+        define_scriptlet(p,scriptlet_content, defined_scriptlets)
+      else
+-- -- --         io.stderr:write("###LUA: WARNING: could not read "..scriptlet_path.."\n")
+     --   print("# WARNING: could not read "..scriptlet_path.."\n")
+      end
+    end
+  end
+else
+-- -- --   io.stderr:write("###LUA: not found: " .. scriptlets_dir .. "\n")
+end
+
+-- These are default scriptlets for SIMP 6.1.0
+define_scriptlet('pre',
+"# when $1 = 1, this is an install\n" ..
+"# when $1 = 2, this is an upgrade\n" ..
+default_scriptlet_content,
+defined_scriptlets )
+
+define_scriptlet('post',
+"# when $1 = 1, this is an install\n" ..
+"# when $1 = 2, this is an upgrade\n" ..
+default_scriptlet_content,
+defined_scriptlets )
+
+define_scriptlet('preun',
+"# when $1 = 1, this is an install\n" ..
+"# when $1 = 0, this is an upgrade\n" ..
+default_scriptlet_content,
+defined_scriptlets )
+
+define_scriptlet('postun',
+"# when $1 = 1, this is an install\n" ..
+"# when $1 = 0, this is an upgrade\n" ..
+default_scriptlet_content,
+defined_scriptlets )
+
+}
 
 %changelog
 %{lua:

@@ -38,8 +38,11 @@ module Simp
     #   apply when +rpm_source+ is an RPM spec file.
     # [rpm_name] The full name of the rpm
     def initialize(rpm_source)
+      @verbose = ENV.fetch('SIMP_RPM_verbose','no') =='yes'
+      puts '======= SPM RPM #1' if @verbose
       update_rpmmacros
 
+      puts '======= SPM RPM #2' if @verbose
       # Simp::RPM.get_info returns a Hash or an Array of Hashes.
       # Steps below prevent single Hash from implicitly being converted
       # to Array using Hash.to_a.
@@ -47,12 +50,32 @@ module Simp
       info_array << Simp::RPM.get_info(rpm_source)
       info_array.flatten!
 
+      if @verbose
+        puts "== Simp::RPM.get_info(#{rpm_source}):"
+      end
+
+      puts '======= SPM RPM #3' if @verbose
       @info = {}
       info_array.each do |package_info|
         @info[package_info[:basename]] = package_info
       end
 
+      if @verbose
+        require 'pp'
+        puts "== Simp::RPM @info:"
+        puts "   #{'-'*20}"
+        puts @info.pretty_inspect
+      end
+      puts '======= SPM RPM #4' if @verbose
+
       @packages = @info.keys
+
+      if @verbose
+        require 'pp'
+        puts "== Simp::RPM @packages:"
+        puts "   #{'-'*20}"
+        puts @packages.pretty_inspect
+      end
     end
 
     # @returns The RPM '.dist' of the system. 'nil' will be will be returned if
@@ -60,7 +83,13 @@ module Simp
     def self.system_dist
       # We can only have one of these
       unless defined?(@@system_dist)
-        dist = %x(rpm -E '%{dist}' 2> /dev/null).strip.split('.')
+        cmd  = %Q(rpm -E '%{dist}' 2> /dev/null)
+        if @verbose
+          puts "== Simp::RPM.system_dist"
+          puts "   #{cmd} "
+        end
+        dist = %x{#{cmd}}.strip.split('.')
+        puts "  result = '#{dist}'" if @verbose
 
         if dist.size > 1
           @@system_dist = '.' + dist[1]
@@ -106,6 +135,13 @@ module Simp
           fh.flush
         end
 
+        if @verbose
+          puts "== SIMP::RPM#update_rpmmacros:"
+          puts "   wrote to '#{rpmmacros_file}': "
+          puts "   #{'-'*20}"
+          puts rpmmacros.map{|x| "   #{x}\n"}.join
+          puts
+        end
         @@macros_updated = true
       end
     end
@@ -259,7 +295,11 @@ module Simp
     # stdout output and stderr output.
     # cmd:: command to be executed
     def self.execute(cmd)
-      #puts "Executing: [#{cmd}]"
+      if @verbose ||= ENV.fetch('SIMP_RPM_verbose','no') =='yes'
+        puts "== Simp::RPM.execute(#{cmd})"
+        puts "  #{cmd}"
+      end
+
       outfile = File.join('/tmp', "#{ENV['USER']}_#{SecureRandom.hex}")
       errfile = File.join('/tmp', "#{ENV['USER']}_#{SecureRandom.hex}")
       pid = spawn(cmd, :out=>outfile, :err=>errfile)
@@ -276,6 +316,13 @@ module Simp
 
       { :exit_status => exit_status, :stdout => stdout, :stderr => stderr }
     ensure
+      if @verbose
+        puts "    -------- exit_status: #{exit_status}"
+        puts "    -------- stdout ",''
+        puts File.readlines(outfile).map{|x| "    #{x}\n"}.join
+        puts '',"    -------- stderr ",''
+        puts File.readlines(errfile).map{|x| "    #{x}\n"}.join
+      end
       FileUtils.rm_f([outfile, errfile])
     end
 
@@ -313,9 +360,9 @@ module Simp
         :dist => system_dist
       }
 
-      rpm_version_query = %(rpm -q --queryformat '%{NAME} %{VERSION} %{RELEASE} %{ARCH}\n' 2>/dev/null)
+      rpm_version_query = %q(rpm -q --queryformat '%{NAME} %{VERSION} %{RELEASE} %{ARCH}\n')
 
-      rpm_signature_query = %(rpm -q --queryformat '%|DSAHEADER?{%{DSAHEADER:pgpsig}}:{%|RSAHEADER?{%{RSAHEADER:pgpsig}}:{%|SIGGPG?{%{SIGGPG:pgpsig}}:{%|SIGPGP?{%{SIGPGP:pgpsig}}:{(none)}|}|}|}|\n\')
+      rpm_signature_query = %q(rpm -q --queryformat '%|DSAHEADER?{%{DSAHEADER:pgpsig}}:{%|RSAHEADER?{%{RSAHEADER:pgpsig}}:{%|SIGGPG?{%{SIGGPG:pgpsig}}:{%|SIGPGP?{%{SIGPGP:pgpsig}}:{(none)}|}|}|}|\n')
 
       source_is_rpm = rpm_source.split('.').last == 'rpm'
       if source_is_rpm
@@ -332,11 +379,11 @@ module Simp
 
       if source_is_rpm
         query_source = "-p #{rpm_source}"
-        version_results = execute("#{rpm_version_query} #{query_source}")
+        version_results = execute("#{rpm_version_query} #{query_source} 2>/dev/null")
         signature_results = execute("#{rpm_signature_query} #{query_source}")
       else
         query_source = "--specfile #{rpm_source}"
-        version_results = execute("#{rpm_version_query} #{query_source}")
+        version_results = execute("#{rpm_version_query} #{query_source} 2>/dev/null")
         signature_results = nil
       end
 
@@ -373,6 +420,12 @@ EOE
         info_array << info
       end
 
+      if @verbose
+        puts "== SIMP::RPM.get_info"
+        require 'pp'
+        pp info_array
+      end
+
       if info_array.size == 1
         return info_array[0]
       else
@@ -387,7 +440,7 @@ EOE
     end
 
     def self.create_rpm_build_metadata(project_dir, srpms=nil, rpms=nil)
-      require 'yaml' 
+      require 'yaml'
 
       last_build = {
         'git_hash' => %x(git rev-list --max-count=1 HEAD).chomp,
