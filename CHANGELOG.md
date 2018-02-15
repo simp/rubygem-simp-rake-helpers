@@ -1,5 +1,13 @@
 ### 5.4.0 / 2018-02-12
 * Add custom RPM scriptlet support
+* Improved RPM troubleshooting:
+  - Add `Vagrantfile` to provide a pristine beaker/docker setup
+  - New env var: `SIMP_RPM_verbose=yes`
+  - New env var: `SIMP_RAKE_PKG_verbose=yes`
+- Refactored acceptance test structure
+* simpdefault.spec Lua code improvements:
+  - Improved error messages
+  - Added stderr warnings
 
 ### 5.3.1 / 2018-02-18
 * Add a conditional check so simp-core can build an ISO with a
