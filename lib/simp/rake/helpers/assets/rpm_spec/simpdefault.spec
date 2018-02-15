@@ -335,7 +335,6 @@ rm -rf %{buildroot}/%{prefix}/%{module_name}/log
 mkdir -p %{buildroot}/%{prefix}
 
 %{lua:
-
 -- ----------------------------------------------------------------
 -- function: define_custom_content
 --
@@ -445,12 +444,14 @@ define_scriptlet('%postun', [[
 defined_scriptlets_table,
 custom_content_table)
 
+}
 
--- insert custom content (e.g., rpm_metadata/custom/*, scriptlets)
-s = table.concat(custom_content_table, "\n") .. "\n"
-print(s)
+%{lua:
+  -- insert custom content (e.g., rpm_metadata/custom/*, scriptlets)
+  s = table.concat(custom_content_table, "\n") .. "\n"
+  print(s)
 
-lua_stderr("  #stderr# LUA: WARNING: custom_content_table:\n----------------\n"..(s or "NIL").."\n-------------------------\n")
+  lua_stderr("  #stderr# LUA: WARNING: custom_content_table:\n----------------\n"..(s or "NIL").."\n-------------------------\n")
 }
 
 
