@@ -1,0 +1,8 @@
+%pretrans
+# WHOA THERE'S A PRE TRANS IN THIS ONE
+
+%triggerun -- foo
+echo "WHY ARE YOU UNINSTALLING foo, I LOVE THAT ONE"
+
+%pre
+# fooooooo override

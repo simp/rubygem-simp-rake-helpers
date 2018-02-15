@@ -346,7 +346,10 @@ function define_custom_content(content, custom_content_table)
 -- TODO: check for duplcate scriptlets!
   table.insert( custom_content_table, content )
 end
+}
 
+
+%{lua:
 -- ----------------------------------------------------------------
 -- function: define_scriptlet
 --
@@ -382,7 +385,6 @@ function define_scriptlet (scriptlet_name, scriptlet_content, defined_scriptlets
   -- add name to list of scriplets (also triggers) we have seen
   table.insert(defined_scriptlets_table,scriptlet_name)
 end
-
 
 lua_stderr("   #stderr# LUA _specdir = '"..rpm.expand('%{_specdir}').."'\n")
 lua_stderr("   #stderr# LUA _buildrootdir = '"..rpm.expand('%{_buildrootdir}').."'\n")

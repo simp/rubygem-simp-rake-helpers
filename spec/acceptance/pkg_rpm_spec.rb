@@ -86,10 +86,8 @@ describe 'rake pkg:rpm' do
     FileUtils.chmod_R(0755, 'log')
   end
 
-  let(:run_cmd) { 'runuser build_user -l -c ' }
 
-  let(:testpackages) {
-    ['simplib',
+  testpackages = ['simplib',
      'testpackage',
      'testpackage_missing_license',
      'testpackage_missing_metadata_file',
@@ -102,64 +100,67 @@ describe 'rake pkg:rpm' do
      'testpackage_without_changelog',
      'testpackage_custom_scriptlet',
   ]
-  }
 
+  let(:run_cmd) { 'runuser build_user -l -c ' }
   let(:pkg_root_dir) { '/home/build_user/host_files/spec/acceptance/files' }
-  let(:testpackage_dir) { '/home/build_user/host_files/spec/acceptance/files/testpackage' }
 
-  hosts.each do |host|
-    context "rpm building on #{host}" do
+  hosts.each do |_host|
+    context "on #{_host}" do
+      let!(:host){ _host }
+      let!(:test_host){ _host }
+      testpackages.each do |package|
+        context "rpm building #{package}" do
+          let!(:testpackage_dir) { "/home/build_user/host_files/spec/acceptance/files/#{package}" }
 
-      context 'prep' do
-        it 'should have a local copy of the test directory' do
-          on host, "cp -a /host_files /home/build_user/; chown -R build_user:build_user /home/build_user/host_files"
-        end
+          context 'prep' do
+            it 'should have a local copy of the test directory' do
+              on host, "cp -a /host_files /home/build_user/; chown -R build_user:build_user /home/build_user/host_files"
+            end
 
-        it 'should set up the Ruby gems' do
-          # all our test packages use the same set of ruby gems, so only bundle
-          # update once to save time
-          on host, %(#{run_cmd} "cd #{testpackage_dir}; rvm use default; bundle update")
-        end
+            it 'should set up the Ruby gems' do
+              # all our test packages use the same set of ruby gems, so only bundle
+              # update once to save time
+              on host, %(#{run_cmd} "cd #{testpackage_dir}; rvm use default; bundle update")
+            end
 
-      end
-
-      context "using simpdefault.spec" do
-        let(:test_host) { host }
-        let(:build_type) {:default}
-        let(:testpackage_rpm) { File.join(testpackage_dir, 'dist/pupmod-simp-testpackage-0.0.1-0.noarch.rpm') }
-
-        it 'should have a clean working environment' do
-          testpackages.each do |package|
-            on host, %(#{run_cmd} "cd #{pkg_root_dir}/#{package}; rake clean")
           end
+
+          context "using simpdefault.spec" do
+            let(:build_type) {:default}
+            let(:testpackage_rpm) { File.join(testpackage_dir, 'dist/pupmod-simp-testpackage-0.0.1-0.noarch.rpm') }
+
+            it 'should have a clean working environment' do
+                on host, %(#{run_cmd} "cd #{pkg_root_dir}/#{package}; rake clean")
+            end
+          end
+
+          it "should create an RPM" do
+            comment "produces RPM"
+            on test_host, %(#{run_cmd} "cd #{testpackage_dir}; SIMP_PKG_verbose=yes rake pkg:rpm")
+            on test_host, %(test -f #{testpackage_rpm})
+
+            comment "produces RPM with appropriate dependencies"
+            on test_host, %(rpm -qpR #{testpackage_rpm} | grep -q simp-adapter)
+            on test_host, %(rpm -qpR #{testpackage_rpm} | grep -q pupmod-simp-foo)
+            on test_host, %(rpm -qpR #{testpackage_rpm} | grep -q pupmod-simp-simplib)
+            on test_host, %(rpm -qpR #{testpackage_rpm} | grep -q pupmod-puppetlabs-stdlib)
+            on test_host, %(rpm -qp --provides #{testpackage_rpm} | grep -q -x "pupmod-testpackage = 0.0.1-0")
+            on test_host, %(rpm -qp --provides #{testpackage_rpm} | grep -q -x "simp-testpackage = 0.0.1-0")
+            on test_host, %(rpm -qp --queryformat "[%{obsoletes}\\n]" #{testpackage_rpm} | grep -q "^pupmod-testpackage")
+            on test_host, %(rpm -qp --queryformat "[%{obsoletes}\\n]" #{testpackage_rpm} | grep -q "^simp-testpackage")
+
+            comment "produces RPM with a sourced CHANGELOG"
+            on test_host, %(rpm --changelog -qp #{testpackage_rpm} | grep -q Stallman)
+
+            comment "produces RPM with appropriate pre/post/preun/postun"
+            on test_host, %(rpm -qp --scripts #{testpackage_rpm} | grep -q -x "/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='pre' --rpm_status=\\$1")
+            on test_host, %(rpm -qp --scripts #{testpackage_rpm} | grep -q -x "/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='post' --rpm_status=\\$1")
+            on test_host, %(rpm -qp --scripts #{testpackage_rpm} | grep -q -x "/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='preun' --rpm_status=\\$1")
+            on test_host, %(rpm -qp --scripts #{testpackage_rpm} | grep -q -x "/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='postun' --rpm_status=\\$1")
+          end
+
+          it_should_behave_like "a RPM generator"
         end
-
-        it "should create an RPM" do
-          comment "produces RPM"
-          on test_host, %(#{run_cmd} "cd #{testpackage_dir}; SIMP_PKG_verbose=yes rake pkg:rpm")
-          on test_host, %(test -f #{testpackage_rpm})
-
-          comment "produces RPM with appropriate dependencies"
-          on test_host, %(rpm -qpR #{testpackage_rpm} | grep -q simp-adapter)
-          on test_host, %(rpm -qpR #{testpackage_rpm} | grep -q pupmod-simp-foo)
-          on test_host, %(rpm -qpR #{testpackage_rpm} | grep -q pupmod-simp-simplib)
-          on test_host, %(rpm -qpR #{testpackage_rpm} | grep -q pupmod-puppetlabs-stdlib)
-          on test_host, %(rpm -qp --provides #{testpackage_rpm} | grep -q -x "pupmod-testpackage = 0.0.1-0")
-          on test_host, %(rpm -qp --provides #{testpackage_rpm} | grep -q -x "simp-testpackage = 0.0.1-0")
-          on test_host, %(rpm -qp --queryformat "[%{obsoletes}\\n]" #{testpackage_rpm} | grep -q "^pupmod-testpackage")
-          on test_host, %(rpm -qp --queryformat "[%{obsoletes}\\n]" #{testpackage_rpm} | grep -q "^simp-testpackage")
-
-          comment "produces RPM with a sourced CHANGELOG"
-          on test_host, %(rpm --changelog -qp #{testpackage_rpm} | grep -q Stallman)
-
-          comment "produces RPM with appropriate pre/post/preun/postun"
-          on test_host, %(rpm -qp --scripts #{testpackage_rpm} | grep -q -x "/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='pre' --rpm_status=\\$1")
-          on test_host, %(rpm -qp --scripts #{testpackage_rpm} | grep -q -x "/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='post' --rpm_status=\\$1")
-          on test_host, %(rpm -qp --scripts #{testpackage_rpm} | grep -q -x "/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='preun' --rpm_status=\\$1")
-          on test_host, %(rpm -qp --scripts #{testpackage_rpm} | grep -q -x "/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='postun' --rpm_status=\\$1")
-        end
-
-        it_should_behave_like "a RPM generator"
       end
     end
   end
