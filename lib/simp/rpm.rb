@@ -39,10 +39,8 @@ module Simp
     # [rpm_name] The full name of the rpm
     def initialize(rpm_source)
       @verbose = ENV.fetch('SIMP_RPM_verbose','no') =='yes'
-      puts '======= SPM RPM #1' if @verbose
       update_rpmmacros
 
-      puts '======= SPM RPM #2' if @verbose
       # Simp::RPM.get_info returns a Hash or an Array of Hashes.
       # Steps below prevent single Hash from implicitly being converted
       # to Array using Hash.to_a.
@@ -50,11 +48,6 @@ module Simp
       info_array << Simp::RPM.get_info(rpm_source)
       info_array.flatten!
 
-      if @verbose
-        puts "== Simp::RPM.get_info(#{rpm_source}):"
-      end
-
-      puts '======= SPM RPM #3' if @verbose
       @info = {}
       info_array.each do |package_info|
         @info[package_info[:basename]] = package_info
@@ -66,7 +59,6 @@ module Simp
         puts "   #{'-'*20}"
         puts @info.pretty_inspect
       end
-      puts '======= SPM RPM #4' if @verbose
 
       @packages = @info.keys
 
