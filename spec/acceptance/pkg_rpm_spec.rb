@@ -96,6 +96,19 @@ shared_examples_for "an RPM generator with edge cases" do
       %(#{run_cmd} "cd #{pkg_root_dir}/testpackage_missing_version; rake pkg:rpm"),
       :acceptable_exit_codes => [1]
   end
+
+  context 'w
+  it 'should create an RPM with custom scriptlets defined in build/rpm_metadata/custom/' do
+    on host, %(#{run_cmd} "cd #{pkg_root_dir}/testpackage_custom_scriptlet; ) +
+             %(rake pkg:rpm"),
+
+      :acceptable_exit_codes => [1]
+            comment "produces RPM with appropriate pre/post/preun/postun"
+            on host, %(rpm -qp --scripts #{testpackage_rpm} | grep -q -x "/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='pre' --rpm_status=\\$1")
+            on host, %(rpm -qp --scripts #{testpackage_rpm} | grep -q -x "/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='post' --rpm_status=\\$1")
+            on host, %(rpm -qp --scripts #{testpackage_rpm} | grep -q -x "/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='preun' --rpm_status=\\$1")
+            on host, %(rpm -qp --scripts #{testpackage_rpm} | grep -q -x "/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='postun' --rpm_status=\\$1")
+  end
 end
 
 
