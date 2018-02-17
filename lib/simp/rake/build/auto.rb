@@ -102,6 +102,7 @@ module Simp::Rake::Build
           - SIMP_BUILD_staging_dir    => Path to stage big build assets
                                          [Default: './SIMP_ISO_STAGING']
           - SIMP_BUILD_rm_staging_dir => 'no' do not forcibly remove the staging dir before starting
+          - SIMP_BUILD_overlay        => 'no' uses an existing DVD overlay if found 
           - SIMP_BUILD_force_dirty    => 'yes' tries to checks out subrepos even if dirty
           - SIMP_BUILD_docs           => 'yes' builds & includes documentation
           - SIMP_BUILD_checkout       => 'no' will skip the git repo checkouts
@@ -143,6 +144,7 @@ module Simp::Rake::Build
           prompt           = ENV.fetch('SIMP_BUILD_prompt', 'yes') != 'no'
           method           = ENV.fetch('SIMP_BUILD_puppetfile','tracking')
           do_rm_staging    = ENV.fetch('SIMP_BUILD_rm_staging_dir', 'yes') == 'yes'
+          build_overlay    = ENV.fetch('SIMP_BUILD_overlay', "yes") == 'yes'
           do_docs          = ENV['SIMP_BUILD_docs'] == 'yes' ? 'true' : 'false'
           do_merge         = ENV['SIMP_BUILD_unpack_merge'] != 'no'
           do_prune         = ENV['SIMP_BUILD_prune'] != 'no' ? 'true' : 'false'
@@ -211,6 +213,10 @@ module Simp::Rake::Build
                   else
                     puts("Invalid input: '#{resp}', please try again")
                   end
+                end
+              else
+                unless (build_overlay)
+                  tarball = tar_file
                 end
               end
             end
