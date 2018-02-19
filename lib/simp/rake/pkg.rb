@@ -228,6 +228,7 @@ module Simp::Rake
             %(-D '_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm')
           ]
           rpm_opts << '-v' if @verbose
+          rpm_opts << "-D 'lua_debug 1'" if (ENV.fetch('SIMP_RAKE_PKG_LUA_debug','no') =='yes')
 
           Dir.chdir(@pkg_dir) do
 

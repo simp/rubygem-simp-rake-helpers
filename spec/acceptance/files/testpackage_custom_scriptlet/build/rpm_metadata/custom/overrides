@@ -6,3 +6,4 @@ echo "WHY ARE YOU UNINSTALLING foo, I LOVE THAT ONE"
 
 %pre
 # fooooooo override
+echo wat

@@ -34,7 +34,7 @@
 -- for the files, and fall back to the current directory
 --
 
-lua_debug = ((rpm.expand('%{lua_debug}') or '%{lua_debug}') ~= '%{lua_debug}')
+lua_debug = ((rpm.expand('%{lua_debug}') or '0') == '1')
 function lua_stderr( msg )
   if lua_debug then io.stderr:write(msg) end
 end
@@ -392,23 +392,26 @@ lua_stderr("   #stderr# LUA buildroot = '"..rpm.expand('%{buildroot}').."'\n")
 lua_stderr("   #stderr# LUA RPM_BUILD_ROOT = '"..rpm.expand('%{RPM_BUILD_ROOT}').."'\n")
 lua_stderr("   #stderr# LUA custom_content_dir = '"..custom_content_dir.."'\n# ---\n")
 
+
 if (posix.stat(custom_content_dir, 'type') == 'directory') then
   for i,p in pairs(posix.dir(custom_content_dir)) do
     local scriptlet_path = custom_content_dir .. p
-    if (posix.stat(scriptlet_path, 'type') == 'regular') then
+    if (string.match(p, '^[^.]') and (posix.stat(scriptlet_path, 'type') == 'regular')) then
+      lua_stderr("   #stderr# LUA: WARNING: custom file found: " .. scriptlet_path .. "\n")
       local scriptlet_file = io.open(scriptlet_path)
       if scriptlet_file then
-        local scriptlet_content = scriptlet_file:read("*all")
-        define_scriptlet(p,scriptlet_content, defined_scriptlets_table)
+        local custom_content = scriptlet_file:read("*all")
+        define_custom_content(custom_content, custom_content_table)
       else
         lua_stderr("   #stderr# LUA: WARNING: could not read "..scriptlet_path.."\n")
       end
+    else
+      lua_stderr("   #stderr# LUA: WARNING: rejected "..scriptlet_path.."\n")
     end
   end
 else
   lua_stderr("   #stderr# LUA: WARNING: not found: " .. custom_content_dir .. "\n")
 end
-
 
 -- These are default scriptlets for SIMP 6.1.0
 default_scriptlet_content = rpm.expand("/usr/local/sbin/simp_rpm_helper --rpm_dir=%{prefix}/%{module_name} --rpm_section='SECTION' --rpm_status=$1\n\n")

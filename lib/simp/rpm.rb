@@ -12,12 +12,16 @@ module Simp
     require 'rake'
 
     @@gpg_keys = Hash.new
-    attr_reader :verbose, :packages
+    attr_reader :verbose, :lua_debug, :packages
 
     if Gem.loaded_specs['rake'].version >= Gem::Version.new('0.9')
       def self.sh(args)
         system args
       end
+    end
+
+    def self.rpm_cmd
+      @rpm_cmd ||= (ENV.fetch('SIMP_RPM_LUA_debug','no') =='yes') ? "rpm -D 'lua_debug 1'" : 'rpm'
     end
 
     # Constructs a new Simp::RPM object. Requires the path to the spec file, or
@@ -39,6 +43,7 @@ module Simp
     # [rpm_name] The full name of the rpm
     def initialize(rpm_source)
       @verbose = ENV.fetch('SIMP_RPM_verbose','no') =='yes'
+
       update_rpmmacros
 
       # Simp::RPM.get_info returns a Hash or an Array of Hashes.
@@ -75,7 +80,7 @@ module Simp
     def self.system_dist
       # We can only have one of these
       unless defined?(@@system_dist)
-        cmd  = %Q(rpm -E '%{dist}' 2> /dev/null)
+        cmd  = %Q(#{rpm_cmd} -E '%{dist}' 2> /dev/null)
         if @verbose
           puts "== Simp::RPM.system_dist"
           puts "   #{cmd} "
@@ -352,9 +357,9 @@ module Simp
         :dist => system_dist
       }
 
-      rpm_version_query = %q(rpm -q --queryformat '%{NAME} %{VERSION} %{RELEASE} %{ARCH}\n')
+      rpm_version_query = %Q(#{rpm_cmd} -q --queryformat '%{NAME} %{VERSION} %{RELEASE} %{ARCH}\\n')
 
-      rpm_signature_query = %q(rpm -q --queryformat '%|DSAHEADER?{%{DSAHEADER:pgpsig}}:{%|RSAHEADER?{%{RSAHEADER:pgpsig}}:{%|SIGGPG?{%{SIGGPG:pgpsig}}:{%|SIGPGP?{%{SIGPGP:pgpsig}}:{(none)}|}|}|}|\n')
+      rpm_signature_query = %Q(#{rpm_cmd} -q --queryformat '%|DSAHEADER?{%{DSAHEADER:pgpsig}}:{%|RSAHEADER?{%{RSAHEADER:pgpsig}}:{%|SIGGPG?{%{SIGGPG:pgpsig}}:{%|SIGPGP?{%{SIGPGP:pgpsig}}:{(none)}|}|}|}|\\n')
 
       source_is_rpm = rpm_source.split('.').last == 'rpm'
       if source_is_rpm

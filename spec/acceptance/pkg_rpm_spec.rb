@@ -97,17 +97,21 @@ shared_examples_for "an RPM generator with edge cases" do
       :acceptable_exit_codes => [1]
   end
 
-  context 'w
-  it 'should create an RPM with custom scriptlets defined in build/rpm_metadata/custom/' do
-    on host, %(#{run_cmd} "cd #{pkg_root_dir}/testpackage_custom_scriptlet; ) +
-             %(rake pkg:rpm"),
+  context 'when custom data is defined under rpm_metadata' do
+    it 'should create an RPM with custom scriptlets' do
+      on host, %(#{run_cmd} "cd #{pkg_root_dir}/testpackage_custom_scriptlet; )+
+               %(SIMP_RAKE_PKG_LUA_debug=yes SIMP_RPM_LUA_debug=yes SIMP_RAKE_PKG_verbose=yes SIMP_RPM_verbose=yes rake pkg:rpm")
 
-      :acceptable_exit_codes => [1]
-            comment "produces RPM with appropriate pre/post/preun/postun"
-            on host, %(rpm -qp --scripts #{testpackage_rpm} | grep -q -x "/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='pre' --rpm_status=\\$1")
-            on host, %(rpm -qp --scripts #{testpackage_rpm} | grep -q -x "/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='post' --rpm_status=\\$1")
-            on host, %(rpm -qp --scripts #{testpackage_rpm} | grep -q -x "/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='preun' --rpm_status=\\$1")
-            on host, %(rpm -qp --scripts #{testpackage_rpm} | grep -q -x "/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='postun' --rpm_status=\\$1")
+        comment 'produces RPM with appropriate pre/post/preun/postun'
+        result = on host, %(rpm -qp --scripts #{pkg_root_dir}/testpackage_custom_scriptlet/dist/pupmod-simp-testpackage-0.0.1-0.noarch.rpm)
+        scriptlets = result.stdout.scan( %r{^.*?scriptlet.*?/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage.*?$}m )
+
+              require 'pry'; binding.pry
+        expect( scriptlets.grep( %r{\Apreinstall scriptlet.*\n/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='pre' --rpm_status=\$1\Z}m )).not_to be_empty
+        expect( scriptlets.grep( %r{\Apostinstall scriptlet.*\n/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='post' --rpm_status=\$1\Z}m )).not_to be_empty
+        expect( scriptlets.grep( %r{\Apreuninstall scriptlet.*\n/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='preun' --rpm_status=\$1\Z}m )).not_to be_empty
+        expect( scriptlets.grep( %r{\Apostuninstall scriptlet.*\n/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='postun' --rpm_status=\$1\Z}m )).not_to be_empty
+    end
   end
 end
 
@@ -124,7 +128,7 @@ describe 'rake pkg:rpm' do
 
 
     hosts.each do |host|
-      on host, "cp -a /host_files /home/build_user/; chown -R build_user:build_user /home/build_user/host_files"
+      on host, 'cp -a /host_files /home/build_user/; chown -R build_user:build_user /home/build_user/host_files'
       packages_to_clean.each do |package|
         on host, %Q(#{run_cmd} "cd #{pkg_root_dir}/#{package}; ) +
                   %Q(rvm use default; bundle update --local || bundle update")
@@ -137,43 +141,46 @@ describe 'rake pkg:rpm' do
     context "on #{_host}" do
       let!(:host){ _host }
 
-      context "rpm building" do
-        let(:testpackage_dir) { "/home/build_user/host_files/spec/acceptance/files/testpackage" }
+      context 'rpm building' do
+        let(:testpackage_dir) { '/home/build_user/host_files/spec/acceptance/files/testpackage' }
 
-        context "using simpdefault.spec" do
+        context 'using simpdefault.spec' do
 
           let(:build_type) {:default}
           let(:testpackage_rpm) { File.join(testpackage_dir, 'dist/pupmod-simp-testpackage-0.0.1-0.noarch.rpm') }
 
 
-          it "should create an RPM" do
+          it 'should create an RPM' do
             comment "produces RPM on #{host}"
-            on host, %(#{run_cmd} "cd #{testpackage_dir}; SIMP_RPM_verbose=yes SIMP_RAKE_PKG_verbose=yes rake pkg:rpm")
+            on host, %(#{run_cmd} "cd #{testpackage_dir}; rake pkg:rpm")
             on host, %(test -f #{testpackage_rpm})
 
-            comment "produces RPM with appropriate dependencies"
+            comment 'produces RPM with appropriate dependencies'
             on host, %(rpm -qpR #{testpackage_rpm} | grep -q simp-adapter)
             on host, %(rpm -qpR #{testpackage_rpm} | grep -q pupmod-simp-foo)
             on host, %(rpm -qpR #{testpackage_rpm} | grep -q pupmod-simp-simplib)
             on host, %(rpm -qpR #{testpackage_rpm} | grep -q pupmod-puppetlabs-stdlib)
-            on host, %(rpm -qp --provides #{testpackage_rpm} | grep -q -x "pupmod-testpackage = 0.0.1-0")
-            on host, %(rpm -qp --provides #{testpackage_rpm} | grep -q -x "simp-testpackage = 0.0.1-0")
+            on host, %(rpm -qp --provides #{testpackage_rpm} | grep -q -x 'pupmod-testpackage = 0.0.1-0')
+            on host, %(rpm -qp --provides #{testpackage_rpm} | grep -q -x 'simp-testpackage = 0.0.1-0')
             on host, %(rpm -qp --queryformat "[%{obsoletes}\\n]" #{testpackage_rpm} | grep -q "^pupmod-testpackage")
             on host, %(rpm -qp --queryformat "[%{obsoletes}\\n]" #{testpackage_rpm} | grep -q "^simp-testpackage")
 
-            comment "produces RPM with a sourced CHANGELOG"
+            comment 'produces RPM with a sourced CHANGELOG'
             on host, %(rpm --changelog -qp #{testpackage_rpm} | grep -q Stallman)
 
-            comment "produces RPM with appropriate pre/post/preun/postun"
-            on host, %(rpm -qp --scripts #{testpackage_rpm} | grep -q -x "/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='pre' --rpm_status=\\$1")
-            on host, %(rpm -qp --scripts #{testpackage_rpm} | grep -q -x "/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='post' --rpm_status=\\$1")
-            on host, %(rpm -qp --scripts #{testpackage_rpm} | grep -q -x "/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='preun' --rpm_status=\\$1")
-            on host, %(rpm -qp --scripts #{testpackage_rpm} | grep -q -x "/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='postun' --rpm_status=\\$1")
+            comment 'produces RPM with appropriate pre/post/preun/postun'
+            result = on host, %(rpm -qp --scripts #{testpackage_rpm})
+            scriptlets = result.stdout.scan( %r{^.*?scriptlet.*?/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage.*?$}m )
+
+            expect( scriptlets.grep( %r{\Apreinstall scriptlet.*\n/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='pre' --rpm_status=\$1\Z}m )).not_to be_empty
+            expect( scriptlets.grep( %r{\Apostinstall scriptlet.*\n/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='post' --rpm_status=\$1\Z}m )).not_to be_empty
+            expect( scriptlets.grep( %r{\Apreuninstall scriptlet.*\n/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='preun' --rpm_status=\$1\Z}m )).not_to be_empty
+            expect( scriptlets.grep( %r{\Apostuninstall scriptlet.*\n/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='postun' --rpm_status=\$1\Z}m )).not_to be_empty
           end
 
-          it_should_behave_like "an RPM generator with edge cases"
+          it_should_behave_like 'an RPM generator with edge cases'
         end
-    end
+      end
     end
   end
 end
