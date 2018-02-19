@@ -7,36 +7,35 @@
 
 #### Table of Contents
 
-<!-- START doctoc generated TOC please keep comment here to allow auto update -->
-<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+<!-- vim-markdown-toc GFM -->
 
-- [Overview](#overview)
-  - [This gem is part of SIMP](#this-gem-is-part-of-simp)
-  - [Features](#features)
-- [Setup](#setup)
-  - [Gemfile](#gemfile)
-- [Usage](#usage)
-  - [In a Puppet module](#in-a-puppet-module)
-  - [In a Ruby Gem](#in-a-ruby-gem)
-  - [RPM Generation](#rpm-generation)
-    - [RPM Changelog](#rpm-changelog)
-    - [RPM Dependencies](#rpm-dependencies)
-- [Reference](#reference)
-  - [simp/rake/rpm](#simprakerpm)
-    - [rake pkg:rpm[chroot,unique,snapshot_release]](#rake-pkgrpmchrootuniquesnapshot_release)
-      - [Parameters](#parameters)
-    - [rake pkg:scrub[chroot,unique]](#rake-pkgscrubchrootunique)
-    - [rake pkg:srpm[chroot,unique,snapshot_release]](#rake-pkgsrpmchrootuniquesnapshot_release)
-      - [Parameters](#parameters-1)
-    - [rake pkg:tar[snapshot_release]](#rake-pkgtarsnapshot_release)
-      - [Parameters](#parameters-2)
-- [Limitations](#limitations)
-  - [FIPS Enabled Systems](#fips-enabled-systems)
-- [Development](#development)
-  - [License](#license)
-  - [History](#history)
+* [Overview](#overview)
+  * [This gem is part of SIMP](#this-gem-is-part-of-simp)
+  * [Features](#features)
+* [Setup](#setup)
+  * [Gemfile](#gemfile)
+* [Usage](#usage)
+  * [In a Puppet module](#in-a-puppet-module)
+  * [In a Ruby Gem](#in-a-ruby-gem)
+  * [RPM Generation](#rpm-generation)
+    * [RPM Changelog](#rpm-changelog)
+    * [RPM Dependencies](#rpm-dependencies)
+* [Reference](#reference)
+  * [simp/rake/rpm](#simprakerpm)
+    * [rake pkg:rpm[chroot,unique,snapshot_release]](#rake-pkgrpmchrootuniquesnapshot_release)
+      * [Parameters](#parameters)
+    * [rake pkg:scrub[chroot,unique]](#rake-pkgscrubchrootunique)
+    * [rake pkg:srpm[chroot,unique,snapshot_release]](#rake-pkgsrpmchrootuniquesnapshot_release)
+      * [Parameters](#parameters-1)
+    * [rake pkg:tar[snapshot_release]](#rake-pkgtarsnapshot_release)
+      * [Parameters](#parameters-2)
+* [Limitations](#limitations)
+  * [Some versions of bundler fail on FIPS-enabled Systems](#some-versions-of-bundler-fail-on-fips-enabled-systems)
+* [Development](#development)
+  * [License](#license)
+  * [History](#history)
 
-<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+<!-- vim-markdown-toc -->
 
 ## Overview
 
@@ -126,16 +125,32 @@ bunde exec rake -T
 
 ### RPM Generation
 
-This Gem provides the ability to generate an RPM from *any* Puppet module.
+This Gem provides the ability to generate an RPM from *any* Puppet module via
+the task [`rake pkg:rpm`](#simprakerpm)
 
-By default, the information for the RPM will be pulled from the Forge
-compatible [metadata.json](https://docs.puppet.com/puppet/latest/reference/modules_metadata.html).
+The only requirement is that the Puppet module MUST include a valid
+[`metadata.json`][metadata.json] file with entries for the keys `name`,
+`version`, `license`, `summary`, and `source`.
 
-The `name` and `version` fields *must* be present and well formatted. The
-`license` field is also used if present.
+The full list files of files that may be used
+
+```
+./
+├── metadata.json     # REQUIRED keys: name, version, license, summary, source
+├── CHANGELOG         # OPTIONAL written in RPM's CHANGELOG format
+└── build/            # OPTIONAL
+    └── rpm_metadata/ # OPTIONAL
+        ├── release   # OPTIONAL defines the RPM's "-0" release number
+        ├── requires  # OPTIONAL supplementary 'Requires','Provides','Obsoletes'
+        └── custom/   # OPTIONAL
+          └── *       # OPTIONAL custom snippets in RPM .spec format
+```
+
 
 *NOTE*: The dependencies in `metadata.json` are *not* used to generate RPM
 dependencies!
+
+[metadata.json]: https://docs.puppet.com/puppet/latest/reference/modules_metadata.html
 
 #### RPM Changelog
 
@@ -202,9 +217,9 @@ Build the pupmod-simp-iptables tar package
 
 ## Limitations
 
-### FIPS Enabled Systems
+### Some versions of bundler fail on FIPS-enabled Systems
 
-This is not a limitation of the module, but of Bundler.
+This is a limitation of Bundler, not the gem.
 
 If you are running on a FIPS-enabled system, you will need to use `bundler '~> 1.14.0'`
 until the FIPS support can be corrected.

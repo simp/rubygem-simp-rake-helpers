@@ -336,13 +336,12 @@ mkdir -p %{buildroot}/%{prefix}
 
 %{lua:
 -- ----------------------------------------------------------------
--- function: define_custom_content
---
 -- arguments:
 --   content:              content to insert
 --   custom_content_table: collection of custom content to insert
 -- ----------
 function define_custom_content(content, custom_content_table)
+-- ----------
 -- TODO: check for duplcate scriptlets!
   table.insert( custom_content_table, content )
 end
@@ -351,23 +350,27 @@ end
 
 %{lua:
 -- ----------------------------------------------------------------
--- function: define_scriptlet
---
 -- arguments:
 --   scriptlet_name:    name of scriptlet or trigger section
 --                      (e.g., '%pre', '%triggerin -- foo')
 --   scriptlet_content: normal content of scriptlet
 -- ----------
 function define_scriptlet (scriptlet_name, scriptlet_content, defined_scriptlets_table, custom_content_table)
-  local scriptlet_content = scriptlet_content or ''
+-- ----------
+  -- LUA pattern refresher: https://www.lua.org/manual/5.3/manual.html#6.4.1
+  -- %f[set] = "frontier pattern"―matches empty string between [^set] and [set]
+  -- %w      = any alphanumeric character
+  -- %z      = \0 (string terminator) in Lua versions before 5.2 (EL6 uses 5.1)
   local scriptlet_pattern = "%f[^\n%z]" .. scriptlet_name .. "%f[^%w]"
+  local scriptlet_content = scriptlet_content or ''
+  lua_stderr("   #stderr# LUA processing scriptlet_name '"..scriptlet_name.."'\n")
 
   if ( not string.match(scriptlet_name, '^%%%l') ) then
     lua_stderr("  #stderr# LUA: WARNING: invalid scriptlet name '"..scriptlet_name.."'\n")
     do return end
   end
-  if defined_scriptlets_table then
-    for i,n in ipairs(defined_scriptlets_table) do
+  if custom_content_table then
+    for i,n in ipairs(custom_content_table) do
       if (n == scriptlet_name) then
         lua_stderr("  #stderr# LUA: WARNING: skipping duplicate scriptlet '"..scriptlet_name.."'\n")
         do return end
@@ -386,6 +389,7 @@ function define_scriptlet (scriptlet_name, scriptlet_content, defined_scriptlets
   table.insert(defined_scriptlets_table,scriptlet_name)
 end
 
+lua_stderr("   #stderr# LUA _version = '".._VERSION.."'\n")
 lua_stderr("   #stderr# LUA _specdir = '"..rpm.expand('%{_specdir}').."'\n")
 lua_stderr("   #stderr# LUA _buildrootdir = '"..rpm.expand('%{_buildrootdir}').."'\n")
 lua_stderr("   #stderr# LUA buildroot = '"..rpm.expand('%{buildroot}').."'\n")
@@ -395,18 +399,19 @@ lua_stderr("   #stderr# LUA custom_content_dir = '"..custom_content_dir.."'\n# -
 
 if (posix.stat(custom_content_dir, 'type') == 'directory') then
   for i,p in pairs(posix.dir(custom_content_dir)) do
-    local scriptlet_path = custom_content_dir .. p
-    if (string.match(p, '^[^.]') and (posix.stat(scriptlet_path, 'type') == 'regular')) then
-      lua_stderr("   #stderr# LUA: WARNING: custom file found: " .. scriptlet_path .. "\n")
-      local scriptlet_file = io.open(scriptlet_path)
-      if scriptlet_file then
-        local custom_content = scriptlet_file:read("*all")
+    local file = custom_content_dir .. p
+    if (string.match(p, '^[^.]') and (posix.stat(file, 'type') == 'regular')) then
+      lua_stderr("   #stderr# LUA: WARNING: custom file found: " .. file .. "\n")
+      local file_handle = io.open(file)
+      if file_handle then
+        local custom_content = file_handle:read("*all")
         define_custom_content(custom_content, custom_content_table)
       else
-        lua_stderr("   #stderr# LUA: WARNING: could not read "..scriptlet_path.."\n")
+        lua_stderr("   #stderr# LUA: WARNING: could not read "..file.."\n")
       end
+      file_handle:close()
     else
-      lua_stderr("   #stderr# LUA: WARNING: rejected "..scriptlet_path.."\n")
+      lua_stderr("   #stderr# LUA: WARNING: rejected "..file.."\n")
     end
   end
 else
