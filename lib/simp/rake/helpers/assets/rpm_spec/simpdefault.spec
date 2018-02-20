@@ -43,41 +43,52 @@
 --
 --
 
-local lua_debug = ((rpm.expand('%{lua_debug}') or '0') == '1')
+local LUA_DEBUG = ((rpm.expand('%{lua_debug}') or '0') == '1')
 function lua_stderr( msg )
-  if lua_debug then io.stderr:write('LUA #stderr#: '..msg) end
+  if LUA_DEBUG then
+    io.stderr:write('LUA #stderr#: '..tostring(msg))
+  end
 end
 
-src_dir = rpm.expand('%{pup_module_info_dir}')
+local function get_src_dir()
+  local src_dir = rpm.expand('%{pup_module_info_dir}')
+  if src_dir:match('^%%') or (posix.stat(src_dir, 'type') ~= 'directory') then
+    lua_stderr("WARNING: pup_module_info_dir ("..(src_dir or "NIL")..") could not be used!\n")
+    lua_stderr("         falling back to src_dir = _sourcedir\n")
 
-if src_dir:match('^%%') or (posix.stat(src_dir, 'type') ~= 'directory') then
-  -- NOTE: rpmlint considers this an E:
-  src_dir = rpm.expand('%{_sourcedir}')
+    -- FIXME?: rpmlint considers the use of _sourcedir to be an Error:
+    --   (see: https://fedoraproject.org/wiki/Packaging:RPM_Source_Dir)
+    src_dir = rpm.expand('%{_sourcedir}')
 
-  if (posix.stat((src_dir .. "/metadata.json"), 'type') ~= 'regular') then
-    src_dir = posix.getcwd()
+    if (posix.stat((src_dir .. "/metadata.json"), 'type') ~= 'regular') then
+      lua_stderr("WARNING: couldn't find metadata.json in '"..(src_dir or "NIL").."'!\n")
+      lua_stderr("         falling back to src_dir = posix.getcwd() ("..posix.getcwd()..")\n")
+
+      src_dir = posix.getcwd()
+    end
   end
-  lua_stderr("WARNING: pup_module_info_dir ("..(src_dir or "NIL")..") could not be used!\n")
-  lua_stderr("         falling back to src_dir = _sourcedir\n")
-
-  -- FIXME: rpmlint considers the use of _sourcedir to be an Error:
-  src_dir = rpm.expand('%{_sourcedir}')
-
-  if (posix.stat((src_dir .. "/metadata.json"), 'type') ~= 'regular') then
-    lua_stderr("WARNING: couldn't find metadata.json in '"..(src_dir or "NIL").."'!\n")
-    lua_stderr("         falling back to src_dir = posix.getcwd() ("..posix.getcwd()..")\n")
-
-    src_dir = posix.getcwd()
-  end
-
+  return src_dir
 end
 
+-- path to project directory / source files
+src_dir = get_src_dir()
+
+-- directory to look for customizations (e.g., scriptlets, triggers)
 custom_content_dir = src_dir .. "/build/rpm_metadata/custom/"
-custom_content_table = {}                  -- text to add to the spec file
-declared_scriptlets_table = {}              -- list of scriptlets seen so far
 
--- Lua patterns aren not regexes , and don't support alternation, e.g.: /(abc|xyz)/
--- so we try to be efficient a quick short-ciruit patterns
+-- list of custom content to inject into the spec file
+custom_content_table = {}
+
+-- list of scriptlets seen so far
+declared_scriptlets_table = {}
+
+-- patterns to recognize scriptlet and trigger declarations
+--
+-- NOTE: Lua patterns are not regexes , and do not support alternation.
+--       So, we try to stay efficient by iterating through as few patterns as
+--       possible by short-ciruiting several matches.
+--       (e.g. '^%%pre' matches both '%pre' and '%pretrans')
+--
 SCRIPTLET_PATTERNS = {
   '^%%pre',
   '^%%post',
@@ -92,7 +103,6 @@ module_license = "UNKNOWN"
 
 -- Default to 0
 package_release = 0
-
 
 
 -- Pull the Relevant Metadata out of the Puppet module metadata.json.
@@ -353,30 +363,33 @@ mkdir -p %{buildroot}/%{prefix}
 
 %{lua:
 
+-- return true if 'scriptlet_name' has already been declared
 function is_scriplet_declared(scriptlet_name, declared_scriptlets_table)
   for _,name in ipairs(custom_content_table) do
     if (name == scriptlet_name) then
-      do return(true) end
+      return true
     end
   end
-  do return(false) end
+  return false
 end
 
+-- return true if 'line' is a scriptlet or trigger header
 function is_valid_scriptlet_header(line)
   local match = false
   for _, patt in ipairs(SCRIPTLET_PATTERNS) do
     if line:match(patt) then
       match = true
-      -- lua_stderr('+ "'..patt..'" matches!\n')
+      break
     end
   end
+  return match
 end
--- ----------------------------------------------------------------
--- arguments:
---   content:              content to insert
---   custom_content_table: collection of custom content to insert
--- ----------
-function define_custom_content(content, custom_content_table, declared_scriptlets_table)
+
+function define_custom_content(
+   content,
+   custom_content_table,
+   declared_scriptlets_table
+   )
 -- ----------
 -- TODO: check for duplicate scriptlets!
   lua_stderr("######## custom content: \n".. (content:gsub("%f[^%z\n]","  |")) .."\n")
@@ -386,7 +399,7 @@ function define_custom_content(content, custom_content_table, declared_scriptlet
       if is_valid_scriptlet_header(line) then
         _line = line:gsub("^%s+",""):gsub("%s+$","")
         if is_scriplet_declared(_line, declared_scriptlets_table) then
-          lua_stderr("WARNING: scriptlet '"..scriptlet_name..
+          lua_stderr("WARNING: scriptlet '".._line..
                      "' has already been declared (skipping).\n")
           do return end
         else
@@ -404,40 +417,43 @@ end
 
 
 %{lua:
--- ----------------------------------------------------------------
--- arguments:
 --   scriptlet_name:    name of scriptlet or trigger section
 --                      (e.g., '%pre', '%triggerin -- foo')
 --   scriptlet_content: normal content of scriptlet
 -- ----------
-function define_scriptlet (scriptlet_name, scriptlet_content, declared_scriptlets_table, custom_content_table)
--- ----------
+function define_scriptlet(
+  name,
+  content,
+  declared_scriptlets_table,
+  custom_content_table
+)
   -- LUA pattern refresher: https://www.lua.org/manual/5.3/manual.html#6.4.1
-  -- %f[set] = "frontier pattern"―matches empty string between [^set] and [set]
+  -- %f[set] = "frontier pattern": matches empty string between [^set] and [set]
   -- %w      = any alphanumeric character
   -- %z      = \0 (string terminator) in Lua versions before 5.2 (EL6 uses 5.1)
-  local scriptlet_pattern = "%f[^\n%z]" .. scriptlet_name .. "%f[^%w]"
-  local scriptlet_content = scriptlet_content or ''
-  lua_stderr("processing scriptlet_name '"..scriptlet_name.."'\n")
+  local scriptlet_pattern = "%f[^\n%z]" .. name .. "%f[^%w]"
+  local content = content or ''
+  lua_stderr("processing name '"..name.."'\n")
 
-  if ( not scriptlet_name:match('^%%%l') ) then
-    lua_stderr("WARNING: invalid scriptlet name '"..scriptlet_name.."'\n")
+  if ( not name:match('^%%%l') ) then
+    lua_stderr("WARNING: invalid scriptlet name '"..name.."'\n")
     do return end
   end
 
-  if custom_content_table then
-    for i,n in ipairs(custom_content_table) do
-      if (n == scriptlet_name) then
-        lua_stderr("WARNING: skipping duplicate scriptlet '"..scriptlet_name.."'\n")
-        do return end
-      end
-    end
-  end
+-- FIXME: DELETE
+--  if custom_content_table then
+--    for _,_name in ipairs(custom_content_table) do
+--      if (_name == name) then
+--        lua_stderr("WARNING: skipping duplicate scriptlet '"..name.."'\n")
+--        do return end
+--      end
+--    end
+--  end
 
-  local expanded_content = rpm.expand(scriptlet_content) .. "\n\n"
+  local expanded_content = rpm.expand(content) .. "\n\n"
 
-  if not scriptlet_content:match(scriptlet_pattern) then
-    expanded_content = scriptlet_name:match "^%s*(.-)%s*$" .. "\n" .. scriptlet_content
+  if not content:match(scriptlet_pattern) then
+    expanded_content = name:match "^%s*(.-)%s*$" .. "\n" .. content
   end
   define_custom_content(expanded_content, custom_content_table, declared_scriptlets_table)
 end
