@@ -36,7 +36,7 @@
 
 lua_debug = ((rpm.expand('%{lua_debug}') or '0') == '1')
 function lua_stderr( msg )
-  if lua_debug then io.stderr:write(msg) end
+  if lua_debug then io.stderr:write('LUA #stderr#: '..msg) end
 end
 
 src_dir = rpm.expand('%{pup_module_info_dir}')
@@ -48,15 +48,15 @@ if src_dir:match('^%%') or (posix.stat(src_dir, 'type') ~= 'directory') then
   if (posix.stat((src_dir .. "/metadata.json"), 'type') ~= 'regular') then
     src_dir = posix.getcwd()
   end
-  lua_stderr("  #stderr# LUA: WARNING: pup_module_info_dir ("..(src_dir or "NIL")..") could not be used!\n")
-  lua_stderr("  #stderr# LUA:          falling back to src_dir = _sourcedir\n")
+  lua_stderr("WARNING: pup_module_info_dir ("..(src_dir or "NIL")..") could not be used!\n")
+  lua_stderr("         falling back to src_dir = _sourcedir\n")
 
   -- FIXME: rpmlint considers the use of _sourcedir to be an Error:
   src_dir = rpm.expand('%{_sourcedir}')
 
   if (posix.stat((src_dir .. "/metadata.json"), 'type') ~= 'regular') then
-    lua_stderr("  #stderr# LUA: WARNING: couldn't find metadata.json in '"..(src_dir or "NIL").."'!\n")
-    lua_stderr("  #stderr# LUA:          falling back to src_dir = posix.getcwd() ("..posix.getcwd()..")\n")
+    lua_stderr("WARNING: couldn't find metadata.json in '"..(src_dir or "NIL").."'!\n")
+    lua_stderr("         falling back to src_dir = posix.getcwd() ("..posix.getcwd()..")\n")
 
     src_dir = posix.getcwd()
   end
@@ -350,7 +350,7 @@ mkdir -p %{buildroot}/%{prefix}
 function define_custom_content(content, custom_content_table, declared_scriptlets_table)
 -- ----------
 -- TODO: check for duplicate scriptlets!
-  lua_stderr("######## custom content: '"..content.."'\n\n")
+  lua_stderr("######## custom content: '"..content.."'\n")
 
   if content then
     for line in content:gmatch("([^\n]*)\n?") do
@@ -359,7 +359,7 @@ function define_custom_content(content, custom_content_table, declared_scriptlet
       for i, patt in ipairs(scriptlet_patterns) do
         if line:match(patt) then
           match = true
-          lua_stderr('+ "'..patt..'" matches!\n')
+          -- lua_stderr('+ "'..patt..'" matches!\n')
         end
       end
       if match then
@@ -395,17 +395,17 @@ function define_scriptlet (scriptlet_name, scriptlet_content, declared_scriptlet
   -- %z      = \0 (string terminator) in Lua versions before 5.2 (EL6 uses 5.1)
   local scriptlet_pattern = "%f[^\n%z]" .. scriptlet_name .. "%f[^%w]"
   local scriptlet_content = scriptlet_content or ''
-  lua_stderr("   #stderr# LUA processing scriptlet_name '"..scriptlet_name.."'\n")
+  lua_stderr("processing scriptlet_name '"..scriptlet_name.."'\n")
 
   if ( not scriptlet_name:match('^%%%l') ) then
-    lua_stderr("  #stderr# LUA: WARNING: invalid scriptlet name '"..scriptlet_name.."'\n")
+    lua_stderr("WARNING: invalid scriptlet name '"..scriptlet_name.."'\n")
     do return end
   end
 
   if custom_content_table then
     for i,n in ipairs(custom_content_table) do
       if (n == scriptlet_name) then
-        lua_stderr("  #stderr# LUA: WARNING: skipping duplicate scriptlet '"..scriptlet_name.."'\n")
+        lua_stderr("WARNING: skipping duplicate scriptlet '"..scriptlet_name.."'\n")
         do return end
       end
     end
@@ -419,12 +419,12 @@ function define_scriptlet (scriptlet_name, scriptlet_content, declared_scriptlet
   define_custom_content(expanded_content, custom_content_table, declared_scriptlets_table)
 end
 
-lua_stderr("   #stderr# LUA _version = '".._VERSION.."'\n")
-lua_stderr("   #stderr# LUA _specdir = '"..rpm.expand('%{_specdir}').."'\n")
-lua_stderr("   #stderr# LUA _buildrootdir = '"..rpm.expand('%{_buildrootdir}').."'\n")
-lua_stderr("   #stderr# LUA buildroot = '"..rpm.expand('%{buildroot}').."'\n")
-lua_stderr("   #stderr# LUA RPM_BUILD_ROOT = '"..rpm.expand('%{RPM_BUILD_ROOT}').."'\n")
-lua_stderr("   #stderr# LUA custom_content_dir = '"..custom_content_dir.."'\n# ---\n")
+lua_stderr("_version = '".._VERSION.."'\n")
+lua_stderr("_specdir = '"..rpm.expand('%{_specdir}').."'\n")
+lua_stderr("_buildrootdir = '"..rpm.expand('%{_buildrootdir}').."'\n")
+lua_stderr("buildroot = '"..rpm.expand('%{buildroot}').."'\n")
+lua_stderr("RPM_BUILD_ROOT = '"..rpm.expand('%{RPM_BUILD_ROOT}').."'\n")
+lua_stderr("custom_content_dir = '"..custom_content_dir.."'\n# ---\n")
 
 
 if (posix.stat(custom_content_dir, 'type') == 'directory') then
@@ -432,22 +432,22 @@ if (posix.stat(custom_content_dir, 'type') == 'directory') then
     local file = custom_content_dir .. p
     -- only accept files that are not dot files (".filename")
     if (p:match('^[^%.]') and (posix.stat(file, 'type') == 'regular')) then
-      lua_stderr("   #stderr# LUA: WARNING: custom file found: " .. file .. "\n")
+      lua_stderr("INFO: found custom RPM spec file snippet: '" .. file .. "'\n")
       local file_handle = io.open(file,'r')
       if file_handle then
         for line in file_handle:lines() do
           define_custom_content(line, custom_content_table, declared_scriptlets_table)
         end
       else
-        lua_stderr("   #stderr# LUA: WARNING: could not read "..file.."\n")
+        lua_stderr("WARNING: could not read '"..file.."'\n")
       end
       file_handle:close()
     else
-      lua_stderr("   #stderr# LUA: WARNING: rejected "..file.."\n")
+      lua_stderr("WARNING: skipped invalid filename '"..file.."'\n")
     end
   end
 else
-  lua_stderr("   #stderr# LUA: WARNING: not found: " .. custom_content_dir .. "\n")
+  lua_stderr("WARNING: not found: " .. custom_content_dir .. "\n")
 end
 
 -- These are default scriptlets for SIMP 6.1.0
@@ -492,7 +492,7 @@ custom_content_table)
   s = table.concat(custom_content_table, "\n") .. "\n"
   print(s)
 
-  lua_stderr("  #stderr# LUA: WARNING: custom_content_table:\n----------------\n"..(s or "NIL").."\n-------------------------\n")
+  lua_stderr("WARNING: custom_content_table:\n----------------\n"..(s or "NIL").."\n-------------------------\n")
 }
 
 
