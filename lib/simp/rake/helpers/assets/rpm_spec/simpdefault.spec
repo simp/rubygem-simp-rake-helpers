@@ -1,12 +1,23 @@
 %{lua:
 
+-- This RPM spec file can build
 --
--- When you build, you must define the macro 'pup_module_info_dir' so that we
--- know where to get preliminary information.
+-- ## Usage
+--
+-- ### pup_module_info_dir
+--
+-- When you build, you must define the macro 'pup_module_info_dir' so that rpm
+-- knows where to find preliminary information.
+--
+-- If 'pup_module_info_dir' isn't defined or available, rpm will look in
+-- '_sourcedir' for the files, falling back to the current directory as a last
+-- resort.
 --
 -- Example:
 --
---   rpmbuild -D 'pup_module_info_dir /home/user/project/puppet_module' -ba SPECS/specfile.spec
+--     rpmbuild -D 'pup_module_info_dir /home/user/project/puppet_module' -ba SPECS/specfile.spec
+--
+-- #### relevant files
 --
 -- 'pup_module_info_dir' should be a directory that holds the following items:
 --
@@ -27,11 +38,9 @@
 --   * 'CHANGELOG'                      <- optional RPM-formatted CHANGELOG to
 --                                         use in lieu of the minimal changelog
 --                                         entry auto-generated in this file.
---   * 'build/rpm_metadata/custom/' <- optional directory to place files to
+--   * 'build/rpm_metadata/custom/'     <- optional directory to place files to
 --                                         add custom scriptlets and triggers.
 --
--- If this is not found in 'pup_module_info_dir', we will look in '_sourcedir'
--- for the files, and fall back to the current directory
 --
 
 lua_debug = ((rpm.expand('%{lua_debug}') or '0') == '1')
@@ -63,7 +72,7 @@ if src_dir:match('^%%') or (posix.stat(src_dir, 'type') ~= 'directory') then
 
 end
 
-custom_content_dir = src_dir .. "/build/rpm_metadata/custom/" -- location (relative to
+custom_content_dir = src_dir .. "/build/rpm_metadata/custom/"
 custom_content_table = {}                  -- text to add to the spec file
 declared_scriptlets_table = {}              -- list of scriptlets seen so far
 -- Lua patterns aren't regexes, and don't support alternation, e.g.: /(abc|xyz)/
