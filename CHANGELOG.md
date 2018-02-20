@@ -1,5 +1,5 @@
-### 5.4.0 / 2018-02-12
-* Add custom RPM scriptlet support
+### 5.3.0 / 2018-02-12
+* Add support for RPM customization (e.g., scriptlets, triggers)
 * Improved RPM troubleshooting:
   - Add `Vagrantfile` to provide a pristine beaker/docker setup
   - New env var: `SIMP_RPM_verbose=yes`

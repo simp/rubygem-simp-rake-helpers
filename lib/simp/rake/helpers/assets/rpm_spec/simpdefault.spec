@@ -41,7 +41,7 @@ end
 
 src_dir = rpm.expand('%{pup_module_info_dir}')
 
-if string.match(src_dir, '^%%') or (posix.stat(src_dir, 'type') ~= 'directory') then
+if src_dir:match('^%%') or (posix.stat(src_dir, 'type') ~= 'directory') then
   -- NOTE: rpmlint considers this an E:
   src_dir = rpm.expand('%{_sourcedir}')
 
@@ -66,6 +66,13 @@ end
 custom_content_dir = src_dir .. "/build/rpm_metadata/custom/" -- location (relative to
 custom_content_table = {}                  -- text to add to the spec file
 defined_scriptlets_table = {}              -- list of scriptlets seen so far
+-- Lua patterns aren't regexes, and don't support alternation, e.g.: /(abc|xyz)/
+-- so we use a quick short-ciruit pattern and chain some "or" statements
+scriptlet_patterns = {
+  '^%%pre',
+  '^%%post',
+  '^%%trigger'
+}
 
 -- These UNKNOWN entries should break the build if something bad happens
 
@@ -105,7 +112,7 @@ module_requires = ''
 
 -- Get the Module Name and put it in the correct format
 
-local name_match = string.match(metadata, '"name":%s+"(.-)"%s*,')
+local name_match = metadata:match('"name":%s+"(.-)"%s*,')
 
 module_author = ''
 module_name = ''
@@ -114,7 +121,7 @@ if name_match then
   package_name = ('pupmod-' .. name_match)
 
   local i = 0
-  for str in string.gmatch(name_match,'[^-]+') do
+  for str in name_match:gmatch('[^-]+') do
     if i == 0 then
       module_author = str
     else
@@ -137,7 +144,7 @@ end
 
 -- Get the Module Version
 
-local version_match = string.match(metadata, '"version":%s+"(.-)"%s*,')
+local version_match = metadata:match('"version":%s+"(.-)"%s*,')
 
 if version_match then
   package_version = version_match
@@ -151,7 +158,7 @@ end
 
 -- Get the Module License
 
-local license_match = string.match(metadata, '"license":%s+"(.-)"%s*,')
+local license_match = metadata:match('"license":%s+"(.-)"%s*,')
 
 if license_match then
   module_license = license_match
@@ -165,7 +172,7 @@ end
 
 -- Get the Module Summary
 
-local summary_match = string.match(metadata, '"summary":%s+"(.-)"%s*,')
+local summary_match = metadata:match('"summary":%s+"(.-)"%s*,')
 
 if summary_match then
   module_summary = summary_match
@@ -179,7 +186,7 @@ end
 
 -- Get the Module Source line for the URL string
 
-local source_match = string.match(metadata, '"source":%s+"(.-)"%s*,')
+local source_match = metadata:match('"source":%s+"(.-)"%s*,')
 
 if source_match then
   module_source = source_match
@@ -204,8 +211,8 @@ end
 
 if rel_file then
   for line in rel_file:lines() do
-    is_comment = string.match(line, "^%s*#")
-    is_blank = string.match(line, "^%s*$")
+    is_comment = line:match("^%s*#")
+    is_blank = line:match("^%s*$")
 
     if not (is_comment or is_blank) then
       package_release = line
@@ -228,7 +235,7 @@ end
 
 if req_file then
   for line in req_file:lines() do
-    valid_line = (string.match(line, "^Requires: ") or string.match(line, "^Obsoletes: ") or string.match(line, "^Provides: "))
+    valid_line = (line:match("^Requires: ") or line:match("^Obsoletes: ") or line:match("^Provides: "))
 
     if valid_line then
       module_requires = (module_requires .. "\n" .. line)
@@ -337,13 +344,37 @@ mkdir -p %{buildroot}/%{prefix}
 %{lua:
 -- ----------------------------------------------------------------
 -- arguments:
---   content:              content to insert
---   custom_content_table: collection of custom content to insert
+--   line:              line to insert
+--   custom_content_table: collection of custom line to insert
 -- ----------
-function define_custom_content(content, custom_content_table)
+function define_custom_content(line, custom_content_table, defined_scriptlets_table)
 -- ----------
--- TODO: check for duplcate scriptlets!
-  table.insert( custom_content_table, content )
+-- TODO: check for duplicate scriptlets!
+    rpm.interactive()
+  io.stderr:write("######## custom line: '"..line.."'\n\n")
+  if line then
+    -- local i, patt, capture
+    rpm.interactive()
+    local match = nil
+    for i, patt in ipairs(scriptlet_patterns) do
+      io.stderr:write('pattern: "' .. patt .. '')
+      if line:match(patt) then
+        match = true
+        io.stderr:write(' MATCHED')
+      end
+      io.stderr:write('\n')
+    end
+    if match then
+      io.stderr:write("line '"..line.."' matches scriptlet pattern; adding to defined_scriptlets_table.\n")
+      _line = line:gsub("^%s+",""):gsub("%s+$","")
+      table.insert(defined_scriptlets_table,_line)
+    end
+  else
+    io.stderr:write("Nil\n")
+  end
+  io.stderr:write("-----------\n\n\n")
+
+  table.insert( custom_content_table, line )
 end
 }
 
@@ -365,7 +396,7 @@ function define_scriptlet (scriptlet_name, scriptlet_content, defined_scriptlets
   local scriptlet_content = scriptlet_content or ''
   lua_stderr("   #stderr# LUA processing scriptlet_name '"..scriptlet_name.."'\n")
 
-  if ( not string.match(scriptlet_name, '^%%%l') ) then
+  if ( not scriptlet_name:match('^%%%l') ) then
     lua_stderr("  #stderr# LUA: WARNING: invalid scriptlet name '"..scriptlet_name.."'\n")
     do return end
   end
@@ -400,12 +431,14 @@ lua_stderr("   #stderr# LUA custom_content_dir = '"..custom_content_dir.."'\n# -
 if (posix.stat(custom_content_dir, 'type') == 'directory') then
   for i,p in pairs(posix.dir(custom_content_dir)) do
     local file = custom_content_dir .. p
-    if (string.match(p, '^[^.]') and (posix.stat(file, 'type') == 'regular')) then
+    -- only accept files that are not dot files (".filename")
+    if (p:match('^[^%.]') and (posix.stat(file, 'type') == 'regular')) then
       lua_stderr("   #stderr# LUA: WARNING: custom file found: " .. file .. "\n")
-      local file_handle = io.open(file)
+      local file_handle = io.open(file,'r')
       if file_handle then
-        local custom_content = file_handle:read("*all")
-        define_custom_content(custom_content, custom_content_table)
+        for line in file_handle:lines() do
+          define_custom_content(line, custom_content_table, defined_scriptlets_table)
+        end
       else
         lua_stderr("   #stderr# LUA: WARNING: could not read "..file.."\n")
       end
@@ -490,7 +523,7 @@ default_lookup_table = {
 changelog = io.open(src_dir .. "/CHANGELOG","r")
 if changelog then
   first_line = changelog:read()
-  if string.match(first_line, "^*%s+%a%a%a%s+%a%a%a%s+%d%d?%s+%d%d%d%d%s+.+") then
+  if first_line:match("^*%s+%a%a%a%s+%a%a%a%s+%d%d?%s+%d%d%d%d%s+.+") then
     changelog:seek("set",0)
     print(changelog:read("*all"))
   else
