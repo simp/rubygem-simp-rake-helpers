@@ -43,7 +43,7 @@
 --
 --
 
-lua_debug = ((rpm.expand('%{lua_debug}') or '0') == '1')
+local lua_debug = ((rpm.expand('%{lua_debug}') or '0') == '1')
 function lua_stderr( msg )
   if lua_debug then io.stderr:write('LUA #stderr#: '..msg) end
 end
@@ -75,9 +75,10 @@ end
 custom_content_dir = src_dir .. "/build/rpm_metadata/custom/"
 custom_content_table = {}                  -- text to add to the spec file
 declared_scriptlets_table = {}              -- list of scriptlets seen so far
--- Lua patterns aren't regexes, and don't support alternation, e.g.: /(abc|xyz)/
--- so we use a quick short-ciruit pattern and chain some "or" statements
-scriptlet_patterns = {
+
+-- Lua patterns aren not regexes , and don't support alternation, e.g.: /(abc|xyz)/
+-- so we try to be efficient a quick short-ciruit patterns
+SCRIPTLET_PATTERNS = {
   '^%%pre',
   '^%%post',
   '^%%trigger'
@@ -351,6 +352,25 @@ rm -rf %{buildroot}/%{prefix}/%{module_name}/log
 mkdir -p %{buildroot}/%{prefix}
 
 %{lua:
+
+function is_scriplet_declared(scriptlet_name, declared_scriptlets_table)
+  for _,name in ipairs(custom_content_table) do
+    if (name == scriptlet_name) then
+      do return(true) end
+    end
+  end
+  do return(false) end
+end
+
+function is_valid_scriptlet_header(line)
+  local match = false
+  for _, patt in ipairs(SCRIPTLET_PATTERNS) do
+    if line:match(patt) then
+      match = true
+      -- lua_stderr('+ "'..patt..'" matches!\n')
+    end
+  end
+end
 -- ----------------------------------------------------------------
 -- arguments:
 --   content:              content to insert
@@ -359,30 +379,24 @@ mkdir -p %{buildroot}/%{prefix}
 function define_custom_content(content, custom_content_table, declared_scriptlets_table)
 -- ----------
 -- TODO: check for duplicate scriptlets!
-  lua_stderr("######## custom content: '"..content.."'\n")
+  lua_stderr("######## custom content: \n".. (content:gsub("%f[^%z\n]","  |")) .."\n")
 
   if content then
     for line in content:gmatch("([^\n]*)\n?") do
-      local i, patt
-      local match = nil
-      for i, patt in ipairs(scriptlet_patterns) do
-        if line:match(patt) then
-          match = true
-          -- lua_stderr('+ "'..patt..'" matches!\n')
-        end
-      end
-      if match then
+      if is_valid_scriptlet_header(line) then
         _line = line:gsub("^%s+",""):gsub("%s+$","")
-        lua_stderr('+ "'.._line..'" is recognized as a scriptlet/trigger; ')
-        lua_stderr('adding to declared_scriptlets_table.\n')
-        -- TODO: check for duplicates here
-        table.insert(declared_scriptlets_table,_line)
+        if is_scriplet_declared(_line, declared_scriptlets_table) then
+          lua_stderr("WARNING: scriptlet '"..scriptlet_name..
+                     "' has already been declared (skipping).\n")
+          do return end
+        else
+          lua_stderr('+ "'.._line..'" is recognized as a scriptlet/trigger.\n')
+        end
       end
     end
   else
     lua_stderr("Nil\n")
   end
-  lua_stderr("-----------\n")
 
   table.insert( custom_content_table, content )
 end
@@ -437,10 +451,10 @@ lua_stderr("custom_content_dir = '"..custom_content_dir.."'\n# ---\n")
 
 
 if (posix.stat(custom_content_dir, 'type') == 'directory') then
-  for i,p in pairs(posix.dir(custom_content_dir)) do
-    local file = custom_content_dir .. p
+  for i,basename in pairs(posix.dir(custom_content_dir)) do
+    local file = custom_content_dir .. basename
     -- only accept files that are not dot files (".filename")
-    if (p:match('^[^%.]') and (posix.stat(file, 'type') == 'regular')) then
+    if (basename:match('^[^%.]') and (posix.stat(file, 'type') == 'regular')) then
       lua_stderr("INFO: found custom RPM spec file snippet: '" .. file .. "'\n")
       local file_handle = io.open(file,'r')
       if file_handle then
@@ -452,7 +466,7 @@ if (posix.stat(custom_content_dir, 'type') == 'directory') then
       end
       file_handle:close()
     else
-      lua_stderr("WARNING: skipped invalid filename '"..file.."'\n")
+      lua_stderr("WARNING: skipping invalid filename '"..basename.."'\n")
     end
   end
 else
