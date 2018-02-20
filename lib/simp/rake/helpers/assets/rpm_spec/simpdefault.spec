@@ -413,17 +413,11 @@ function define_custom_content(
 
   table.insert( custom_content_table, content )
 end
-}
 
 
-%{lua:
-
---
---   scriptlet_content: normal content of scriptlet
--- ----------
 function define_scriptlet(
-  name,                      --  (e.g., '%pre', '%triggerin -- foo')
-  content,
+  name,                      --  e.g., '%pre', '%triggerin -- foo'
+  content,                   -- normal content of scriptlet
   declared_scriptlets_table,
   custom_content_table
 )
@@ -435,20 +429,10 @@ function define_scriptlet(
   local content = content or ''
   lua_stderr("processing name '"..name.."'\n")
 
-  if ( not name:match('^%%%l') ) then
+  if ( not is_valid_scriptlet_header(name) ) then
     lua_stderr("WARNING: invalid scriptlet name '"..name.."'\n")
-    do return end
+    return
   end
-
--- FIXME: DELETE
---  if custom_content_table then
---    for _,_name in ipairs(custom_content_table) do
---      if (_name == name) then
---        lua_stderr("WARNING: skipping duplicate scriptlet '"..name.."'\n")
---        do return end
---      end
---    end
---  end
 
   local expanded_content = rpm.expand(content) .. "\n\n"
 
