@@ -417,12 +417,12 @@ end
 
 
 %{lua:
---   scriptlet_name:    name of scriptlet or trigger section
---                      (e.g., '%pre', '%triggerin -- foo')
+
+--
 --   scriptlet_content: normal content of scriptlet
 -- ----------
 function define_scriptlet(
-  name,
+  name,                      --  (e.g., '%pre', '%triggerin -- foo')
   content,
   declared_scriptlets_table,
   custom_content_table
