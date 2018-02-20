@@ -65,7 +65,7 @@ end
 
 custom_content_dir = src_dir .. "/build/rpm_metadata/custom/" -- location (relative to
 custom_content_table = {}                  -- text to add to the spec file
-defined_scriptlets_table = {}              -- list of scriptlets seen so far
+declared_scriptlets_table = {}              -- list of scriptlets seen so far
 -- Lua patterns aren't regexes, and don't support alternation, e.g.: /(abc|xyz)/
 -- so we use a quick short-ciruit pattern and chain some "or" statements
 scriptlet_patterns = {
@@ -344,37 +344,38 @@ mkdir -p %{buildroot}/%{prefix}
 %{lua:
 -- ----------------------------------------------------------------
 -- arguments:
---   line:              line to insert
---   custom_content_table: collection of custom line to insert
+--   content:              content to insert
+--   custom_content_table: collection of custom content to insert
 -- ----------
-function define_custom_content(line, custom_content_table, defined_scriptlets_table)
+function define_custom_content(content, custom_content_table, declared_scriptlets_table)
 -- ----------
 -- TODO: check for duplicate scriptlets!
-    rpm.interactive()
-  io.stderr:write("######## custom line: '"..line.."'\n\n")
-  if line then
-    -- local i, patt, capture
-    rpm.interactive()
-    local match = nil
-    for i, patt in ipairs(scriptlet_patterns) do
-      io.stderr:write('pattern: "' .. patt .. '')
-      if line:match(patt) then
-        match = true
-        io.stderr:write(' MATCHED')
+  lua_stderr("######## custom content: '"..content.."'\n\n")
+
+  if content then
+    for line in content:gmatch("([^\n]*)\n?") do
+      local i, patt
+      local match = nil
+      for i, patt in ipairs(scriptlet_patterns) do
+        if line:match(patt) then
+          match = true
+          lua_stderr('+ "'..patt..'" matches!\n')
+        end
       end
-      io.stderr:write('\n')
-    end
-    if match then
-      io.stderr:write("line '"..line.."' matches scriptlet pattern; adding to defined_scriptlets_table.\n")
-      _line = line:gsub("^%s+",""):gsub("%s+$","")
-      table.insert(defined_scriptlets_table,_line)
+      if match then
+        _line = line:gsub("^%s+",""):gsub("%s+$","")
+        lua_stderr('+ "'.._line..'" is recognized as a scriptlet/trigger; ')
+        lua_stderr('adding to declared_scriptlets_table.\n')
+        -- TODO: check for duplicates here
+        table.insert(declared_scriptlets_table,_line)
+      end
     end
   else
-    io.stderr:write("Nil\n")
+    lua_stderr("Nil\n")
   end
-  io.stderr:write("-----------\n\n\n")
+  lua_stderr("-----------\n")
 
-  table.insert( custom_content_table, line )
+  table.insert( custom_content_table, content )
 end
 }
 
@@ -386,7 +387,7 @@ end
 --                      (e.g., '%pre', '%triggerin -- foo')
 --   scriptlet_content: normal content of scriptlet
 -- ----------
-function define_scriptlet (scriptlet_name, scriptlet_content, defined_scriptlets_table, custom_content_table)
+function define_scriptlet (scriptlet_name, scriptlet_content, declared_scriptlets_table, custom_content_table)
 -- ----------
   -- LUA pattern refresher: https://www.lua.org/manual/5.3/manual.html#6.4.1
   -- %f[set] = "frontier pattern"―matches empty string between [^set] and [set]
@@ -400,6 +401,7 @@ function define_scriptlet (scriptlet_name, scriptlet_content, defined_scriptlets
     lua_stderr("  #stderr# LUA: WARNING: invalid scriptlet name '"..scriptlet_name.."'\n")
     do return end
   end
+
   if custom_content_table then
     for i,n in ipairs(custom_content_table) do
       if (n == scriptlet_name) then
@@ -414,10 +416,7 @@ function define_scriptlet (scriptlet_name, scriptlet_content, defined_scriptlets
   if not scriptlet_content:match(scriptlet_pattern) then
     expanded_content = scriptlet_name:match "^%s*(.-)%s*$" .. "\n" .. scriptlet_content
   end
-  define_custom_content(expanded_content, custom_content_table)
-
-  -- add name to list of scriplets (also triggers) we have seen
-  table.insert(defined_scriptlets_table,scriptlet_name)
+  define_custom_content(expanded_content, custom_content_table, declared_scriptlets_table)
 end
 
 lua_stderr("   #stderr# LUA _version = '".._VERSION.."'\n")
@@ -437,7 +436,7 @@ if (posix.stat(custom_content_dir, 'type') == 'directory') then
       local file_handle = io.open(file,'r')
       if file_handle then
         for line in file_handle:lines() do
-          define_custom_content(line, custom_content_table, defined_scriptlets_table)
+          define_custom_content(line, custom_content_table, declared_scriptlets_table)
         end
       else
         lua_stderr("   #stderr# LUA: WARNING: could not read "..file.."\n")
@@ -459,7 +458,7 @@ define_scriptlet('%pre', [[
 # when $1 = 1, this is an install
 # when $1 = 2, this is an upgrade
 ]] .. default_scriptlet_content:gsub('SECTION','pre'),
-  defined_scriptlets_table,
+  declared_scriptlets_table,
   custom_content_table
 )
 
@@ -468,7 +467,7 @@ define_scriptlet('%post', [[
 # when $1 = 1, this is an install
 # when $1 = 2, this is an upgrade
 ]] ..  default_scriptlet_content:gsub('SECTION','post'),
-defined_scriptlets_table,
+declared_scriptlets_table,
 custom_content_table)
 
 define_scriptlet('%preun', [[
@@ -476,7 +475,7 @@ define_scriptlet('%preun', [[
 # when $1 = 1, this is an install
 # when $1 = 0, this is an upgrade
 ]] ..  default_scriptlet_content:gsub('SECTION','preun'),
-defined_scriptlets_table,
+declared_scriptlets_table,
 custom_content_table)
 
 define_scriptlet('%postun', [[
@@ -484,9 +483,8 @@ define_scriptlet('%postun', [[
 # when $1 = 1, this is an install
 # when $1 = 0, this is an upgrade
 ]] ..  default_scriptlet_content:gsub('SECTION','postun'),
-defined_scriptlets_table,
+declared_scriptlets_table,
 custom_content_table)
-
 }
 
 %{lua:

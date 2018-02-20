@@ -11,7 +11,7 @@ rug(){
  runuser build_user -l -c "cd /$TOPWD; $@"
 }
 ru(){
- runuser build_user -l -c "cd /$TWD; SIMP_RPM_verbose=yes SIMP_PKG_verbose=yes $@"
+ runuser build_user -l -c "cd /$TWD; SIMP_RPM_LUA_debug=yes SIMP_RPM_verbose=yes SIMP_PKG_verbose=yes $@"
 }
 ru_specfile_rpm_q(){
   ru "rpm -q -D 'pup_module_info_dir $TWD' --specfile $TWD/dist/tmp/testpackage.spec $@"
@@ -27,7 +27,7 @@ ru_specfile_rpm_q(){
 # mimic the beaker setup:
 ru "rvm use default; bundle update --local || bundle update"
 ru "rake clean"
-ru "rpm -q -D 'pup_module_info_dir $TWD' --specfile $TWD/dist/tmp/testpackage.spec"
+ru "rpm -q -D 'pup_module_info_dir $TWD' --specfile $TWD/dist/tmp/testpackage*.spec"
 ru "rake pkg:rpm"  && ru "find dist -name \*noarch.rpm -ls; date" && rpm -qip $TWD/dist/pupmod-simp-testpackage-0.0.1-0.noarch.rpm
 
 ## usage:

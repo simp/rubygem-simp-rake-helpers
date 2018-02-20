@@ -376,11 +376,11 @@ module Simp
 
       if source_is_rpm
         query_source = "-p #{rpm_source}"
-        version_results = execute("#{rpm_version_query} #{query_source} 2>/dev/null")
+        version_results = execute("#{rpm_version_query} #{query_source}")
         signature_results = execute("#{rpm_signature_query} #{query_source}")
       else
         query_source = "--specfile #{rpm_source}"
-        version_results = execute("#{rpm_version_query} #{query_source} 2>/dev/null")
+        version_results = execute("#{rpm_version_query} #{query_source}")
         signature_results = nil
       end
 

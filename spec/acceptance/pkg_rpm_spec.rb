@@ -100,13 +100,12 @@ shared_examples_for "an RPM generator with edge cases" do
   context 'when custom data is defined under rpm_metadata' do
     it 'should create an RPM with custom scriptlets' do
       on host, %(#{run_cmd} "cd #{pkg_root_dir}/testpackage_custom_scriptlet; )+
-               %(SIMP_RAKE_PKG_LUA_debug=yes SIMP_RPM_LUA_debug=yes SIMP_RAKE_PKG_verbose=yes SIMP_RPM_verbose=yes rake pkg:rpm")
+               %(SIMP_RAKE_PKG_LUA_verbose=yes SIMP_RPM_LUA_debug=yes SIMP_RAKE_PKG_verbose=yes SIMP_RPM_verbose=yes rake pkg:rpm")
 
         comment 'produces RPM with appropriate pre/post/preun/postun'
         result = on host, %(rpm -qp --scripts #{pkg_root_dir}/testpackage_custom_scriptlet/dist/pupmod-simp-testpackage-0.0.1-0.noarch.rpm)
         scriptlets = result.stdout.scan( %r{^.*?scriptlet.*?/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage.*?$}m )
 
-              require 'pry'; binding.pry
         expect( scriptlets.grep( %r{\Apreinstall scriptlet.*\n/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='pre' --rpm_status=\$1\Z}m )).not_to be_empty
         expect( scriptlets.grep( %r{\Apostinstall scriptlet.*\n/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='post' --rpm_status=\$1\Z}m )).not_to be_empty
         expect( scriptlets.grep( %r{\Apreuninstall scriptlet.*\n/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='preun' --rpm_status=\$1\Z}m )).not_to be_empty
@@ -152,7 +151,7 @@ describe 'rake pkg:rpm' do
 
           it 'should create an RPM' do
             comment "produces RPM on #{host}"
-            on host, %(#{run_cmd} "cd #{testpackage_dir}; rake pkg:rpm")
+            on host, %(#{run_cmd} "cd #{testpackage_dir}; SIMP_RAKE_PKG_LUA_verbose=yes SIMP_RPM_LUA_debug=yes SIMP_RAKE_PKG_verbose=yes SIMP_RPM_verbose=yes rake pkg:rpm")
             on host, %(test -f #{testpackage_rpm})
 
             comment 'produces RPM with appropriate dependencies'
