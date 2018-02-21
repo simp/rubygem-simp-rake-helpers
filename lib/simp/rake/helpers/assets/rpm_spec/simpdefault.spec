@@ -46,7 +46,7 @@
 local LUA_DEBUG = ((rpm.expand('%{lua_debug}') or '0') == '1')
 function lua_stderr( msg )
   if LUA_DEBUG then
-    io.stderr:write(tostring(msg):gsub("%f[^%z\n]","LUA #stderr#: "))
+    io.stderr:write('LUA #stderr#: '..tostring(msg))
   end
 end
 
@@ -411,31 +411,32 @@ function define_custom_content(
 end
 
 
--- function define_scriptlet(
---   name,                      --  e.g., '%pre', '%triggerin -- foo'
---   content,                   -- normal content of scriptlet
---   declared_scriptlets_table,
---   custom_content_table
--- )
---   -- LUA pattern refresher: https://www.lua.org/manual/5.3/manual.html#6.4.1
---   -- %f[set] = "frontier pattern": matches empty string between [^set] and [set]
---   -- %w      = any alphanumeric character
---   -- %z      = \0 (string terminator) in Lua versions before 5.2 (EL6 uses 5.1)
---   local scriptlet_pattern = "%f[^\n%z]" .. name .. "%f[^%w]"
---   local content = tostring(content)
---   lua_stderr("processing name '"..name.."'\n")
--- 
---   if ( not is_valid_scriptlet_header(name) ) then
---     lua_stderr("WARNING: invalid scriptlet name '"..name.."'\n")
---     return
---   end
---   local expanded_content = rpm.expand(content) .. "\n\n"
--- 
---   if not content:match(scriptlet_pattern) then
---     expanded_content = name:match "^%s*(.-)%s*$" .. "\n" .. content
---   end
---   define_custom_content(expanded_content, custom_content_table, declared_scriptlets_table)
--- end
+function define_scriptlet(
+  name,                      --  e.g., '%pre', '%triggerin -- foo'
+  content,                   -- normal content of scriptlet
+  declared_scriptlets_table,
+  custom_content_table
+)
+  -- LUA pattern refresher: https://www.lua.org/manual/5.3/manual.html#6.4.1
+  -- %f[set] = "frontier pattern": matches empty string between [^set] and [set]
+  -- %w      = any alphanumeric character
+  -- %z      = \0 (string terminator) in Lua versions before 5.2 (EL6 uses 5.1)
+  local scriptlet_pattern = "%f[^\n%z]" .. name .. "%f[^%w]"
+  local content = content or ''
+  lua_stderr("processing name '"..name.."'\n")
+
+  if ( not is_valid_scriptlet_header(name) ) then
+    lua_stderr("WARNING: invalid scriptlet name '"..name.."'\n")
+    return
+  end
+
+  local expanded_content = rpm.expand(content) .. "\n\n"
+
+  if not content:match(scriptlet_pattern) then
+    expanded_content = name:match "^%s*(.-)%s*$" .. "\n" .. content
+  end
+  define_custom_content(expanded_content, custom_content_table, declared_scriptlets_table)
+end
 
 lua_stderr("_VERSION = '".._VERSION.."'\n")
 lua_stderr("_specdir = '"..rpm.expand('%{_specdir}').."'\n")
@@ -469,32 +470,46 @@ else
 end
 
 -- These are default scriptlets for SIMP 6.1.0
-  local DEFAULT_SCRIPTLETS = {
-    ['pre']    = {upgrade = 2},
-    ['post']   = {upgrade = 2},
-    ['preun']  = {upgrade = 0},
-    ['postun'] = {upgrade = 0}
-  }
-  local rpm_dir = rpm.expand('%{prefix}/%{module_name}')
+default_scriptlet_content = rpm.expand("/usr/local/sbin/simp_rpm_helper --rpm_dir=%{prefix}/%{module_name} --rpm_section='SECTION' --rpm_status=$1\n\n")
 
-  for name,data in pairs(DEFAULT_SCRIPTLETS) do
-    local content = ('%'..name.."\n"..
-      '# (default scriptlet for SIMP 6.x)\n'..
-      '# when $1 = 1, this is an install\n'..
-      '# when $1 = '.. data.upgrade ..', this is an upgrade\n'..
-      '/usr/local/sbin/simp_rpm_helper --rpm_dir='..
-      rpm_dir.." --rpm_section='"..name.."' --rpm_status=$1\n\n"
-    )
+define_scriptlet('%pre', [[
+# (default scriptlet for SIMP 6.x)
+# when $1 = 1, this is an install
+# when $1 = 2, this is an upgrade
+]] .. default_scriptlet_content:gsub('SECTION','pre'),
+  declared_scriptlets_table,
+  custom_content_table
+)
 
-    define_custom_content(
-      content,
-      custom_content_table,
-      declared_scriptlets_table
-    )
-  end
+define_scriptlet('%post', [[
+# (default scriptlet for SIMP 6.x)
+# when $1 = 1, this is an install
+# when $1 = 2, this is an upgrade
+]] ..  default_scriptlet_content:gsub('SECTION','post'),
+declared_scriptlets_table,
+custom_content_table)
 
+define_scriptlet('%preun', [[
+# (default scriptlet for SIMP 6.x)
+# when $1 = 1, this is an install
+# when $1 = 0, this is an upgrade
+]] ..  default_scriptlet_content:gsub('SECTION','preun'),
+declared_scriptlets_table,
+custom_content_table)
+
+define_scriptlet('%postun', [[
+# (default scriptlet for SIMP 6.x)
+# when $1 = 1, this is an install
+# when $1 = 0, this is an upgrade
+]] ..  default_scriptlet_content:gsub('SECTION','postun'),
+declared_scriptlets_table,
+custom_content_table)
+}
+
+%{lua:
   -- insert custom content (e.g., rpm_metadata/custom/*, scriptlets)
-  print((table.concat(custom_content_table, "\n") .. "\n"))
+  s = table.concat(custom_content_table, "\n") .. "\n"
+  print(s)
 
   lua_stderr("WARNING: custom_content_table:\n----------------\n"..(s or "NIL").."\n-------------------------\n")
 }
