@@ -25,3 +25,7 @@
 - [ ] **REGRESSION** custom/ scripts no longer work
 
 [srh_src]: https://github.com/simp/simp-adapter/blob/master/src/sbin/simp_rpm_helper
+
+
+
+For some reason, running `rpm.expand('%{macroname}')` where `macroname` was defined by `%define macronname ...` instead of `%global macroname` ends up causing RPM Lua's to direct subsequent `print()` statements to STDOUT instead of the RPM spec file. (Observed in RPM 4.8.0)
