@@ -1,5 +1,9 @@
 require 'spec_helper_acceptance'
 
+def comment(msg, indent=10)
+  logger.optionally_color(Beaker::Logger::MAGENTA, " "*indent + msg)
+end
+
 def run_cmd
   'runuser build_user -l -c '
 end
@@ -25,8 +29,28 @@ def packages_to_clean
   ]
 end
 
-def comment(msg, indent=10)
-  logger.optionally_color(Beaker::Logger::MAGENTA, " "*indent + msg)
+def scriptlet_ids
+  # key   = `rpm -q --scripts` title
+  # value = `simp_rpm_helper` mapping
+  {
+     'pretrans'      => nil,
+     'preinstall'    => 'pre',
+     'postinstall'   => 'post',
+     'preuninstall'  => 'preun',
+     'postuninstall' => 'postun',
+     'posttrans'     => nil,
+  }
+end
+
+
+# find and return a scriptlet without title, comments, or bordering whitespace
+#
+#   rpm_label  = label of scriptlet, as reported by `rpm -q --scripts`
+#   scriptlets = array of scriptlets
+#
+def strip_scriptlet( rpm_label, scriptlets )
+  _ = scriptlets.grep(/\A#{rpm_label} scriptlet(\b.*)?$/).join("\n")
+  _.gsub(/\A#{rpm_label} scriptlet(\b.*)?$|^#.*$/,'').strip
 end
 
 shared_examples_for "an RPM generator with edge cases" do
@@ -102,14 +126,31 @@ shared_examples_for "an RPM generator with edge cases" do
       on host, %(#{run_cmd} "cd #{pkg_root_dir}/testpackage_custom_scriptlet; )+
                %(SIMP_RAKE_PKG_LUA_verbose=yes SIMP_RPM_LUA_debug=yes SIMP_RAKE_PKG_verbose=yes SIMP_RPM_verbose=yes rake pkg:rpm")
 
-        comment 'produces RPM with appropriate pre/post/preun/postun'
-        result = on host, %(rpm -qp --scripts #{pkg_root_dir}/testpackage_custom_scriptlet/dist/pupmod-simp-testpackage-0.0.1-0.noarch.rpm)
-        scriptlets = result.stdout.scan( %r{^.*?scriptlet.*?/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage.*?$}m )
+        rx_scriptlet_names  = scriptlet_ids.keys.join('|')
+        rx_scriptlet_blocks = /^(?<block>(?<scriptlet>#{rx_scriptlet_names}) scriptlet.*?)(?=\n#{rx_scriptlet_names}|\Z)/m
 
-        expect( scriptlets.grep( %r{\Apreinstall scriptlet.*\n/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='pre' --rpm_status=\$1\Z}m )).not_to be_empty
-        expect( scriptlets.grep( %r{\Apostinstall scriptlet.*\n/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='post' --rpm_status=\$1\Z}m )).not_to be_empty
-        expect( scriptlets.grep( %r{\Apreuninstall scriptlet.*\n/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='preun' --rpm_status=\$1\Z}m )).not_to be_empty
-        expect( scriptlets.grep( %r{\Apostuninstall scriptlet.*\n/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='postun' --rpm_status=\$1\Z}m )).not_to be_empty
+        comment 'produces RPM with appropriate pre/post/preun/postun'
+
+        scriptlets = []
+        result     = on host, %(rpm -qp --scripts #{pkg_root_dir}/testpackage_custom_scriptlet/dist/pupmod-simp-testpackage-0.0.1-0.noarch.rpm)
+        result.stdout.scan(rx_scriptlet_blocks) do
+          scriptlets << $~[:block]
+        end
+
+        comment '...preinstall contains (only) custom content'
+        content = strip_scriptlet( 'preinstall', scriptlets )
+        expect(content).to eq "echo 'I override the default %%pre section provided by the spec file.'"
+
+        comment '...pretrans contains custom content'
+        content = strip_scriptlet( 'pretrans', scriptlets )
+        expect(content).to eq '-- Custom scriptlet'
+
+        comment '...default scriptlets call simp_rpm_helper with the correct arguments'
+        expected_simp_scriptlets = scriptlet_ids.select{|k,v| %w(post preun postun).include? v }
+        expected_simp_scriptlets.each do |rpm_label, simp_label|
+          content = strip_scriptlet( rpm_label, scriptlets )
+          expect(content).to eq "/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='#{simp_label}' --rpm_status=$1"
+        end
     end
   end
 end
