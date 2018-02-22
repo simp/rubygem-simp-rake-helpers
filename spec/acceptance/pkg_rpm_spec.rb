@@ -53,6 +53,61 @@ def strip_scriptlet( rpm_label, scriptlets )
   _.gsub(/\A#{rpm_label} scriptlet(\b.*)?$|^#.*$/,'').strip
 end
 
+
+
+shared_examples_for "a customizable RPM generator" do
+  context 'when valid custom data is defined under rpm_metadata' do
+    it 'should create an RPM' do
+      on host, %(#{run_cmd} "cd #{pkg_root_dir}/testpackage_custom_scriptlet; )+
+                 %(SIMP_RAKE_PKG_LUA_verbose=yes SIMP_RPM_LUA_debug=yes SIMP_RAKE_PKG_verbose=yes SIMP_RPM_verbose=yes rake pkg:rpm")
+    end
+
+    it 'should create an RPM with customized scriptlets' do
+      rx_scriptlet_names  = scriptlet_ids.keys.join('|')
+      rx_scriptlet_blocks = /^(?<block>(?<scriptlet>#{rx_scriptlet_names}) scriptlet.*?)(?=\n#{rx_scriptlet_names}|\Z)/m
+
+
+      result     = on host, %(rpm -qp --scripts #{pkg_root_dir}/testpackage_custom_scriptlet/dist/pupmod-simp-testpackage-0.0.1-0.noarch.rpm)
+      scriptlets = []
+      result.stdout.scan(rx_scriptlet_blocks) do
+        scriptlets << $~[:block]
+      end
+
+      comment '...pretrans scriptlet contains custom content'
+      content = strip_scriptlet( 'pretrans', scriptlets )
+      expect(content).to eq '-- Custom scriptlet'
+
+      comment '...preinstall scriptlet has been overridden with custom content'
+      content = strip_scriptlet( 'preinstall', scriptlets )
+      expect(content).to eq "echo 'I override the default %%pre section provided by the spec file.'"
+
+
+      comment '...remaining default scriptlets call simp_rpm_helper with correct arguments'
+      expected_simp_scriptlets = scriptlet_ids.select{|k,v| %w(post preun postun).include? v }
+      expected_simp_scriptlets.each do |rpm_label, simp_label|
+        content = strip_scriptlet( rpm_label, scriptlets )
+        expect(content).to eq "/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='#{simp_label}' --rpm_status=$1"
+      end
+    end
+
+    it 'should create an RPM with customized triggers' do
+###   triggerun scriptlet (using /bin/sh) -- bar
+###   # Custom trigger
+###   echo "This trigger runs just before the 'bar' package's %%preun"
+###   triggerun scriptlet (using /bin/sh) -- foo
+###   # Custom trigger
+###   echo "The 'foo' package is great; why would you uninstall it?"
+      rx_trigger_line = 'trigger.+ scriptlet \(using [/a-z]+\) .*'
+      r=/^(trigger\w+ scriptlet \(using [\/a-z]+\) --[- a-z_0-9.\/]*\n.*?)(?=\ntrig|\Z)/m
+
+      result   = on host, %(rpm -qp --triggers #{pkg_root_dir}/testpackage_custom_scriptlet/dist/pupmod-simp-testpackage-0.0.1-0.noarch.rpm)
+      triggers = []
+
+      require 'pry'; binding.pry
+    end
+  end
+end
+
 shared_examples_for "an RPM generator with edge cases" do
   it 'should use specified release number for the RPM' do
     on host, %(#{run_cmd} "cd #{pkg_root_dir}/testpackage_with_release; rake pkg:rpm")
@@ -121,38 +176,6 @@ shared_examples_for "an RPM generator with edge cases" do
       :acceptable_exit_codes => [1]
   end
 
-  context 'when custom data is defined under rpm_metadata' do
-    it 'should create an RPM with custom scriptlets' do
-      on host, %(#{run_cmd} "cd #{pkg_root_dir}/testpackage_custom_scriptlet; )+
-               %(SIMP_RAKE_PKG_LUA_verbose=yes SIMP_RPM_LUA_debug=yes SIMP_RAKE_PKG_verbose=yes SIMP_RPM_verbose=yes rake pkg:rpm")
-
-        rx_scriptlet_names  = scriptlet_ids.keys.join('|')
-        rx_scriptlet_blocks = /^(?<block>(?<scriptlet>#{rx_scriptlet_names}) scriptlet.*?)(?=\n#{rx_scriptlet_names}|\Z)/m
-
-        comment 'produces RPM with appropriate pre/post/preun/postun'
-
-        scriptlets = []
-        result     = on host, %(rpm -qp --scripts #{pkg_root_dir}/testpackage_custom_scriptlet/dist/pupmod-simp-testpackage-0.0.1-0.noarch.rpm)
-        result.stdout.scan(rx_scriptlet_blocks) do
-          scriptlets << $~[:block]
-        end
-
-        comment '...preinstall contains (only) custom content'
-        content = strip_scriptlet( 'preinstall', scriptlets )
-        expect(content).to eq "echo 'I override the default %%pre section provided by the spec file.'"
-
-        comment '...pretrans contains custom content'
-        content = strip_scriptlet( 'pretrans', scriptlets )
-        expect(content).to eq '-- Custom scriptlet'
-
-        comment '...default scriptlets call simp_rpm_helper with the correct arguments'
-        expected_simp_scriptlets = scriptlet_ids.select{|k,v| %w(post preun postun).include? v }
-        expected_simp_scriptlets.each do |rpm_label, simp_label|
-          content = strip_scriptlet( rpm_label, scriptlets )
-          expect(content).to eq "/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='#{simp_label}' --rpm_status=$1"
-        end
-    end
-  end
 end
 
 
@@ -189,6 +212,7 @@ describe 'rake pkg:rpm' do
           let(:build_type) {:default}
           let(:testpackage_rpm) { File.join(testpackage_dir, 'dist/pupmod-simp-testpackage-0.0.1-0.noarch.rpm') }
 
+          it_should_behave_like "a customizable RPM generator"
 
           it 'should create an RPM' do
             comment "produces RPM on #{host}"
