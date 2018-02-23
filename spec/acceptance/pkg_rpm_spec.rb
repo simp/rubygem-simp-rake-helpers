@@ -1,6 +1,5 @@
 require 'spec_helper_acceptance'
 
-
 def pkg_root_dir
   '/home/build_user/host_files/spec/acceptance/files'
 end
@@ -9,15 +8,50 @@ def scriptlet_label_map
   # key   = what `rpm -q --scripts` calls each scriptlet
   # value = the label passed to `simp_rpm_helper`
   {
-     'pretrans'      => nil,
-     'preinstall'    => 'pre',
-     'postinstall'   => 'post',
-     'preuninstall'  => 'preun',
-     'postuninstall' => 'postun',
-     'posttrans'     => nil,
+    'pretrans'      => nil,
+    'preinstall'    => 'pre',
+    'postinstall'   => 'post',
+    'preuninstall'  => 'preun',
+    'postuninstall' => 'postun',
+    'posttrans'     => nil,
   }
 end
 
+# returns a Hash of information about an RPM file's scriptlets
+def rpm_scriptlets_for( host, rpm_file )
+  _labels  = scriptlet_label_map.keys.join('|')
+  rx_scriptlet_blocks = /^(?<block>(?<scriptlet>#{_labels}) scriptlet.*?(\r|\n)(?<content>.*?))(?=\n#{_labels}|\Z)/m
+
+  result = on host, %Q(rpm -qp --scripts #{rpm_file})
+
+  scriptlets = {}
+  result.stdout.scan(rx_scriptlet_blocks) do
+    scriptlet = scriptlets[$~[:scriptlet]] ||= { :count => 0 }
+    scriptlet[:count]       += 1
+    scriptlet[:content]      = $~[:content].strip
+    scriptlet[:full_block]   = $~[:block]
+    scriptlet[:bare_content] = scriptlet[:content].gsub(/^((--|#).*?[\r\n]+)/,'')
+  end
+  scriptlets
+end
+
+# returns a Hash of information about an RPM file's triggers
+def rpm_triggers_for( host, rpm_file )
+  _trigger          = 'trigger\\w+ scriptlet \\(using [\\/a-z0-9]+\\) --(!?\\p{Graph}|\\s)*?'
+  rx_trigger_blocks = /^(?<block>(?<trigger>#{_trigger})[\r\n](?<content>.*?)(?=\n#{_trigger}|\Z))/m
+
+  result = on host, %Q(rpm -qp --triggers #{rpm_file})
+
+  triggers = {}
+  result.stdout.scan(rx_trigger_blocks) do
+    trigger=  triggers[$~[:trigger]] ||= { :count => 0 }
+    trigger[:count]       += 1
+    trigger[:content]      = $~[:content].strip
+    trigger[:full_block]   = $~[:block]
+    trigger[:bare_content] = trigger[:content].gsub(/^((--|#).*?[\r\n]+)/,'')
+  end
+  triggers
+end
 
 shared_examples_for "a customizable RPM generator" do
   context 'when valid custom data is defined under rpm_metadata' do
@@ -27,19 +61,11 @@ shared_examples_for "a customizable RPM generator" do
     end
 
     it 'should create an RPM with customized scriptlets' do
-      rx_scriptlet_names  = scriptlet_label_map.keys.join('|')
-      rx_scriptlet_blocks = /^(?<block>(?<scriptlet>#{rx_scriptlet_names}) scriptlet.*?(\r|\n)(?<content>.*?))(?=\n#{rx_scriptlet_names}|\Z)/m
-
-      result     = on host, %(rpm -qp --scripts #{pkg_root_dir}/testpackage_custom_scriptlet/dist/pupmod-simp-testpackage-0.0.1-0.noarch.rpm)
-
-      scriptlets     = {}
-      result.stdout.scan(rx_scriptlet_blocks) do
-        scriptlet = scriptlets[$~[:scriptlet]] ||= { :count => 0 }
-        scriptlet[:count]       += 1
-        scriptlet[:content]      = $~[:content].strip
-        scriptlet[:full_block]   = $~[:block]
-        scriptlet[:bare_content] = scriptlet[:content].gsub(/^((--|#).*?[\r\n]+)/,'')
-      end
+      scriptlets = rpm_scriptlets_for(
+        host,
+        "#{pkg_root_dir}/testpackage_custom_scriptlet/dist/" +
+        'pupmod-simp-testpackage-0.0.1-0.noarch.rpm'
+      )
 
       comment '...the expected scriptlet types are present'
       expect(scriptlets.keys.sort).to eq ['pretrans', 'preinstall', 'postinstall', 'preuninstall', 'postuninstall'].sort
@@ -65,19 +91,13 @@ shared_examples_for "a customizable RPM generator" do
     end
 
     it 'should create an RPM with customized triggers' do
-      rx_trigger_line   =            'trigger\\w+ scriptlet \\(using [\\/a-z0-9]+\\) --(!?\\p{Graph}|\\s)*?'
-      rx_trigger_blocks = /^(?<block>(?<trigger>#{rx_trigger_line})[\r\n](?<content>.*?)(?=\n#{rx_trigger_line}|\Z))/m
 
-      result   = on host, %(rpm -qp --triggers #{pkg_root_dir}/testpackage_custom_scriptlet/dist/pupmod-simp-testpackage-0.0.1-0.noarch.rpm)
+      triggers = rpm_triggers_for(
+        host,
+        "#{pkg_root_dir}/testpackage_custom_scriptlet/dist/" +
+        'pupmod-simp-testpackage-0.0.1-0.noarch.rpm'
+      )
 
-      triggers = {}
-      result.stdout.scan(rx_trigger_blocks) do
-        trigger=  triggers[$~[:trigger]] ||= { :count => 0 }
-        trigger[:count]       += 1
-        trigger[:content]      = $~[:content].strip
-        trigger[:full_block]   = $~[:block]
-        trigger[:bare_content] = trigger[:content].gsub(/^((--|#).*?[\r\n]+)/,'')
-      end
 
       comment '...the expected trigger types are present'
       expect(triggers.keys.sort).to eq [
@@ -184,7 +204,8 @@ describe 'rake pkg:rpm' do
 
 
     hosts.each do |host|
-      on host, 'cp -a /host_files /home/build_user/; chown -R build_user:build_user /home/build_user/host_files'
+      on host, 'cp -a /host_files /home/build_user/; ' +
+               'chown -R build_user:build_user /home/build_user/host_files'
       [
        'simplib',
        'testpackage',
@@ -211,7 +232,7 @@ describe 'rake pkg:rpm' do
       let!(:host){ _host }
 
       context 'rpm building' do
-        let(:testpackage_dir) { '/home/build_user/host_files/spec/acceptance/files/testpackage' }
+        let(:testpackage_dir) { "#{pkg_root_dir}/testpackage" }
 
         context 'using simpdefault.spec' do
 
