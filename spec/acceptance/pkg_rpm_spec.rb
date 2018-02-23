@@ -29,9 +29,9 @@ def packages_to_clean
   ]
 end
 
-def scriptlet_ids
-  # key   = `rpm -q --scripts` title
-  # value = `simp_rpm_helper` mapping
+def scriptlet_label_map
+  # key   = what `rpm -q --scripts` calls each scriptlet
+  # value = the label passed to `simp_rpm_helper`
   {
      'pretrans'      => nil,
      'preinstall'    => 'pre',
@@ -40,17 +40,6 @@ def scriptlet_ids
      'postuninstall' => 'postun',
      'posttrans'     => nil,
   }
-end
-
-
-# find and return a scriptlet without title, comments, or bordering whitespace
-#
-#   rpm_label  = label of scriptlet, as reported by `rpm -q --scripts`
-#   scriptlets = array of scriptlets
-#
-def strip_scriptlet( rpm_label, scriptlets )
-  _ = scriptlets.grep(/\A#{rpm_label} scriptlet(\b.*)?$/).join("\n")
-  _.gsub(/\A#{rpm_label} scriptlet(\b.*)?$|^#.*$/,'').strip
 end
 
 
@@ -63,47 +52,76 @@ shared_examples_for "a customizable RPM generator" do
     end
 
     it 'should create an RPM with customized scriptlets' do
-      rx_scriptlet_names  = scriptlet_ids.keys.join('|')
-      rx_scriptlet_blocks = /^(?<block>(?<scriptlet>#{rx_scriptlet_names}) scriptlet.*?)(?=\n#{rx_scriptlet_names}|\Z)/m
-
+      rx_scriptlet_names  = scriptlet_label_map.keys.join('|')
+      rx_scriptlet_blocks = /^(?<block>(?<scriptlet>#{rx_scriptlet_names}) scriptlet.*?(\r|\n)(?<content>.*?))(?=\n#{rx_scriptlet_names}|\Z)/m
 
       result     = on host, %(rpm -qp --scripts #{pkg_root_dir}/testpackage_custom_scriptlet/dist/pupmod-simp-testpackage-0.0.1-0.noarch.rpm)
-      scriptlets = []
+
+      scriptlets     = {}
       result.stdout.scan(rx_scriptlet_blocks) do
-        scriptlets << $~[:block]
+        scriptlet = scriptlets[$~[:scriptlet]] ||= { :count => 0 }
+        scriptlet[:count]       += 1
+        scriptlet[:content]      = $~[:content].strip
+        scriptlet[:full_block]   = $~[:block]
+        scriptlet[:bare_content] = scriptlet[:content].gsub(/^((--|#).*?[\r\n]+)/,'')
       end
 
+      comment '...the expected scriptlet types are present'
+      expect(scriptlets.keys.sort).to eq ['pretrans', 'preinstall', 'postinstall', 'preuninstall', 'postuninstall'].sort
+
+      comment '...there are no duplicates' # <-- this *should* be impossible
+      expect(scriptlets.map{|k,v| v[:count]}.max).to be == 1
+
       comment '...pretrans scriptlet contains custom content'
-      content = strip_scriptlet( 'pretrans', scriptlets )
-      expect(content).to eq '-- Custom scriptlet'
+      expect(scriptlets['pretrans'][:content]).to eq '-- Custom scriptlet'
 
       comment '...preinstall scriptlet has been overridden with custom content'
-      content = strip_scriptlet( 'preinstall', scriptlets )
-      expect(content).to eq "echo 'I override the default %%pre section provided by the spec file.'"
-
+      expect(scriptlets['preinstall'][:bare_content]).to eq(
+        "echo 'I override the default %%pre section provided by the spec file.'"
+      )
 
       comment '...remaining default scriptlets call simp_rpm_helper with correct arguments'
-      expected_simp_scriptlets = scriptlet_ids.select{|k,v| %w(post preun postun).include? v }
-      expected_simp_scriptlets.each do |rpm_label, simp_label|
-        content = strip_scriptlet( rpm_label, scriptlets )
-        expect(content).to eq "/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='#{simp_label}' --rpm_status=$1"
+      expected_simp_rpm_helper_scriptlets = scriptlet_label_map.select{|k,v| %w(post preun postun).include? v }
+      expected_simp_rpm_helper_scriptlets.each do |rpm_label, simp_helper_label|
+        expect(scriptlets[rpm_label][:bare_content]).to eq(
+           "/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='#{simp_helper_label}' --rpm_status=$1"
+        )
       end
     end
 
     it 'should create an RPM with customized triggers' do
-###   triggerun scriptlet (using /bin/sh) -- bar
-###   # Custom trigger
-###   echo "This trigger runs just before the 'bar' package's %%preun"
-###   triggerun scriptlet (using /bin/sh) -- foo
-###   # Custom trigger
-###   echo "The 'foo' package is great; why would you uninstall it?"
-      rx_trigger_line = 'trigger.+ scriptlet \(using [/a-z]+\) .*'
-      r=/^(trigger\w+ scriptlet \(using [\/a-z]+\) --[- a-z_0-9.\/]*\n.*?)(?=\ntrig|\Z)/m
+      rx_trigger_line   =            'trigger\\w+ scriptlet \\(using [\\/a-z0-9]+\\) --(!?\\p{Graph}|\\s)*?'
+      rx_trigger_blocks = /^(?<block>(?<trigger>#{rx_trigger_line})[\r\n](?<content>.*?)(?=\n#{rx_trigger_line}|\Z))/m
 
       result   = on host, %(rpm -qp --triggers #{pkg_root_dir}/testpackage_custom_scriptlet/dist/pupmod-simp-testpackage-0.0.1-0.noarch.rpm)
-      triggers = []
 
-      require 'pry'; binding.pry
+      triggers = {}
+      result.stdout.scan(rx_trigger_blocks) do
+        trigger=  triggers[$~[:trigger]] ||= { :count => 0 }
+        trigger[:count]       += 1
+        trigger[:content]      = $~[:content].strip
+        trigger[:full_block]   = $~[:block]
+        trigger[:bare_content] = trigger[:content].gsub(/^((--|#).*?[\r\n]+)/,'')
+      end
+
+      comment '...the expected trigger types are present'
+      expect(triggers.keys.sort).to eq [
+        'triggerun scriptlet (using /bin/sh) -- bar',
+        'triggerun scriptlet (using /bin/sh) -- foo',
+      ]
+
+      comment '...there are no duplicates' # <-- this also should be impossible
+      expect(triggers.map{|k,v| v[:count]}.max).to be == 1
+
+      comment '..."triggerun -- foo" contains the expected content'
+      expect(triggers['triggerun scriptlet (using /bin/sh) -- foo'][:bare_content]).to eq(
+        %q{echo "The 'foo' package is great; why would you uninstall it?"}
+      )
+
+      comment '..."triggerun -- bar" contains the expected content'
+      expect(triggers['triggerun scriptlet (using /bin/sh) -- bar'][:bare_content]).to eq(
+        %q{echo "This trigger runs just before the 'bar' package's %%preun"}
+      )
     end
   end
 end

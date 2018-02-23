@@ -508,9 +508,9 @@ mkdir -p %{buildroot}/%{prefix}
   -- insert custom content (e.g., rpm_metadata/custom/*, scriptlets)
   function print_extra_content( custom_content_table )
     local extra_content = table.concat(custom_content_table, "\n") .. "\n"
-    lua_stderr("\n========== CUSTOM CONTENT SUMMARY ========== (begin)\n" ..
+    lua_stderr("\n========== DYNAMIC CONTENT SUMMARY ========== (begin)\n" ..
                 extra_content ..
-                "\n========== CUSTOM CONTENT SUMMARY ========== (end)\n")
+                "\n========== DYNAMIC CONTENT SUMMARY ========== (end)\n")
     print(extra_content)
   end
 
