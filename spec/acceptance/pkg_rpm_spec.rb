@@ -4,9 +4,25 @@ def pkg_root_dir
   '/home/build_user/host_files/spec/acceptance/files'
 end
 
+# rake command string to run on hosts
+# passes on useful troubleshooting env vars
+def rake_cmd
+  cmd = 'rake'
+  %w(
+    SIMP_RPM_LUA_debug
+    SIMP_RAKE_PKG_verbose
+    SIMP_RPM_verbose
+  ).each do |env_var|
+    if value = ENV[env_var]
+       cmd = "#{env_var}=#{value} #{cmd}"
+    end
+  end
+  cmd
+end
+
+# key   = what `rpm -q --scripts` calls each scriptlet
+# value = the label passed to `simp_rpm_helper`
 def scriptlet_label_map
-  # key   = what `rpm -q --scripts` calls each scriptlet
-  # value = the label passed to `simp_rpm_helper`
   {
     'pretrans'      => nil,
     'preinstall'    => 'pre',
@@ -53,11 +69,12 @@ def rpm_triggers_for( host, rpm_file )
   triggers
 end
 
+
 shared_examples_for "a customizable RPM generator" do
   context 'when valid custom data is defined under rpm_metadata' do
     it 'should create an RPM' do
-      on host, %(#{run_cmd} "cd #{pkg_root_dir}/testpackage_custom_scriptlet; )+
-                 %(SIMP_RAKE_PKG_LUA_verbose=yes SIMP_RPM_LUA_debug=yes SIMP_RAKE_PKG_verbose=yes SIMP_RPM_verbose=yes rake pkg:rpm")
+      on host, %(#{run_cmd} "cd #{pkg_root_dir}/testpackage_custom_scriptlet;)+
+               %( #{rake_cmd} pkg:rpm")
     end
 
     it 'should create an RPM with customized scriptlets' do
@@ -70,7 +87,7 @@ shared_examples_for "a customizable RPM generator" do
       comment '...the expected scriptlet types are present'
       expect(scriptlets.keys.sort).to eq ['pretrans', 'preinstall', 'postinstall', 'preuninstall', 'postuninstall'].sort
 
-      comment '...there are no duplicates' # <-- this *should* be impossible
+      comment '...there are no duplicates' # this *should* be impossible
       expect(scriptlets.map{|k,v| v[:count]}.max).to be == 1
 
       comment '...pretrans scriptlet contains custom content'
@@ -130,14 +147,14 @@ shared_examples_for "an RPM generator with edge cases" do
   end
 
   it 'should generate a changelog for the RPM when no CHANGELOG exists' do
-    on host, %(#{run_cmd} "cd #{pkg_root_dir}/testpackage_without_changelog; rake pkg:rpm")
+    on host, %(#{run_cmd} "cd #{pkg_root_dir}/testpackage_without_changelog; #{rake_cmd} pkg:rpm")
     changelog_test_rpm = File.join(pkg_root_dir, 'testpackage_without_changelog',
       'dist', File.basename(testpackage_rpm))
     on host, %(rpm --changelog -qp #{changelog_test_rpm} | grep -q 'Auto Changelog')
   end
 
   it 'should not require pupmod-simp-simplib for simp-simplib RPM' do
-    on host, %(#{run_cmd} "cd #{pkg_root_dir}/simplib; rake pkg:rpm")
+    on host, %(#{run_cmd} "cd #{pkg_root_dir}/simplib; #{rake_cmd} pkg:rpm")
     simplib_rpm = File.join(pkg_root_dir, 'simplib', 'dist',
       File.basename(testpackage_rpm).gsub(/simp-testpackage-0.0.1/,'simp-simplib-1.2.3'))
     on host, %(test -f #{simplib_rpm})
@@ -146,7 +163,7 @@ shared_examples_for "an RPM generator with edge cases" do
 
   it 'should not fail to create an RPM when the CHANGELOG has a bad date' do
     on host,
-      %(#{run_cmd} "cd #{pkg_root_dir}/testpackage_with_bad_changelog_date; rake pkg:rpm")
+      %(#{run_cmd} "cd #{pkg_root_dir}/testpackage_with_bad_changelog_date; #{rake_cmd} pkg:rpm")
 
     bad_date_test_rpm = File.join(pkg_root_dir, 'testpackage_with_bad_changelog_date',
       'dist', File.basename(testpackage_rpm))
@@ -155,76 +172,83 @@ shared_examples_for "an RPM generator with edge cases" do
 
   it 'should fail to create an RPM when metadata.json is missing' do
     on host,
-      %(#{run_cmd} "cd #{pkg_root_dir}/testpackage_missing_metadata_file; rake pkg:rpm"),
+      %(#{run_cmd} "cd #{pkg_root_dir}/testpackage_missing_metadata_file; #{rake_cmd} pkg:rpm"),
       :acceptable_exit_codes => [1]
   end
 
   it 'should fail to create an RPM when license metadata is missing' do
     on host,
-      %(#{run_cmd} "cd #{pkg_root_dir}/testpackage_missing_license; rake pkg:rpm"),
+      %(#{run_cmd} "cd #{pkg_root_dir}/testpackage_missing_license; #{rake_cmd} pkg:rpm"),
       :acceptable_exit_codes => [1]
   end
 
   it 'should fail to create an RPM when name metadata is missing' do
     on host,
-      %(#{run_cmd} "cd #{pkg_root_dir}/testpackage_missing_name; rake pkg:rpm"),
+      %(#{run_cmd} "cd #{pkg_root_dir}/testpackage_missing_name; #{rake_cmd} pkg:rpm"),
       :acceptable_exit_codes => [1]
   end
 
   it 'should fail to create an RPM when source metadata is missing' do
     on host,
-      %(#{run_cmd} "cd #{pkg_root_dir}/testpackage_missing_source; rake pkg:rpm"),
+      %(#{run_cmd} "cd #{pkg_root_dir}/testpackage_missing_source; #{rake_cmd} pkg:rpm"),
       :acceptable_exit_codes => [1]
   end
 
   it 'should fail to create an RPM when summary metadata is missing' do
     on host,
-      %(#{run_cmd} "cd #{pkg_root_dir}/testpackage_missing_summary; rake pkg:rpm"),
+      %(#{run_cmd} "cd #{pkg_root_dir}/testpackage_missing_summary; #{rake_cmd} pkg:rpm"),
       :acceptable_exit_codes => [1]
   end
 
   it 'should fail to create an RPM when version metadata is missing' do
     on host,
-      %(#{run_cmd} "cd #{pkg_root_dir}/testpackage_missing_version; rake pkg:rpm"),
+      %(#{run_cmd} "cd #{pkg_root_dir}/testpackage_missing_version; #{rake_cmd} pkg:rpm"),
       :acceptable_exit_codes => [1]
   end
 
 end
 
+def copy_host_files_into_build_user_homedir(
+  hosts,
+  root_dir=File.expand_path('../../../',__FILE__)
+)
+  # make sure all generated files from previous rake tasks have
+  # permissions that allow the copy in the 'prep' below
+  dist_dirs = Dir.glob(File.join(root_dir, '**', 'dist'))
+  dist_dirs.each { |dir| FileUtils.chmod_R(0755, dir) }
+  FileUtils.chmod_R(0755, 'junit')
+  FileUtils.chmod_R(0755, 'log')
+  on hosts, 'find /host_files -type d' # XXXXXXXXXXXXXXXXX
+
+  on hosts, 'cp -a /host_files /home/build_user/; ' +
+           'chown -R build_user:build_user /home/build_user/host_files'
+end
 
 describe 'rake pkg:rpm' do
   before :all do
-    # make sure all generated files from previous rake tasks have
-    # permissions that allow the copy in the 'prep' below
-    root_dir = File.dirname(File.dirname(File.dirname(File.expand_path(__FILE__))))
-    dist_dirs = Dir.glob(File.join(root_dir, '**', 'dist'))
-    dist_dirs.each { |dir| FileUtils.chmod_R(0755, dir) }
-    FileUtils.chmod_R(0755, 'junit')
-    FileUtils.chmod_R(0755, 'log')
+    testpackages = [
+     'simplib',
+     'testpackage',
+     'testpackage_missing_license',
+     'testpackage_missing_metadata_file',
+     'testpackage_missing_name',
+     'testpackage_missing_source',
+     'testpackage_missing_summary',
+     'testpackage_missing_version',
+     'testpackage_with_bad_changelog_date',
+     'testpackage_with_release',
+     'testpackage_without_changelog',
+     'testpackage_custom_scriptlet',
+    ]
 
+    copy_host_files_into_build_user_homedir(hosts)
 
-    hosts.each do |host|
-      on host, 'cp -a /host_files /home/build_user/; ' +
-               'chown -R build_user:build_user /home/build_user/host_files'
-      [
-       'simplib',
-       'testpackage',
-       'testpackage_missing_license',
-       'testpackage_missing_metadata_file',
-       'testpackage_missing_name',
-       'testpackage_missing_source',
-       'testpackage_missing_summary',
-       'testpackage_missing_version',
-       'testpackage_with_bad_changelog_date',
-       'testpackage_with_release',
-       'testpackage_without_changelog',
-       'testpackage_custom_scriptlet',
-      ].each do |package|
-        on host, %Q(#{run_cmd} "cd #{pkg_root_dir}/#{package}; ) +
-                  %Q(rvm use default; bundle update --local || bundle update")
-      end
+    testpackages.each do |package|
+      on hosts, %Q(#{run_cmd} "cd #{pkg_root_dir}/#{package}; ) +
+                %Q(rvm use default; bundle update --local || bundle update")
     end
   end
+
 
 
   hosts.each do |_host|
@@ -243,7 +267,7 @@ describe 'rake pkg:rpm' do
 
           it 'should create an RPM' do
             comment "produces RPM on #{host}"
-            on host, %(#{run_cmd} "cd #{testpackage_dir}; SIMP_RAKE_PKG_LUA_verbose=yes SIMP_RPM_LUA_debug=yes SIMP_RAKE_PKG_verbose=yes SIMP_RPM_verbose=yes rake pkg:rpm")
+            on host, %(#{run_cmd} "cd #{testpackage_dir}; #{rake_cmd} pkg:rpm")
             on host, %(test -f #{testpackage_rpm})
 
             comment 'produces RPM with appropriate dependencies'
