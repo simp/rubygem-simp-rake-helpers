@@ -1,0 +1,2 @@
+Requires: pupmod-simp-foo >= 1.2.3
+Obsoletes:      pupmod-simp-oldpackage

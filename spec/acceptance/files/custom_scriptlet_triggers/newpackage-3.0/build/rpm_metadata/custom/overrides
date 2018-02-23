@@ -1,0 +1,3 @@
+%triggerpostun -- old-dummy
+echo "%{name}-%{version}: post   1=2 (actually %triggerpostun -- old-dummy)" >> /root/dummy.log
+

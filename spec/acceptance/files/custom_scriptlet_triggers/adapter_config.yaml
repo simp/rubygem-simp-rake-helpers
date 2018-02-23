@@ -1,0 +1,9 @@
+---
+copy_rpm_data: true
+target_directory: /opt/test/code
+
+puppet_config:
+  user: root,
+  group: root,
+  codedir: /opt/mock_simp_rpm_helper/code,
+  confdir: /opt/mock_simp_rpm_helper/code,

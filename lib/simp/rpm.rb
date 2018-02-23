@@ -58,19 +58,12 @@ module Simp
         @info[package_info[:basename]] = package_info
       end
 
-      if @verbose
-        require 'pp'
-        puts "== Simp::RPM @info:"
-        puts "   #{'-'*20}"
-        puts @info.pretty_inspect
-      end
 
       @packages = @info.keys
 
       if @verbose
         require 'pp'
-        puts "== Simp::RPM @packages:"
-        puts "   #{'-'*20}"
+        puts "== Simp::RPM @packages"
         puts @packages.pretty_inspect
       end
     end
@@ -316,9 +309,9 @@ module Simp
       if @verbose
         puts "    -------- exit_status: #{exit_status}"
         puts "    -------- stdout ",''
-        puts File.readlines(outfile).map{|x| "    #{x}\n"}.join
+        puts File.readlines(outfile).map{|x| "    #{x}"}.join
         puts '',"    -------- stderr ",''
-        puts File.readlines(errfile).map{|x| "    #{x}\n"}.join
+        puts File.readlines(errfile).map{|x| "    #{x}"}.join
       end
       FileUtils.rm_f([outfile, errfile])
     end

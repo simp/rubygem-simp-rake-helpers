@@ -1,0 +1,14 @@
+#!/opt/puppetlabs/puppet/bin/ruby
+# A fake puppet bunary for simp_rpm_helper to call
+
+require 'yaml'
+file = ENV['FAKE_PUPPET_YAML'] || '/etc/simp/adapter_config.yaml'
+fail("ERROR: Can't read '#{file}'") unless File.file?(file)
+conf = YAML.load_file(file)
+
+if ARGV == ['config', '--section', 'master', 'print']
+  puts conf['puppet_config'].map{|k,v| "#{k} = #{v}" }.join("\n")
+else
+  fail( "\n\nERROR: I am a mock and only know this command:\n\n" +
+        '    puppet config --section master print' + "\n\n" )
+end
