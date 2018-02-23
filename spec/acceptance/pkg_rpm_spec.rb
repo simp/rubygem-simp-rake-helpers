@@ -1,32 +1,8 @@
 require 'spec_helper_acceptance'
 
-def comment(msg, indent=10)
-  logger.optionally_color(Beaker::Logger::MAGENTA, " "*indent + msg)
-end
-
-def run_cmd
-  'runuser build_user -l -c '
-end
 
 def pkg_root_dir
   '/home/build_user/host_files/spec/acceptance/files'
-end
-
-def packages_to_clean
-  [
-   'simplib',
-   'testpackage',
-   'testpackage_missing_license',
-   'testpackage_missing_metadata_file',
-   'testpackage_missing_name',
-   'testpackage_missing_source',
-   'testpackage_missing_summary',
-   'testpackage_missing_version',
-   'testpackage_with_bad_changelog_date',
-   'testpackage_with_release',
-   'testpackage_without_changelog',
-   'testpackage_custom_scriptlet',
-  ]
 end
 
 def scriptlet_label_map
@@ -41,7 +17,6 @@ def scriptlet_label_map
      'posttrans'     => nil,
   }
 end
-
 
 
 shared_examples_for "a customizable RPM generator" do
@@ -210,7 +185,20 @@ describe 'rake pkg:rpm' do
 
     hosts.each do |host|
       on host, 'cp -a /host_files /home/build_user/; chown -R build_user:build_user /home/build_user/host_files'
-      packages_to_clean.each do |package|
+      [
+       'simplib',
+       'testpackage',
+       'testpackage_missing_license',
+       'testpackage_missing_metadata_file',
+       'testpackage_missing_name',
+       'testpackage_missing_source',
+       'testpackage_missing_summary',
+       'testpackage_missing_version',
+       'testpackage_with_bad_changelog_date',
+       'testpackage_with_release',
+       'testpackage_without_changelog',
+       'testpackage_custom_scriptlet',
+      ].each do |package|
         on host, %Q(#{run_cmd} "cd #{pkg_root_dir}/#{package}; ) +
                   %Q(rvm use default; bundle update --local || bundle update")
       end
