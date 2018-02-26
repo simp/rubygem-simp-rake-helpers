@@ -35,8 +35,7 @@ rm -rf %{buildroot}/opt/puppetlabs
 #%attr(0755,root,root)/opt/puppetlabs/puppet/bin/ruby
 #%attr(0755,root,root)/opt/puppetlabs/bin/puppet
 %attr(0644,root,root)/etc/simp/adapter_config.yaml
-%dir  /opt/mock_simp_rpm_helper
-%dir  /opt/mock_simp_rpm_helper/code
+%dir  /opt/test/puppet/code
 
 
 %changelog

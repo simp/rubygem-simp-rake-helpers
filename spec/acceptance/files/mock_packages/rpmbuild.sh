@@ -1,9 +1,7 @@
 spec_file=$1
 
-
 FAKE_RPM_SRC_DIR=${FAKE_RPM_SRC_DIR:-${PWD}/pkg}
 FAKE_RPM_BUILD_DIR=${FAKE_RPM_BUILD_DIR:-${FAKE_RPM_SRC_DIR}/rpmbuild}
-
 
 # clean up old builds
 rm -rf "${FAKE_RPM_BUILD_DIR}"/{BUILDROOT,BUILD,SOURCES}/** &> /dev/null :

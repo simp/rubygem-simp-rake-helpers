@@ -1,13 +1,13 @@
 {
-  "name":    "simp-oldpackage",
-  "version": "1.0.0",
+  "name":    "old-package",
+  "version": "2.0.0",
   "author":  "simp",
-  "summary": "A SIMP test package for upgrading obsoleted packages",
+  "summary": "A SIMP test module for upgrading obsoleted packages",
   "license": "Apache-2.0",
-  "source":  "https://github.com/simp/pupmod-imanoldtest",
-  "project_page": "https://github.com/simp/pupmod-imanoldtest",
+  "source":  "https://github.com/simp/rubygem-simp-rake-helpers",
+  "project_page":  "https://github.com/simp/rubygem-simp-rake-helpers",
   "issues_url":   "https://simp/project.atlassian.net",
-  "tags": [ "simp", "test"],
+  "tags": [ "simp", "test", "package"],
   "dependencies": [
     {
       "name": "simp/simplib",

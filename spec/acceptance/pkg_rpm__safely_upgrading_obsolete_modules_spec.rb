@@ -9,6 +9,34 @@ RSpec.configure do |c|
   c.extend  Simp::BeakerHelpers::SimpRakeHelpers::PkgRpmHelpers
 end
 
+shared_examples_for 'an upgrade path that works safely with rpm_simp_helper' do |first_package_file, second_package_file|
+  let( :rpm_regex ) do
+    /^(?<name>pupmod-[a-z0-9_]+-[a-z0-9_]+)-(?<version>\d+\.\d+\.\d+-\d+)\..*\.rpm$/
+  end
+
+  let( :first_package_name ){ first_package_file.match(rpm_regex)['name'] }
+  let( :first_package_forge_name ){ first_package_name.sub(/^[^-]+-/,'') }
+  let( :first_package_module_name ){ first_package_forge_name.sub(/^[^-]+-/,'') }
+  let( :first_package_version ){ first_package_file.match(rpm_regex)['version'] }
+
+  let( :second_package_name ){ second_package_file.match(rpm_regex)['name'] }
+  let( :second_package_forge_name ){ second_package_name.sub(/^[^-]+-/,'') }
+  let( :second_package_module_name ){ second_package_forge_name.sub(/^[^-]+-/,'') }
+  let( :second_package_version ){ second_package_file.match(rpm_regex)['version'] }
+
+  context "When upgrading from #{first_package_file} to #{second_package_file}" do
+    it "should install #{first_package_file}" do
+      on host, "cd #{pkg_root_dir}/#{first_package_name}; rpm -Uvh dist/#{first_package_file}"
+    end
+
+    it "should transfer #{first_package} into the code directory" do
+      result = on host, 'cat /opt/test/puppet/code/package/metadata.json'
+      metadata = JSON.parse(result.stdout)
+      expect(metadata['name']).to eq first_package_name
+      expect(metadata['version']).to eq '1.0.0'
+    end
+  end
+end
 
 describe 'rake pkg:rpm + modules with customized content to safely upgrade obsoleted packagess' do
 
@@ -27,11 +55,11 @@ describe 'rake pkg:rpm + modules with customized content to safely upgrade obsol
     comment 'configure puppet agent to look like a Puppet server for simp_rpm_helper'
     on hosts, '/opt/puppetlabs/bin/puppet config --section master set user root; ' +
               '/opt/puppetlabs/bin/puppet config --section master set group root; ' +
-              '/opt/puppetlabs/bin/puppet config --section master set codedir /opt/mock_simp_rpm_helper/code; ' +
-              '/opt/puppetlabs/bin/puppet config --section master set confdir /opt/mock_simp_rpm_helper/code'
+              '/opt/puppetlabs/bin/puppet config --section master set codedir /opt/test/puppet/code; ' +
+              '/opt/puppetlabs/bin/puppet config --section master set confdir /opt/test/puppet/code'
 
 
-    comment 'build and install prereq packages'
+    comment 'build and install mock RPMs'
     mock_pkg_dir = '/home/build_user/host_files/spec/acceptance/files/mock_packages'
     on hosts, %Q[#{run_cmd} "cd #{mock_pkg_dir}; rm -rf pkg"]
     on hosts, %Q[#{run_cmd} "cd #{mock_pkg_dir}; bash rpmbuild.sh simp-adapter.spec"]
@@ -48,12 +76,13 @@ describe 'rake pkg:rpm + modules with customized content to safely upgrade obsol
 
       let(:testpackages) do
         [
-          'oldpackage-1.0',
-          'oldpackage-2.0',
-          'newpackage-2.0',
-          'newpackage-3.0',
+          'pupmod-old-package-1.0',
+          'pupmod-old-package-2.0',
+          'pupmod-new-package-2.0',
+          'pupmod-new-package-3.0',
         ]
       end
+
 
       context 'with four RPMs in a SIMP-3895 configuration' do
 
@@ -61,7 +90,7 @@ describe 'rake pkg:rpm + modules with customized content to safely upgrade obsol
           testpackages.each do |package|
             on host, %Q(#{run_cmd} "cd #{pkg_root_dir}/#{package}; ) +
                       %Q(rvm use default; bundle update --local || bundle update")
-            rpm_name = "pupmod-simp-#{package.split(/-\d/).first}"
+            rpm_name = package.sub(/-[^-]+$/,'')
             # In case previous tests haven't been clean
             on host, "rpm -q #{rpm_name} && rpm -e #{rpm_name}; :"
 
@@ -70,44 +99,59 @@ describe 'rake pkg:rpm + modules with customized content to safely upgrade obsol
         end
 
 
-        it 'should install oldpackage-1.0' do
-          on host, "cd #{pkg_root_dir}/oldpackage-1.0; rpm -Uvh dist/pupmod-simp-oldpackage*.noarch.rpm"
+        it 'should install pupmod-old-package-1.0' do
+          on host, "cd #{pkg_root_dir}/pupmod-old-package-1.0; rpm -Uvh dist/pupmod-old-package-1.0.0-0.noarch.rpm"
         end
 
 
-        it "should transfer oldpackage 1.0's files to the code directory" do
-          result = on host, 'cat /opt/mock_simp_rpm_helper/code/oldpackage/metadata.json'
+        it "should transfer pupmod-old-package 1.0's files to the code directory" do
+          result = on host, 'cat /opt/test/puppet/code/package/metadata.json'
           metadata = JSON.parse(result.stdout)
-          expect(metadata['name']).to eq 'simp-oldpackage'
+          expect(metadata['name']).to eq 'old-package'
           expect(metadata['version']).to eq '1.0.0'
         end
 
+###        it_should_behave_like('an upgrade path that works safely with rpm_simp_helper',
+###                              'pupmod-old-package-1.0.0-0.noarch.rpm',
+###                              'pupmod-old-package-1.0.0-0.noarch.rpm')
+###
 
-        it 'should upgrade to oldpackage-2.0' do
-          on host, "yum install -y #{pkg_root_dir}/oldpackage-2.0/dist/pupmod-simp-oldpackage-2.0.0-0.noarch.rpm"
+        it 'should upgrade to pupmod-old-package-2.0' do
+          on host, "yum install -y #{pkg_root_dir}/pupmod-old-package-2.0/dist/pupmod-old-package-2.0.0-0.noarch.rpm"
         end
 
 
-        it "should transfer oldpackage 2.0's files to the code directory" do
-          result = on host, 'cat /opt/mock_simp_rpm_helper/code/oldpackage/metadata.json'
+        it "should transfer pupmod-old-package 2.0's files to the code directory" do
+          result = on host, 'cat /opt/test/puppet/code/package/metadata.json'
           metadata = JSON.parse(result.stdout)
-          expect(metadata['name']).to eq 'simp-oldpackage'
+          expect(metadata['name']).to eq 'old-package'
           expect(metadata['version']).to eq '2.0.0'
         end
 
 
-        it 'should upgrade to newpackage-2.0' do
-          on host, "yum install -y #{pkg_root_dir}/newpackage-2.0/dist/pupmod-simp-newpackage-2.0.0-0.noarch.rpm"
+        it 'should upgrade to pupmod-new-package-2.0' do
+          on host, "yum install -y #{pkg_root_dir}/pupmod-new-package-2.0/dist/pupmod-new-package-2.0.0-0.noarch.rpm"
         end
 
 
-        it "should transfer newpackage 2.0's files to the code directory" do
-          result = on host, 'cat /opt/mock_simp_rpm_helper/code/newpackage/metadata.json'
+        it "should transfer pupmod-new-package 2.0's files to the code directory" do
+          result = on host, 'cat /opt/test/puppet/code/package/metadata.json'
           metadata = JSON.parse(result.stdout)
-          expect(metadata['name']).to eq 'simp-newpackage'
+          expect(metadata['name']).to eq 'new-package'
           expect(metadata['version']).to eq '2.0.0'
         end
 
+        it 'should upgrade to pupmod-new-package-3.0' do
+          on host, "yum install -y #{pkg_root_dir}/pupmod-new-package-3.0/dist/pupmod-new-package-3.0.0-0.noarch.rpm"
+        end
+
+
+        it "should transfer pupmod-new-package 3.0's files to the code directory" do
+          result = on host, 'cat /opt/test/puppet/code/package/metadata.json'
+          metadata = JSON.parse(result.stdout)
+          expect(metadata['name']).to eq 'new-package'
+          expect(metadata['version']).to eq '3.0.0'
+        end
       end
     end
   end

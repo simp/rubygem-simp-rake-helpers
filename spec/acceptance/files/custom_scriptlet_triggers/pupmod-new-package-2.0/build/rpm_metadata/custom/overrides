@@ -1,0 +1,40 @@
+%triggerun -- pupmod-old-package
+
+rpm_state_label=pupmod-new-package
+simp_3895_tmp_file=%{_localstatedir}/lib/rpm-state/${rpm_state_label}
+
+echo "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
+echo "@@@@@@@ Preparing SIMP-3895 workaround @@@@@@"
+echo "@@@@@@@                                @@@@@@"
+echo "@@@@@@@  upgrading from obsoleted pkg  @@@@@@"
+echo "@@@@@@@      'pupmod-old-package'      @@@@@@"
+echo "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
+
+# activate workaround for SIMP-3895
+mkdir -p `dirname ${simp_3895_tmp_file}`
+echo "${rpm_state_label}: post   1=2 (triggered by: %triggerun -- pupmod-old-package)" | tee ${simp_3895_tmp_file}
+
+
+%triggerpostun -- pupmod-old-package
+
+rpm_state_label=pupmod-new-package
+simp_3895_tmp_file=%{_localstatedir}/lib/rpm-state/${rpm_state_label}
+
+echo "${rpm_state_label}: post   1=2 (triggered by: %triggerpostun -- pupmod-old-package)" | tee ${simp_3895_tmp_file}
+
+# If a SIMP-3895 situation has been detected, execute workaround
+if [ -f ${simp_3895_tmp_file} ]; then
+  echo "#############################################"
+  echo "####### Executing SIMP-3895 workaround ######"
+  echo "#######                                ######"
+  echo "#######  upgrading from obsoleted pkg  ######"
+  echo "#######      'pupmod-old-package'      ######"
+  echo "#############################################"
+
+  # re-send the 'post' message
+  /usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/package --rpm_section='post' --rpm_status=2
+
+  cp ${simp_3895_tmp_file} /tmp  # FIXME: REMOVE XXX XXX XXX XXX XXX XXX XXX XXX XXX
+  rm -f ${simp_3895_tmp_file}
+fi
+
