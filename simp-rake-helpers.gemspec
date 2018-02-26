@@ -44,7 +44,6 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'listen',                    '~> 3.0.6' # 3.1 requires ruby 2.2+
 
   # for development
-  s.add_development_dependency 'gitlog-md',   '~> 0' # To generate HISTORY.md
   s.add_development_dependency 'pry',         '~> 0.0'
   s.add_development_dependency 'pry-doc',     '~> 0.0'
   s.add_development_dependency 'highline',    '~> 1.6', '> 1.6.1'  # 1.8 safe
