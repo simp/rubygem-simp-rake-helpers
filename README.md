@@ -17,18 +17,13 @@
 * [Usage](#usage)
   * [In a Puppet module](#in-a-puppet-module)
   * [In a Ruby Gem](#in-a-ruby-gem)
-  * [RPM Generation](#rpm-generation)
+  * [Generating RPMs](#generating-rpms)
     * [RPM Changelog](#rpm-changelog)
     * [RPM Dependencies](#rpm-dependencies)
 * [Reference](#reference)
   * [simp/rake/rpm](#simprakerpm)
-    * [rake pkg:rpm[chroot,unique,snapshot_release]](#rake-pkgrpmchrootuniquesnapshot_release)
-      * [Parameters](#parameters)
-    * [rake pkg:scrub[chroot,unique]](#rake-pkgscrubchrootunique)
-    * [rake pkg:srpm[chroot,unique,snapshot_release]](#rake-pkgsrpmchrootuniquesnapshot_release)
-      * [Parameters](#parameters-1)
-    * [rake pkg:tar[snapshot_release]](#rake-pkgtarsnapshot_release)
-      * [Parameters](#parameters-2)
+    * [`rake pkg:rpm`](#rake-pkgrpm)
+    * [`rake pkg:tar`](#rake-pkgtar)
 * [Limitations](#limitations)
   * [Some versions of bundler fail on FIPS-enabled Systems](#some-versions-of-bundler-fail-on-fips-enabled-systems)
 * [Development](#development)
@@ -48,8 +43,8 @@ This gem is part of (the build tooling for) the [System Integrity Management Pla
 
 ### Features
 
-* Supports multithreaded mock operations
-* RPM packaging and signing
+* Customizable RPM packaging based on a Puppet module's [`metadata.json`][metadata.json]
+* RPM signing
 * Rubygem packaging
 
 ## Setup
@@ -123,16 +118,18 @@ To see the extra rake tasks:
 bunde exec rake -T
 ```
 
-### RPM Generation
+### Generating RPMs
 
-This Gem provides the ability to generate an RPM from *any* Puppet module via
-the task [`rake pkg:rpm`](#simprakerpm)
-
+The task [`rake pkg:rpm`](#simprakerpm)) provides the ability to package an RPM
+from *any* Puppet module (regardless of whether it is a SIMP module or not).
 The only requirement is that the Puppet module MUST include a valid
-[`metadata.json`][metadata.json] file with entries for the keys `name`,
+[`metadata.json`][metadata.json] file with entries for `name`,
 `version`, `license`, `summary`, and `source`.
 
-The full list files of files that may be used
+[metadata.json]: https://docs.puppet.com/puppet/latest/reference/modules_metadata.html
+
+The RPM package may be configured by other (optional) files under the project
+directory .  The full list of files considered are:
 
 ```
 ./
@@ -146,74 +143,50 @@ The full list files of files that may be used
           └── *       # OPTIONAL custom snippets in RPM .spec format
 ```
 
-
 *NOTE*: The dependencies in `metadata.json` are *not* used to generate RPM
 dependencies!
 
-[metadata.json]: https://docs.puppet.com/puppet/latest/reference/modules_metadata.html
 
 #### RPM Changelog
 
-The Changelog is pulled from a file called `CHANGELOG` at the top level of the
-project. If this file does not start with a well formatted RPM changelog
-string, it will be ignored.
+The RPM Changelog will be derived from a `CHANGELOG` file at the top
+level of the project, if it exists.
 
-The Changelog is *not* fully checked before attempting to build the RPM. Your
-RPM build will fail if the Changelog entries are not valid per the RPM
-specification.
+  * The file is expected to conform to the [RPM Changelog][RPM CHANGELOG]
+    format described in the Fedora packaging guidelines
+  * The file MUST start with a well-formatted RPM changelog string, or it will
+    be ignored.
+  * The format is *not* fully checked before attempting to build the RPM―the
+    RPM build will fail if the Changelog entries are not valid.
+
+[RPM CHANGELOG]: https://fedoraproject.org/wiki/Packaging:Guidelines#Changelogs
+
 
 #### RPM Dependencies
 
 It is likely that you will want to declare your dependencies in your RPM. To do
-this, you can create a `build/rpm_metadata` directory at the root of your
-project. A file named `requires` in the `build/rpm_metadata` directory will be
+this, create a `build/rpm_metadata` directory at the root of the project.
+A `requires` file in the `build/rpm_metadata` directory will be
 used to declare the dependencies of the RPM. A file named `release` in the
 `build/rpm_metadata` directory will be used to declare the RPM release
 number.
 
 The following directives may be declared in the `requires` file:
-  * Provides
-  * Requires
-  * Obsoletes
+  * `Provides:`
+  * `Requires:`
+  * `Obsoletes:`
 
 ## Reference
 
 ### simp/rake/rpm
 
-#### rake pkg:rpm[chroot,unique,snapshot_release]
-Builds an RPM to package the current SIMP project.
+#### `rake pkg:rpm`
 
-**NOTE**: Building RPMs requires a working Mock setup (http://fedoraproject.org/wiki/Projects/Mock)
+Packages the current SIMP project as an RPM
 
-##### Parameters
+#### `rake pkg:tar`
 
-  * **:chroot** - The Mock chroot configuration to use. See the '--root' option in mock(1)."
-  * **:unique** - Whether or not to build the RPM in a unique Mock environment.  This can be very useful for parallel builds of all modules.
-* **:snapshot_release** - Add snapshot_release (date and time) to rpm version.  Rpm spec file must have macro for this to work.
-
-
-#### rake pkg:scrub[chroot,unique]
-
-Scrub the current SIMP project's mock build directory.
-
-
-#### rake pkg:srpm[chroot,unique,snapshot_release]
-Build the pupmod-simp-iptables SRPM.   Building RPMs requires a working Mock setup (http://fedoraproject.org/wiki/Projects/Mock)
-
-**NOTE**: Building RPMs requires a working Mock setup (http://fedoraproject.org/wiki/Projects/Mock)
-
-##### Parameters
-
-  * **:chroot** - The Mock chroot configuration to use. See the '--root' option in mock(1)."
-  * **:unique** - Whether or not to build the SRPM in a unique Mock environment.  This can be very useful for parallel builds of all modules.
-  * **:snapshot_release** - Add snapshot_release (date and time) to rpm version.  The RPM spec file must support macros for this to work.
-
-#### rake pkg:tar[snapshot_release]
-
-##### Parameters
-
-Build the pupmod-simp-iptables tar package
-  * :snapshot_release - Add snapshot_release (date and time) to rpm version, rpm spec file must have macro for this to work.
+Build the tar package for the current SIMP project
 
 ## Limitations
 
