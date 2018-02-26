@@ -69,9 +69,11 @@ describe 'rake pkg:rpm + modules with customized content to safely upgrade obsol
           end
         end
 
+
         it 'should install oldpackage-1.0' do
           on host, "cd #{pkg_root_dir}/oldpackage-1.0; rpm -Uvh dist/pupmod-simp-oldpackage*.noarch.rpm"
         end
+
 
         it "should transfer oldpackage 1.0's files to the code directory" do
           result = on host, 'cat /opt/mock_simp_rpm_helper/code/oldpackage/metadata.json'
@@ -80,15 +82,33 @@ describe 'rake pkg:rpm + modules with customized content to safely upgrade obsol
           expect(metadata['version']).to eq '1.0.0'
         end
 
+
         it 'should upgrade to oldpackage-2.0' do
           on host, "yum install -y #{pkg_root_dir}/oldpackage-2.0/dist/pupmod-simp-oldpackage-2.0.0-0.noarch.rpm"
-require 'pry'; binding.pry
         end
 
-        ##it_should_behave_like 'a module with customized content to safely upgrade obsoleted packages' do
+
+        it "should transfer oldpackage 2.0's files to the code directory" do
+          result = on host, 'cat /opt/mock_simp_rpm_helper/code/oldpackage/metadata.json'
+          metadata = JSON.parse(result.stdout)
+          expect(metadata['name']).to eq 'simp-oldpackage'
+          expect(metadata['version']).to eq '2.0.0'
+        end
+
+
+        it 'should upgrade to newpackage-2.0' do
+          on host, "yum install -y #{pkg_root_dir}/newpackage-2.0/dist/pupmod-simp-newpackage-2.0.0-0.noarch.rpm"
+        end
+
+
+        it "should transfer newpackage 2.0's files to the code directory" do
+          result = on host, 'cat /opt/mock_simp_rpm_helper/code/newpackage/metadata.json'
+          metadata = JSON.parse(result.stdout)
+          expect(metadata['name']).to eq 'simp-newpackage'
+          expect(metadata['version']).to eq '2.0.0'
+        end
 
       end
-
     end
   end
 end
