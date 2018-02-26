@@ -44,6 +44,8 @@
 --
 
 local LUA_DEBUG = ((rpm.expand('%{lua_debug}') or '0') == '1')
+
+-- Print debugging info to STDERR (if LUA_DEBUG is true)
 function lua_stderr( msg )
   if LUA_DEBUG then
     -- io.stderr:write(tostring(msg):gsub("%f[^%z\n]","LUA #stderr#: "))
@@ -51,6 +53,7 @@ function lua_stderr( msg )
     io.stderr:write(msg)
   end
 end
+
 
 local function get_src_dir()
   local src_dir = rpm.expand('%{pup_module_info_dir}')
@@ -108,9 +111,9 @@ package_release = 0
 
 lua_stderr("\n")
 lua_stderr("--------------------------------------------------------------------------------\n")
-lua_stderr("environment:\n")
+lua_stderr("RPM/LUA build environment:\n")
 lua_stderr("------:\n")
-lua_stderr("_VERSION           = '".._VERSION.."'\n")
+lua_stderr("LUA _VERSION       = '".._VERSION.."'\n")
 lua_stderr("posix.getcwd()     = '"..posix.getcwd().."'\n")
 lua_stderr("\n")
 lua_stderr("macros:\n")
@@ -130,22 +133,27 @@ lua_stderr("\n")
 
 
 -- Pull the Relevant Metadata out of the Puppet module metadata.json.
+function read_metadata(src_dir)
+  local metadata = ''
+  local metadata_file = src_dir .. "/metadata.json"
+  local metadata_fh   = io.open(metadata_file,'r')
+  if metadata_fh then
+    metadata = metadata_fh:read("*all")
 
-metadata = ''
-metadata_file = src_dir .. "/metadata.json"
-metadata_fh   = io.open(metadata_file,'r')
-if metadata_fh then
-  metadata = metadata_fh:read("*all")
+    -- Ignore the first curly brace
+    metadata = metadata:gsub("{}?", '|', 1)
 
-  -- Ignore the first curly brace
-  metadata = metadata:gsub("{}?", '|', 1)
-
-  -- Ignore all keys that are below the first level
-  metadata = metadata:gsub("{.-}", '')
-  metadata = metadata:gsub("%[.-%]", '')
-else
-  error("Could not open 'metadata.json': ".. metadata_file, 0)
+    -- Ignore all keys that are below the first level
+    metadata = metadata:gsub("{.-}", '')
+    metadata = metadata:gsub("%[.-%]", '')
+  else
+    error("Could not open 'metadata.json': ".. metadata_file, 0)
+  end
+  return metadata
 end
+
+
+metadata = read_metadata(src_dir)
 
 -- This starts as an empty string so that we can build it later
 module_requires = ''
