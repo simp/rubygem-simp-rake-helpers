@@ -1,0 +1,3 @@
+---
+copy_rpm_data: true
+target_directory: /opt/mock_simp_rpm_helper/code

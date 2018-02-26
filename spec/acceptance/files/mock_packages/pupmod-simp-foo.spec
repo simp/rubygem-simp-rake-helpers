@@ -1,7 +1,7 @@
-Name:           pupmod-puppetlabs-stdlib
-Version:        5.9.9
+Name:           pupmod-simp-foo
+Version:        1.9.9
 Release:        9
-Summary:        mock simplib test package
+Summary:        mock foo test package
 BuildArch:      noarch
 
 License:        Apache-2.0

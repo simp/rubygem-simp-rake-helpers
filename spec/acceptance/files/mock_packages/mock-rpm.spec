@@ -1,4 +1,7 @@
 %{lua:
+-- build mock RPMs
+
+
   package_name = rpm.expand('%{name}')
   package_version = rpm.expand('%{version}')
 }
@@ -17,13 +20,14 @@ URL:            http://foo.bar
   end
   local src_dir = rpm.expand('%{_sourcedir}')
   local src_file = src_dir .. '/files.tar.gz'
+  empty_rpm = true
   if posix.stat(src_file , 'type') ~= 'regular' then
-    lua_stderr( tostring(posix.stat(src_file , 'type') ) .. "\n" )
-    error("\n\nERROR: "..tostring(src_file).." could not be used!\n\n")
+    error("\n\n== ERROR: Source file "..tostring(src_file).." could not be used!\n\n")
+    lua_stderr( tostring(posix.stat(src_file , 'type') ) .. "\n\n" )
   else
-    lua_stderr("\n\nHOORAY HOORAY HOORAY: "..tostring(src_file).." could be used!\n\n")
+    lua_stderr("\n\n== Using Source0 file: "..tostring(src_file).." could be used!\n\n")
+    print( "Source0: files.tar.gz\n" )
   end
-  print( "Source0: files.tar.gz\n" )
 }
 
 
@@ -46,13 +50,13 @@ curdir=`pwd`
 dirname=`basename $curdir`
 cp -r ../$dirname %{buildroot}//%{name}
 
-# Remove unnecessary assets
-rm -rf %{buildroot}//%{name}/.git
-rm -f %{buildroot}//%{name}/*.lock
-rm -rf %{buildroot}//%{name}/spec/fixtures/modules
-rm -rf %{buildroot}//%{name}/dist
-rm -rf %{buildroot}//%{name}/junit
-rm -rf %{buildroot}//%{name}/log
+### # Remove unnecessary assets
+### rm -rf %{buildroot}//%{name}/.git
+### rm -f %{buildroot}//%{name}/*.lock
+### rm -rf %{buildroot}//%{name}/spec/fixtures/modules
+### rm -rf %{buildroot}//%{name}/dist
+### rm -rf %{buildroot}//%{name}/junit
+### rm -rf %{buildroot}//%{name}/log
 
 
 %clean

@@ -7,26 +7,38 @@ BuildArch:      noarch
 License:        Apache-2.0
 URL:            http://foo.bar
 
+Source0: files.tar.gz
+
 %description
 A mock RPM package used for acceptance tests
 
 %prep
-exit 0
+echo ================ PWD: $PWD
+%setup -c
 
 %build
-exit 0
 
 
 %install
-exit 0
+[ "%{buildroot}" != "/" ] && rm -rf %{buildroot}
+mkdir -p %{buildroot}
+cp -r $PWD/* %{buildroot}/
+rm -rf %{buildroot}/**/.*.swp
+rm -rf %{buildroot}/opt/puppetlabs
 
 %clean
-exit 0
 
 %files
-%doc
+%defattr(0640,root,root,0755)
+
+%attr(0750,root,root)/usr/local/sbin/simp_rpm_helper
+#%attr(0755,root,root)/opt/puppetlabs/puppet/bin/ruby
+#%attr(0755,root,root)/opt/puppetlabs/bin/puppet
+%attr(0644,root,root)/etc/simp/adapter_config.yaml
+%dir  /opt/mock_simp_rpm_helper
+%dir  /opt/mock_simp_rpm_helper/code
 
 
 %changelog
-* Wed Jun 10 2015 nobody
+* Fri Feb 23 2018 nobody
 - some comment

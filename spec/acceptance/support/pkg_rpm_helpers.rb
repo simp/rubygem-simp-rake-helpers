@@ -23,23 +23,24 @@ module Simp::BeakerHelpers::SimpRakeHelpers::PkgRpmHelpers
   )
     # make sure all generated files from previous rake tasks have
     # permissions that allow the copy in the 'prep' below
+    dist_dirs = Dir.glob(File.join(root_dir, '**', 'dist'))
+    dist_dirs.each { |dir| FileUtils.chmod_R(0755, dir) }
+    FileUtils.chmod_R(0755, 'junit')
+    FileUtils.chmod_R(0755, 'log')
     #
-    # FIXME: ^^^ This doesn't make sense to me, since it modifies the file
-    #        permissions on the host *after* they've been uploaded to the SUTs.
+    # FIXME: ^^^ Ive faithfully refactored the code above into the helpers, but
+    #        it doesn't make sense to me: the file permissions are modified on
+    #        the host *after* they've been uploaded to the SUTs.
     #
-    #        I've added a `cp -a` + `chown/chmod -R` in the section below, which
-    #        seems to accomplish what this is documented as doing.
+    #        I've added a `cp -a` + `chown/chmod -R` below, which seems to
+    #        accomplish what the section above it documented as doing.
     #
-    #        So: Is this section still needed for something?
+    #        So: Is this section really doing something we need?
     #
     #          * If `no`:  let's remove it
     #          * If `yes`: let's demonstrate + document it
     #          * If you'd rather try something else, turn to page 386
     #
-    dist_dirs = Dir.glob(File.join(root_dir, '**', 'dist'))
-    dist_dirs.each { |dir| FileUtils.chmod_R(0755, dir) }
-    FileUtils.chmod_R(0755, 'junit')
-    FileUtils.chmod_R(0755, 'log')
 
     # I've added the `ch* -R` on the SUT-side, which seems to work on a fresh checkout
     on hosts, 'cp -a /host_files /home/build_user/; ' +

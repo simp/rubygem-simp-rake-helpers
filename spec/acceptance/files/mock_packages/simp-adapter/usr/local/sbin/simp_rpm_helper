@@ -67,12 +67,7 @@ def get_puppet_config
     config_hash[k.strip] = v.strip
   end
 
-  return {
-    'user'    => 'root',
-    'group'   => 'root',
-    'codedir' => '/opt/mock_simp_rpm_helper/code',
-    'confdir' => '/opt/mock_simp_rpm_helper/code',
-  }
+  return config_hash
 end
 
 # A more friendly failure message
