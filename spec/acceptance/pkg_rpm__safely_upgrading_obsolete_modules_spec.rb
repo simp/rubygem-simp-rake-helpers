@@ -15,6 +15,10 @@ describe 'rake pkg:rpm + modules with customized content to safely upgrade obsol
 
   before :all do
     copy_host_files_into_build_user_homedir(hosts)
+
+    mock_pkg_dir = '/home/build_user/host_files/spec/acceptance/files/mock_packages'
+    on hosts, %Q{run_cmd} "cd #{mock_pkg_dir}
+
   end
 
   hosts.each do |_host|
@@ -36,13 +40,17 @@ describe 'rake pkg:rpm + modules with customized content to safely upgrade obsol
           testpackages.each do |package|
             on hosts, %Q(#{run_cmd} "cd #{pkg_root_dir}/#{package}; ) +
                       %Q(rvm use default; bundle update --local || bundle update")
+            rpm_name = "pupmod-simp-#{package.split(/-\d/).first}"
+            on hosts, "rpm -q #{rpm_name} && rpm -e #{rpm_name}"
 
             on host, %(#{run_cmd} "cd #{pkg_root_dir}/#{package}; #{rake_cmd} pkg:rpm")
           end
+        end
+
+        it should 'should 
 
         ##it_should_behave_like 'a module with customized content to safely upgrade obsoleted packages' do
 
-        end
       end
 
     end
