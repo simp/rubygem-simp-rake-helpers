@@ -12,6 +12,10 @@
 
 #### [[ -z $1 ] then ]local $_twd=${1:-/home/build_user/host_files}
 
+
+#####                     source /host_files/spec/acceptance/support/debugging/docker_env.sh /home/build_user/host_files/spec/acceptance/files/custom_scriptlet_triggers/newpackage-2.0 
+
+
 export TERM=xterm
 export TOPWD=/home/build_user/host_files
 export TOPWD_FILES=${TOPWD}/spec/acceptance/files
@@ -28,3 +32,11 @@ ru(){
 ru_specfile_rpm_q(){
   ru "rpm -q -D 'pup_module_info_dir $TWD' --specfile $TWD/dist/tmp/testpackage.spec $@"
 }
+# ----------------------
+if [ -f $TWD/dist/logs/build.rpm.err ]; then
+  cat -n $TWD/dist/logs/build.rpm.err
+elif [ -f $TWD/dist/logs/build.srpm.err ]; then
+  cat -n $TWD/dist/logs/build.srpm.err
+fi
+cd $TWD
+(yum install -y vim-enhanced tree > /dev/null &)
