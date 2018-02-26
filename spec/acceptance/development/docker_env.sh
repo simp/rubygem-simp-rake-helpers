@@ -25,11 +25,5 @@ ru(){
 ru_specfile_rpm_q(){
   ru "rpm -q -D 'pup_module_info_dir $TWD' --specfile $TWD/dist/tmp/testpackage.spec $@"
 }
-# ----------------------
-if [ -f $TWD/dist/logs/build.rpm.err ]; then
-  cat -n $TWD/dist/logs/build.rpm.err
-elif [ -f $TWD/dist/logs/build.srpm.err ]; then
-  cat -n $TWD/dist/logs/build.srpm.err
-fi
 cd $TWD
 (yum install -y vim-enhanced tree > /dev/null &)

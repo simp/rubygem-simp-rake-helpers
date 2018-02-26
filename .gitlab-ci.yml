@@ -11,11 +11,20 @@
 # PE 2017.3   5.3   2.4.1  2018-07
 # PE 2018.1   ???   ?????  ????-??  (LTS)
 ---
-.cache_bundler: &cache_bundler
+.cache_bundler_r2_1: &cache_bundler_r2_1
   cache:
     untracked: true
     # An attempt at caching between runs (ala Travis CI)
-    key: "${CI_PROJECT_NAMESPACE}__bundler"
+    key: "${CI_PROJECT_NAMESPACE}__bundler_r2_1"
+    paths:
+      - '.vendor'
+      - 'vendor'
+
+.cache_bundler_r2_4: &cache_bundler_r2_4
+  cache:
+    untracked: true
+    # An attempt at caching between runs (ala Travis CI)
+    key: "${CI_PROJECT_NAMESPACE}__bundlar_r2_4"
     paths:
       - '.vendor'
       - 'vendor'
@@ -53,7 +62,7 @@ pup4.7-validation:
   image: ruby:2.1
   variables:
     PUPPET_VERSION: '~> 4.7.0'
-  <<: *cache_bundler
+  <<: *cache_bundler_r2_1
   <<: *setup_bundler_env
   <<: *validation_checks
 
@@ -64,7 +73,7 @@ pup4.7-unit:
   image: ruby:2.1
   variables:
     PUPPET_VERSION: '~> 4.7.0'
-  <<: *cache_bundler
+  <<: *cache_bundler_r2_1
   <<: *setup_bundler_env
   <<: *spec_tests
 
@@ -78,7 +87,7 @@ pup4.8-validation:
   image: ruby:2.1
   variables:
     PUPPET_VERSION: '~> 4.8.0'
-  <<: *cache_bundler
+  <<: *cache_bundler_r2_1
   <<: *setup_bundler_env
   <<: *validation_checks
 
@@ -89,7 +98,7 @@ pup4.8-unit:
   image: ruby:2.1
   variables:
     PUPPET_VERSION: '~> 4.8.0'
-  <<: *cache_bundler
+  <<: *cache_bundler_r2_1
   <<: *setup_bundler_env
   <<: *spec_tests
 
@@ -104,7 +113,7 @@ pup4.10-validation:
   image: ruby:2.1
   variables:
     PUPPET_VERSION: '~> 4.10.0'
-  <<: *cache_bundler
+  <<: *cache_bundler_r2_1
   <<: *setup_bundler_env
   <<: *validation_checks
 
@@ -115,7 +124,7 @@ pup4.10-unit:
   image: ruby:2.1
   variables:
     PUPPET_VERSION: '~> 4.10.0'
-  <<: *cache_bundler
+  <<: *cache_bundler_r2_1
   <<: *setup_bundler_env
   <<: *spec_tests
 
@@ -130,7 +139,7 @@ pup5.3-validation:
   image: ruby:2.4
   variables:
     PUPPET_VERSION: '~> 5.3.0'
-  <<: *cache_bundler
+  <<: *cache_bundler_r2_1
   <<: *setup_bundler_env
   <<: *validation_checks
 
@@ -141,7 +150,7 @@ pup5.3-unit:
   image: ruby:2.4
   variables:
     PUPPET_VERSION: '~> 5.3.0'
-  <<: *cache_bundler
+  <<: *cache_bundler_r2_1
   <<: *setup_bundler_env
   <<: *spec_tests
 
@@ -155,7 +164,7 @@ pup5.latest-validation:
   image: ruby:2.4
   variables:
     PUPPET_VERSION: '~> 5.0'
-  <<: *cache_bundler
+  <<: *cache_bundler_r2_4
   <<: *setup_bundler_env
   <<: *validation_checks
   allow_failure: true
@@ -167,7 +176,7 @@ pup5.latest-unit:
   image: ruby:2.4
   variables:
     PUPPET_VERSION: '~> 5.0'
-  <<: *cache_bundler
+  <<: *cache_bundler_r2_4
   <<: *setup_bundler_env
   <<: *spec_tests
   allow_failure: true
@@ -180,7 +189,7 @@ acceptance:
   stage: acceptance
   tags:
     - beaker
-  <<: *cache_bundler
+  <<: *cache_bundler_r2_1
   <<: *setup_bundler_env
   variables:
     PUPPET_VERSION: '4.10'
@@ -191,7 +200,7 @@ fips-acceptance:
   stage: acceptance
   tags:
     - beaker
-  <<: *cache_bundler
+  <<: *cache_bundler_r2_1
   <<: *setup_bundler_env
   variables:
     PUPPET_VERSION: '4.10'
