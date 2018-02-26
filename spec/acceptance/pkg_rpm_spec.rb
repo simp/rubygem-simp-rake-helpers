@@ -78,28 +78,8 @@ end
 
 describe 'rake pkg:rpm' do
   before :all do
-    testpackages = [
-     'simplib',
-     'testpackage',
-     'testpackage_missing_license',
-     'testpackage_missing_metadata_file',
-     'testpackage_missing_name',
-     'testpackage_missing_source',
-     'testpackage_missing_summary',
-     'testpackage_missing_version',
-     'testpackage_with_bad_changelog_date',
-     'testpackage_with_release',
-     'testpackage_without_changelog',
-    ]
-
     copy_host_files_into_build_user_homedir(hosts)
-
-    testpackages.each do |package|
-      on hosts, %Q(#{run_cmd} "cd #{pkg_root_dir}/#{package}; ) +
-                %Q(rvm use default; bundle update --local || bundle update")
-    end
   end
-
 
 
   hosts.each do |_host|
@@ -107,7 +87,30 @@ describe 'rake pkg:rpm' do
       let!(:host){ _host }
 
       context 'rpm building' do
-        let(:testpackage_dir) { "#{pkg_root_dir}/testpackage" }
+
+        let(:pkg_root_dir){'/home/build_user/host_files/spec/acceptance/files'}
+        let(:testpackage_dir){"#{pkg_root_dir}/testpackage"}
+
+        it 'can prep the package directories' do
+          testpackages = [
+           'simplib',
+           'testpackage',
+           'testpackage_missing_license',
+           'testpackage_missing_metadata_file',
+           'testpackage_missing_name',
+           'testpackage_missing_source',
+           'testpackage_missing_summary',
+           'testpackage_missing_version',
+           'testpackage_with_bad_changelog_date',
+           'testpackage_with_release',
+           'testpackage_without_changelog',
+          ]
+
+          testpackages.each do |package|
+            on hosts, %Q(#{run_cmd} "cd #{pkg_root_dir}/#{package}; ) +
+                      %Q(rvm use default; bundle update --local || bundle update")
+          end
+        end
 
         context 'using simpdefault.spec' do
 

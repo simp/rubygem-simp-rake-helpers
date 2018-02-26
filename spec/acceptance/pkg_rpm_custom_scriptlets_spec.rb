@@ -80,21 +80,26 @@ end
 describe 'rake pkg:rpm with customized content' do
 
   before :all do
-    testpackages = [
-     'testpackage_custom_scriptlet',
-    ]
-
     copy_host_files_into_build_user_homedir(hosts)
-
-    testpackages.each do |package|
-      on hosts, %Q(#{run_cmd} "cd #{pkg_root_dir}/#{package}; ) +
-                %Q(rvm use default; bundle update --local || bundle update")
-    end
   end
+
+  let(:pkg_root_dir){'/home/build_user/host_files/spec/acceptance/files'}
+  let(:testpackage_dir){"#{pkg_root_dir}/testpackage"}
 
   hosts.each do |_host|
     context "on #{_host}" do
       let!(:host){ _host }
+
+      it 'can prep the package directories' do
+        testpackages = [
+         'testpackage_custom_scriptlet',
+        ]
+
+        testpackages.each do |package|
+          on hosts, %Q(#{run_cmd} "cd #{pkg_root_dir}/#{package}; ) +
+                    %Q(rvm use default; bundle update --local || bundle update")
+        end
+      end
 
       context 'when valid custom content is defined under rpm_metadata' do
 

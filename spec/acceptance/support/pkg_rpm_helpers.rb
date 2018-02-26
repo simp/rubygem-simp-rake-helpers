@@ -1,8 +1,4 @@
 module Simp::BeakerHelpers::SimpRakeHelpers::PkgRpmHelpers
-  def pkg_root_dir
-    '/home/build_user/host_files/spec/acceptance/files'
-  end
-
 
   # rake command string to run on hosts
   # passes on useful troubleshooting env vars

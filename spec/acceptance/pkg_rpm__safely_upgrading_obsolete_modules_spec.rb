@@ -1,12 +1,6 @@
 require 'spec_helper_acceptance'
 require_relative 'support/pkg_rpm_helpers'
 
-module Simp::BeakerHelpers::SimpRakeHelpers::PkgRpmHelpers
-  def pkg_root_dir
-    '/home/build_user/host_files/spec/acceptance/files/custom_scriptlet_triggers'
-  end
-end
-
 RSpec.configure do |c|
   c.include Simp::BeakerHelpers::SimpRakeHelpers::PkgRpmHelpers
   c.extend  Simp::BeakerHelpers::SimpRakeHelpers::PkgRpmHelpers
@@ -14,6 +8,10 @@ end
 
 
 describe 'rake pkg:rpm + modules with customized content to safely upgrade obsoleted packagess' do
+
+  let(:pkg_root_dir) do
+    '/home/build_user/host_files/spec/acceptance/files/custom_scriptlet_triggers'
+  end
 
   before :all do
     copy_host_files_into_build_user_homedir(hosts)
