@@ -1,7 +1,8 @@
-
 require 'spec_helper_acceptance'
 require_relative 'support/pkg_rpm_helpers'
+
 require 'beaker/puppet_install_helper'
+require 'json'
 
 RSpec.configure do |c|
   c.include Simp::BeakerHelpers::SimpRakeHelpers::PkgRpmHelpers
@@ -70,12 +71,17 @@ describe 'rake pkg:rpm + modules with customized content to safely upgrade obsol
 
         it 'should install oldpackage-1.0' do
           on host, "cd #{pkg_root_dir}/oldpackage-1.0; rpm -Uvh dist/pupmod-simp-oldpackage*.noarch.rpm"
-require 'pry'; binding.pry
         end
 
+        it "should transfer oldpackage 1.0's files to the code directory" do
+          result = on host, 'cat /opt/mock_simp_rpm_helper/code/oldpackage/metadata.json'
+          metadata = JSON.parse(result.stdout)
+          expect(metadata['name']).to eq 'simp-oldpackage'
+          expect(metadata['version']).to eq '1.0.0'
+        end
 
         it 'should upgrade to oldpackage-2.0' do
-          on host, "cd #{pkg_root_dir}/oldpackage-2.0; rpm -Uvh dist/pupmod-simp-oldpackage*.noarch.rpm"
+          on host, "yum install -y #{pkg_root_dir}/oldpackage-2.0/dist/pupmod-simp-oldpackage-2.0.0-0.noarch.rpm"
 require 'pry'; binding.pry
         end
 
