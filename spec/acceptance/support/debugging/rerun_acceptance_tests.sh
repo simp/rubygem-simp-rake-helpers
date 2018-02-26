@@ -1,5 +1,7 @@
-#!/bin.bash
+#!/bin/bash
 
+# Run this from your docker host to wipe out all containers and restart beaker
+# tests.
 
 # Find & kill running beaker containers
 (docker ps -a | grep -v CONT | awk '{print "docker kill " $1 "; docker rm " $1}') > /tmp/x.$$
