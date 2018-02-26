@@ -1,10 +1,6 @@
-%define simp_3895_tmp_file %{lua: print(
-  rpm.expand('%{_localstatedir}/lib/rpm-state/pupmod-simp') ..
-  posix.getprocessid('pid')
-)}
-
-
 %triggerun -- pupmod-simp-oldpackage
+
+%define simp_3895_tmp_file %{_localstatedir}/lib/rpm-state/%{name}-%{version}
 
 echo "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
 echo "@@@@@@@ Preparing SIMP-3895 workaround @@@@@@"
@@ -20,7 +16,7 @@ echo "%{name}-%{version}: post   1=2 (triggered by: %triggerun -- pupmod-simp-ol
 
 %triggerpostun -- pupmod-simp-oldpackage
 
-echo "%{name}-%{version}: post   1=2 (actually %triggerpostun -- old-dummy)"
+echo "%{name}-%{version}: post   1=2 (triggered by: %triggerun -- pupmod-simp-oldpackage)" | tee %{simp_3895_tmp_file}
 
 # execute workaround for SIMP-3895
 if [ -f %{tmp_simp_3895_file} ]; then
@@ -30,7 +26,10 @@ if [ -f %{tmp_simp_3895_file} ]; then
   echo "#######  upgrading from obsoleted pkg  ######"
   echo "#######   'pupmod-simp-oldpackage'     ######"
   echo "#############################################"
+
   # re-send the 'post' message
   /usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/timezone --rpm_section='post' --rpm_status=2
+
   rm -f %{tmp_simp_3895_file}
 fi
+

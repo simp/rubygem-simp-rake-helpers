@@ -509,7 +509,7 @@ mkdir -p %{buildroot}/%{prefix}
   function print_extra_content( custom_content_table )
     local extra_content = table.concat(custom_content_table, "\n") .. "\n"
     lua_stderr("\n========== DYNAMIC CONTENT SUMMARY ========== (begin)\n" ..
-                extra_content ..
+                rpm.expand( extra_content ) ..
                 "\n========== DYNAMIC CONTENT SUMMARY ========== (end)\n")
     print(extra_content)
   end

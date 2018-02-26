@@ -15,7 +15,9 @@ end
 
 describe 'rake pkg:rpm + modules with customized content to safely upgrade obsoleted packagess' do
 
-  before :all { copy_host_files_into_build_user_homedir(hosts) }
+  before :all do
+    copy_host_files_into_build_user_homedir(hosts)
+  end
 
   hosts.each do |_host|
     context "on #{_host}" do
