@@ -44,7 +44,7 @@ module Simp::BeakerHelpers::SimpRakeHelpers::PkgRpmHelpers
     # I've added the `ch* -R` on the SUT-side, which seems to work on a fresh checkout
     on hosts, 'cp -a /host_files /home/build_user/; ' +
              'chmod -R go=u-w /home/build_user/host_files/{dist,**/dist,junit,log}; ' +
-             'chown -R build_user:build_user /home/build_user/host_files; ' +
+             'chown -R build_user:build_user /home/build_user/host_files; '
   end
 
 

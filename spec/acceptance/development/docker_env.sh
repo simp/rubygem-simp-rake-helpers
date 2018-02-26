@@ -3,17 +3,10 @@
 #
 # Usage:
 #
-#    source /host_files/spec/acceptance/support/debugging/docker_env.sh [DIR]
+#    source /host_files/spec/acceptance/development/docker_env.sh [DIR]
 #
 #    # testing a particular
-#    source /host_files/spec/acceptance/support/debugging/docker_env.sh  /home/build_user/host_files/spec/acceptance/files/testpackage_custom_scriptlet
-#
-# ru "rpm -q --queryformat '%{NAME} %{VERSION} %{RELEASE} %{ARCH}\n' --specfile $TWD/dist/tmp/testpackage_custom_scriptlet.spec"
-
-#### [[ -z $1 ] then ]local $_twd=${1:-/home/build_user/host_files}
-
-
-#####                     source /host_files/spec/acceptance/support/debugging/docker_env.sh /home/build_user/host_files/spec/acceptance/files/custom_scriptlet_triggers/newpackage-2.0 
+#    source /host_files/spec/acceptance/development/docker_env.sh  /home/build_user/host_files/spec/acceptance/files/testpackage_custom_scriptlet
 
 
 export TERM=xterm
