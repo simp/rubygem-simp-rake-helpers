@@ -45,6 +45,8 @@
 .spec_tests: &spec_tests
   script:
     - bundle exec rake spec
+  # Currently, the spec tests require rpmbuild, which isn't available to might not be on the GitLab Runners
+  allow_failure: true
 
 stages:
   - validation
