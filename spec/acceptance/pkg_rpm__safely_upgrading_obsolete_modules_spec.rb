@@ -11,32 +11,52 @@ end
 
 shared_examples_for 'an upgrade path that works safely with rpm_simp_helper' do |first_package_file, second_package_file|
   let( :rpm_regex ) do
-    /^(?<name>pupmod-[a-z0-9_]+-[a-z0-9_]+)-(?<version>\d+\.\d+\.\d+-\d+)\..*\.rpm$/
+    /^(?<name>pupmod-[a-z0-9_]+-[a-z0-9_]+)-(?<version>\d+\.\d+\.\d+)-(?<release>\d+)\..*\.rpm$/
   end
 
   let( :first_package_version ){ first_package_file.match(rpm_regex)['version'] }
   let( :first_package_name ){ first_package_file.match(rpm_regex)['name'] }
   let( :first_package_forge_name ){ first_package_name.sub(/^[^-]+-/,'') }
   let( :first_package_module_name ){ first_package_forge_name.sub(/^[^-]+-/,'') }
-  let( :first_package_dir_name ){ first_package_name + '-' first_package_version.sub(/\.\d+-\d+$/,'') }
+  let( :first_package_dir_name ){ first_package_name + '-' + first_package_version.sub(/\.\d+-\d+$/,'') }
 
   let( :second_package_name ){ second_package_file.match(rpm_regex)['name'] }
   let( :second_package_forge_name ){ second_package_name.sub(/^[^-]+-/,'') }
   let( :second_package_module_name ){ second_package_forge_name.sub(/^[^-]+-/,'') }
   let( :second_package_version ){ second_package_file.match(rpm_regex)['version'] }
-  let( :second_package_dir_name ){ second_package_name + '-' second_package_version.sub(/\.\d+-\d+$/,'') }
+  let( :second_package_dir_name ){ second_package_name + '-' + second_package_version.sub(/\.\d+-\d+$/,'') }
 
   context "When upgrading from #{first_package_file} to #{second_package_file}" do
-    it "should install #{first_package_file}" do
-      on host, "cd #{pkg_root_dir}/#{first_package_dir_name}; rpm -Uvh dist/#{first_package_file}"
+    it "should clean out any old installs" do
+      on host, "rpm -e #{first_package_name} &> /dev/null; " +
+               "rpm -e #{second_package_name} &> /dev/null ",
+               accept_all_exit_codes: true
     end
 
-    it "should transfer contents of #{first_package_name} into the code directory" do
-      result = on host, 'cat /opt/test/puppet/code/package/metadata.json'
-      metadata = JSON.parse(result.stdout)
-      expect(metadata['name']).to eq first_package_name
-      expect(metadata['version']).to eq '1.0.0'
+    it "should install #{first_package_file}" do
+      on host, "cd #{pkg_root_dir}/#{first_package_dir_name.gsub(/\.\d+$/,'')}; "+
+               "rpm -Uvh dist/#{first_package_file}"
     end
+
+    it "should transfer contents of #{first_package_file} into the code directory" do
+      result = on host, "cat /opt/test/puppet/code/#{first_package_module_name}/metadata.json"
+      metadata = JSON.parse(result.stdout)
+      expect(metadata['name']).to eq first_package_forge_name
+      expect(metadata['version']).to eq first_package_version
+    end
+
+    it "should upgrade to #{second_package_file}" do
+      on host, "cd #{pkg_root_dir}/#{second_package_dir_name.gsub(/\.\d+$/,'')}; rpm -Uvh dist/#{second_package_file}"
+    end
+
+    it "should transfer contents of #{second_package_file} into the code directory" do
+      result = on host, "cat /opt/test/puppet/code/#{second_package_module_name}/metadata.json"
+      metadata = JSON.parse(result.stdout)
+      expect(metadata['name']).to eq second_package_forge_name
+      expect(metadata['version']).to eq second_package_version
+    end
+
+
   end
 end
 
@@ -102,8 +122,31 @@ describe 'rake pkg:rpm + modules with customized content to safely upgrade obsol
 
         it_should_behave_like('an upgrade path that works safely with rpm_simp_helper',
                               'pupmod-old-package-1.0.0-0.noarch.rpm',
-                              'pupmod-old-package-1.0.0-0.noarch.rpm')
+                              'pupmod-old-package-2.0.0-0.noarch.rpm')
 
+
+        it_should_behave_like('an upgrade path that works safely with rpm_simp_helper',
+                              'pupmod-old-package-1.0.0-0.noarch.rpm',
+                              'pupmod-new-package-2.0.0-0.noarch.rpm')
+
+
+        it_should_behave_like('an upgrade path that works safely with rpm_simp_helper',
+                              'pupmod-old-package-1.0.0-0.noarch.rpm',
+                              'pupmod-new-package-3.0.0-0.noarch.rpm')
+
+
+        it_should_behave_like('an upgrade path that works safely with rpm_simp_helper',
+                              'pupmod-old-package-2.0.0-0.noarch.rpm',
+                              'pupmod-new-package-2.0.0-0.noarch.rpm')
+
+
+        it_should_behave_like('an upgrade path that works safely with rpm_simp_helper',
+                              'pupmod-old-package-2.0.0-0.noarch.rpm',
+                              'pupmod-new-package-3.0.0-0.noarch.rpm')
+
+        it_should_behave_like('an upgrade path that works safely with rpm_simp_helper',
+                              'pupmod-new-package-2.0.0-0.noarch.rpm',
+                              'pupmod-new-package-3.0.0-0.noarch.rpm')
 
 
 ###        it 'should install pupmod-old-package-1.0' do
