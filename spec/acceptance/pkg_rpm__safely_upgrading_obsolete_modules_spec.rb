@@ -9,6 +9,24 @@ RSpec.configure do |c|
   c.extend  Simp::BeakerHelpers::SimpRakeHelpers::PkgRpmHelpers
 end
 
+
+# These tests demonstrate custom RPM triggers that work around the obsolete
+# module RPM upgrate + simp_rpm_helper problem described in SIMP-3895:
+#
+#    https://simp-project.atlassian.net/browse/SIMP-3988
+#
+# The expected outcome is that simp_rpm_helper always ensures the correct
+# content is installed after an upgrade, even during after a package has been
+# obsoleted.  This is accomplished via %triggerpostun -- <name of old package>
+#
+# old 1.0 -> old 2.0 = no need for a trigger
+# old 1.0 -> new 2.0 = must re-run simp_rpm_helper
+# old 1.0 -> new 3.0 = must re-run simp_rpm_helper
+# old 2.0 -> new 2.0 = must re-run simp_rpm_helper
+# old 2.0 -> new 3.0 = must re-run simp_rpm_helper
+# new 2.0 -> new 3.0 = no need for a trigger
+
+
 shared_examples_for 'an upgrade path that works safely with rpm_simp_helper' do |first_package_file, second_package_file|
   let( :rpm_regex ) do
     /^(?<name>pupmod-[a-z0-9_]+-[a-z0-9_]+)-(?<version>\d+\.\d+\.\d+)-(?<release>\d+)\..*\.rpm$/
@@ -96,17 +114,16 @@ describe 'rake pkg:rpm + modules with customized content to safely upgrade obsol
     context "on #{_host}" do
       let!(:host){ _host }
 
-      let(:testpackages) do
-        [
-          'pupmod-old-package-1.0',
-          'pupmod-old-package-2.0',
-          'pupmod-new-package-2.0',
-          'pupmod-new-package-3.0',
-        ]
-      end
+      context 'with module RPMs that are suceptible to SIMP-3895' do
 
-
-      context 'with four RPMs in a SIMP-3895 configuration' do
+        let(:testpackages) do
+          [
+            'pupmod-old-package-1.0',
+            'pupmod-old-package-2.0',
+            'pupmod-new-package-2.0',
+            'pupmod-new-package-3.0',
+          ]
+        end
 
         it 'should create RPMs' do
           testpackages.each do |package|
@@ -147,57 +164,6 @@ describe 'rake pkg:rpm + modules with customized content to safely upgrade obsol
         it_should_behave_like('an upgrade path that works safely with rpm_simp_helper',
                               'pupmod-new-package-2.0.0-0.noarch.rpm',
                               'pupmod-new-package-3.0.0-0.noarch.rpm')
-
-
-###        it 'should install pupmod-old-package-1.0' do
-###          on host, "cd #{pkg_root_dir}/pupmod-old-package-1.0; rpm -Uvh dist/pupmod-old-package-1.0.0-0.noarch.rpm"
-###        end
-###
-###
-###        it "should transfer pupmod-old-package 1.0's files to the code directory" do
-###          result = on host, 'cat /opt/test/puppet/code/package/metadata.json'
-###          metadata = JSON.parse(result.stdout)
-###          expect(metadata['name']).to eq 'old-package'
-###          expect(metadata['version']).to eq '1.0.0'
-###        end
-###
-###
-###        it 'should upgrade to pupmod-old-package-2.0' do
-###          on host, "yum install -y #{pkg_root_dir}/pupmod-old-package-2.0/dist/pupmod-old-package-2.0.0-0.noarch.rpm"
-###        end
-###
-###
-###        it "should transfer pupmod-old-package 2.0's files to the code directory" do
-###          result = on host, 'cat /opt/test/puppet/code/package/metadata.json'
-###          metadata = JSON.parse(result.stdout)
-###          expect(metadata['name']).to eq 'old-package'
-###          expect(metadata['version']).to eq '2.0.0'
-###        end
-###
-###
-###        it 'should upgrade to pupmod-new-package-2.0' do
-###          on host, "yum install -y #{pkg_root_dir}/pupmod-new-package-2.0/dist/pupmod-new-package-2.0.0-0.noarch.rpm"
-###        end
-###
-###
-###        it "should transfer pupmod-new-package 2.0's files to the code directory" do
-###          result = on host, 'cat /opt/test/puppet/code/package/metadata.json'
-###          metadata = JSON.parse(result.stdout)
-###          expect(metadata['name']).to eq 'new-package'
-###          expect(metadata['version']).to eq '2.0.0'
-###        end
-###
-###        it 'should upgrade to pupmod-new-package-3.0' do
-###          on host, "yum install -y #{pkg_root_dir}/pupmod-new-package-3.0/dist/pupmod-new-package-3.0.0-0.noarch.rpm"
-###        end
-###
-###
-###        it "should transfer pupmod-new-package 3.0's files to the code directory" do
-###          result = on host, 'cat /opt/test/puppet/code/package/metadata.json'
-###          metadata = JSON.parse(result.stdout)
-###          expect(metadata['name']).to eq 'new-package'
-###          expect(metadata['version']).to eq '3.0.0'
-###        end
       end
     end
   end
