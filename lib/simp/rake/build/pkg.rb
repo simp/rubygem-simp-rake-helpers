@@ -861,8 +861,8 @@ protect=1
                   $stderr.puts e if opts[:verbose]
                 end
               end
-            elsif opts[:verbose]
-              $stderr.puts '>>Issue creating YUM configuration. Packages will be locally generated.'
+            else
+              $stderr.puts '>>Issue creating YUM configuration. Packages will be locally generated.' if opts[:verbose]
 
               result = true
             end
