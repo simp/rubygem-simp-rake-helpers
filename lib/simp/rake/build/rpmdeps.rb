@@ -57,11 +57,13 @@ module Simp::Rake::Build::RpmDeps
 
       # We don't want to add this if we're building an older
       # version or the RPM will be malformed
-      if Gem::Version.new(module_version) >
-        Gem::Version.new(version.split('-').first)
+      main_version, release = version.split('-')
+      release = '0' unless release
+      release = release.to_i
 
-        rpm_metadata_content << "Obsoletes: #{pkg} < #{module_version}"
-        rpm_metadata_content << "Provides: #{pkg} = #{module_version}"
+      if Gem::Version.new(module_version) > Gem::Version.new(main_version)
+        rpm_metadata_content << "Obsoletes: #{pkg} < #{main_version}-#{release}.obsolete"
+        rpm_metadata_content << "Provides: #{pkg} = #{main_version}-#{release}.obsolete"
       else
         puts "Ignoring 'obsoletes' for #{pkg}: module version" +
          " #{module_version} from metadata.json is not >" +

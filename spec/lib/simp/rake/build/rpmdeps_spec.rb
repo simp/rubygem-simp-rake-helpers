@@ -63,8 +63,8 @@ describe 'Simp::Rake::Build::RpmDeps#generate_rpm_meta_files' do
       requires_file = File.join(mod_dir, 'build', 'rpm_metadata', 'requires')
       expect(File.exist?(requires_file)).to be true
       expected = <<EOM
-Obsoletes: pupmod-oldowner-changed_name_mod < 5.2.0
-Provides: pupmod-oldowner-changed_name_mod = 5.2.0
+Obsoletes: pupmod-oldowner-changed_name_mod < 2.5.0-2016.obsolete
+Provides: pupmod-oldowner-changed_name_mod = 2.5.0-2016.obsolete
 Requires: pupmod-foo1-bar1 = 1.0.0
 Requires: pupmod-foo2-bar2 > 2.0.0
 Requires: pupmod-foo3-bar3 < 3.0.0
