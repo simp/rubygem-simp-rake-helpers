@@ -31,8 +31,7 @@ jobs:
       services:
         - docker
       script:
-        - bundle exec rake deps:checkout
-        - travis_wait 30 unbuffer bundle exec rake acceptance
+        - bundle exec rake acceptance
 
     - stage: deploy
       before_deploy:
