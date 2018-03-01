@@ -1,4 +1,3 @@
-require 'rake/tasklib'
 require 'date'
 require File.expand_path('lib/simp/rake/helpers/version.rb', File.dirname(__FILE__))
 
