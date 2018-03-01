@@ -120,7 +120,8 @@ describe 'rake pkg:rpm + modules with customized content to safely upgrade obsol
           [
             'pupmod-old-package-1.0',
             'pupmod-old-package-2.0',
-            'pupmod-new-package-2.0',
+            'pupmod-old-package-2.2',
+            'pupmod-new-package-2.1',
             'pupmod-new-package-3.0',
           ]
         end
@@ -141,28 +142,32 @@ describe 'rake pkg:rpm + modules with customized content to safely upgrade obsol
                               'pupmod-old-package-1.0.0-0.noarch.rpm',
                               'pupmod-old-package-2.0.0-0.noarch.rpm')
 
-
         it_should_behave_like('an upgrade path that works safely with rpm_simp_helper',
                               'pupmod-old-package-1.0.0-0.noarch.rpm',
-                              'pupmod-new-package-2.0.0-0.noarch.rpm')
+                              'pupmod-new-package-2.1.0-0.noarch.rpm')
 
+        it_should_behave_like('an upgrade path that works safely with rpm_simp_helper',
+                              'pupmod-new-package-2.1.0-0.noarch.rpm',
+                              'pupmod-old-package-2.2.0-0.noarch.rpm')
 
         it_should_behave_like('an upgrade path that works safely with rpm_simp_helper',
                               'pupmod-old-package-1.0.0-0.noarch.rpm',
                               'pupmod-new-package-3.0.0-0.noarch.rpm')
 
-
         it_should_behave_like('an upgrade path that works safely with rpm_simp_helper',
                               'pupmod-old-package-2.0.0-0.noarch.rpm',
-                              'pupmod-new-package-2.0.0-0.noarch.rpm')
-
+                              'pupmod-new-package-2.1.0-0.noarch.rpm')
 
         it_should_behave_like('an upgrade path that works safely with rpm_simp_helper',
                               'pupmod-old-package-2.0.0-0.noarch.rpm',
                               'pupmod-new-package-3.0.0-0.noarch.rpm')
 
         it_should_behave_like('an upgrade path that works safely with rpm_simp_helper',
-                              'pupmod-new-package-2.0.0-0.noarch.rpm',
+                              'pupmod-old-package-2.2.0-0.noarch.rpm',
+                              'pupmod-new-package-3.0.0-0.noarch.rpm')
+
+        it_should_behave_like('an upgrade path that works safely with rpm_simp_helper',
+                              'pupmod-new-package-2.1.0-0.noarch.rpm',
                               'pupmod-new-package-3.0.0-0.noarch.rpm')
       end
     end

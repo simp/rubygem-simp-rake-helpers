@@ -21,7 +21,7 @@ echo ================ PWD: $PWD
 
 %install
 [ "%{buildroot}" != "/" ] && rm -rf %{buildroot}
-mkdir -p %{buildroot}
+mkdir -p %{buildroot}/opt/test/puppet/code
 cp -r $PWD/* %{buildroot}/
 rm -rf %{buildroot}/**/.*.swp
 rm -rf %{buildroot}/opt/puppetlabs

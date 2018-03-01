@@ -1,1 +1,1 @@
-Obsoletes:      pupmod-old-package
+Obsoletes:      pupmod-old-package < 3.0.0
