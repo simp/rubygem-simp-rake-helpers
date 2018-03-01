@@ -1,42 +1,57 @@
+---
 language: ruby
-sudo: required
-dist: trusty
-before_install:
-  - sudo apt-get update -qq
-  - sudo apt-get install -y rpm
-  - rm Gemfile.lock || true
-bundler_args: "--without development --path .vendor"
+cache: bundler
+sudo: false
+
+bundler_args: --without development system_tests
+
 notifications:
   email: false
-rvm:
-  - 2.1.9
-  - 2.3.3
-  - 2.4.1
-script:
-  - 'bundle exec rake spec'
-matrix:
-  fast_finish: true
-  allow_failures:
-    - rvm: 2.3.3
-    - rvm: 2.4.1
-before_deploy:
-  - 'bundle exec rake clobber'
-  - "export GEM_VERSION=`ruby -r ./lib/simp/rake/helpers/version.rb -e 'puts Simp::Rake::Helpers::VERSION'`"
-  - '[[ $TRAVIS_TAG =~ ^${GEM_VERSION}$ ]]'
-deploy:
-  - provider: rubygems
-    gemspec: simp-rake-helpers.gemspec
-    gem: simp-rake-helpers
-    api_key:
-      secure: "aoPmOZ3WgjNJ56UXmamKxaRv37iUaxKekAeS8n2fPk78X/nU2qGjdDHFH+SBrfl33PyzsGnS3WAANMKaIkAgssvKoaII/sAC+Sl6q1eyVUprZqloXrG+cHlnHY4GnziWEH3JrkHDChW0xoJq7hhpj7qTRKrEIp6nA25MjozjveoL+HH4kKy/ACJhiEdsYTFaDLYYFY50gGUL9KjIkwN6g9d+dIzG9JqcYoDbneQlO6/23yr4GiAHQ8HM1j5tUoBqJad+CWjWhSY7pbfYBy2ziwVhFy1qoOS4/bhlasRCsLTtz0AjjR0YWOhJap1vJqYhrSxtvhmVuzScmDkueAem/PfWS3XCQvbmjdmFMzPOxo0aRRJMlaeVWRsZ/aVFC7ngpRzokq1duZEKI47xZC27vJSOp3RZMmYl/7GsykoYkqHHsTvzSALEQiVtQq8sIOtN0JOTFI8H4LSMirXuqGq+SgCJiAQ3mQzSgh50TXiZaA2UPPcQaw4AzY36BRKs1cgw3cEWuL38O2cWUTAzEE4SUh499wrU5x+N0PsYL0AvMFONsRaq5epOYrlIL9UPSL/qZRLmzpcEWZRfOX4Ni5N6Aa9ZR8juenR6UmE79S2dupBxQeinkdfXuWznUZH7BcnUDoz8rErABpJGHNVY60dUO/s055WCr7Y95Gi+H75X9/I="
-    on:
-      tags: true
+
+addons:
+  apt:
+    packages:
+      - rpm
+      # provides unbuffer
+      - expect-dev
+
+before_install:
+  - rm -f Gemfile.lock
+
+jobs:
+  include:
+    - stage: spec
       rvm: 2.1.9
-      condition: '($SKIP_PUBLISH != true)'
-  - provider: releases
-    api_key:
-      secure: "QKvAL4yAk8u9prJT6dFzKvszJfoo5/R9jIJ/WEUwdH17jij9Q/XhNrUzJZnrdVtqq4yCK6UqGqkRMMn2YLOKthoJycLEXzH+ZeCxBwzyN6uQkLmK5Mx43H+NNCsRkYTmcOdi4wJraWaWVq7XBxz6XdNRUkV99WyIh93wVnTwZuJxvF9koDFq+lRR4qRPh5Xn8HjKEZNPY7QHaecqsyWjgdEILWaQk/32IU20dLCT7U3jDdSuk92p24gWlkvTJ/gP+IYKWEPhgMMpx+WAtGGC+djMyZUrkaKEa/ennkOcFgqJ6UtDEInEtTBFWScGL70dwHORbEVExp9AKcLP3TmMyQ/36ybu7yrgcp6L995tM4Huez3GBM6NJ8xl/hYG3D1QwwoXGnWfUjQW2we7h8gcvl2yUSx59pb2V5QW3nCbD8rAiF/kpAcgwWyBT3iLpMer2j0Ux05NCBGqsltl9J944M+pLtO+YKldUw7uGDWMQQzq8/2m5+MoE4fvTgnaJ0rv0eRLWfNH2RQ565mE95nyJC/wXz/XB2v/KKHrf8FQZRIavH4Nuo4E2+tU8u2APU/n+gP8iQrtd86Nlo5RrBTu+NoDPDrM5OBnVYTT/AUAEUggXTPgZsqwZrSDSBEt0VbExnwQ5QMGIB9ZX+ZunrEZ6NeH8hV5hm67WYZ+qRFOPvI="
-    on:
-      tags: true
+      script:
+        - bundle exec rake spec
+
+    - stage: acceptance
+      sudo: required
       rvm: 2.1.9
-      condition: '($SKIP_PUBLISH != true)'
+      services:
+        - docker
+      script:
+        - bundle exec rake deps:checkout
+        - travis_wait 30 unbuffer bundle exec rake acceptance
+
+    - stage: deploy
+      before_deploy:
+        - "export GEM_VERSION=`ruby -r ./lib/simp/rake/helpers/version.rb -e 'puts Simp::Rake::Helpers::VERSION'`"
+        - '[[ $TRAVIS_TAG =~ ^${GEM_VERSION}$ ]]'
+      deploy:
+        - provider: rubygems
+          gemspec: simp-rake-helpers.gemspec
+          gem: simp-rake-helpers
+          api_key:
+            secure: "aoPmOZ3WgjNJ56UXmamKxaRv37iUaxKekAeS8n2fPk78X/nU2qGjdDHFH+SBrfl33PyzsGnS3WAANMKaIkAgssvKoaII/sAC+Sl6q1eyVUprZqloXrG+cHlnHY4GnziWEH3JrkHDChW0xoJq7hhpj7qTRKrEIp6nA25MjozjveoL+HH4kKy/ACJhiEdsYTFaDLYYFY50gGUL9KjIkwN6g9d+dIzG9JqcYoDbneQlO6/23yr4GiAHQ8HM1j5tUoBqJad+CWjWhSY7pbfYBy2ziwVhFy1qoOS4/bhlasRCsLTtz0AjjR0YWOhJap1vJqYhrSxtvhmVuzScmDkueAem/PfWS3XCQvbmjdmFMzPOxo0aRRJMlaeVWRsZ/aVFC7ngpRzokq1duZEKI47xZC27vJSOp3RZMmYl/7GsykoYkqHHsTvzSALEQiVtQq8sIOtN0JOTFI8H4LSMirXuqGq+SgCJiAQ3mQzSgh50TXiZaA2UPPcQaw4AzY36BRKs1cgw3cEWuL38O2cWUTAzEE4SUh499wrU5x+N0PsYL0AvMFONsRaq5epOYrlIL9UPSL/qZRLmzpcEWZRfOX4Ni5N6Aa9ZR8juenR6UmE79S2dupBxQeinkdfXuWznUZH7BcnUDoz8rErABpJGHNVY60dUO/s055WCr7Y95Gi+H75X9/I="
+          on:
+            tags: true
+            rvm: 2.1.9
+            condition: '($SKIP_PUBLISH != true)'
+        - provider: releases
+          api_key:
+            secure: "QKvAL4yAk8u9prJT6dFzKvszJfoo5/R9jIJ/WEUwdH17jij9Q/XhNrUzJZnrdVtqq4yCK6UqGqkRMMn2YLOKthoJycLEXzH+ZeCxBwzyN6uQkLmK5Mx43H+NNCsRkYTmcOdi4wJraWaWVq7XBxz6XdNRUkV99WyIh93wVnTwZuJxvF9koDFq+lRR4qRPh5Xn8HjKEZNPY7QHaecqsyWjgdEILWaQk/32IU20dLCT7U3jDdSuk92p24gWlkvTJ/gP+IYKWEPhgMMpx+WAtGGC+djMyZUrkaKEa/ennkOcFgqJ6UtDEInEtTBFWScGL70dwHORbEVExp9AKcLP3TmMyQ/36ybu7yrgcp6L995tM4Huez3GBM6NJ8xl/hYG3D1QwwoXGnWfUjQW2we7h8gcvl2yUSx59pb2V5QW3nCbD8rAiF/kpAcgwWyBT3iLpMer2j0Ux05NCBGqsltl9J944M+pLtO+YKldUw7uGDWMQQzq8/2m5+MoE4fvTgnaJ0rv0eRLWfNH2RQ565mE95nyJC/wXz/XB2v/KKHrf8FQZRIavH4Nuo4E2+tU8u2APU/n+gP8iQrtd86Nlo5RrBTu+NoDPDrM5OBnVYTT/AUAEUggXTPgZsqwZrSDSBEt0VbExnwQ5QMGIB9ZX+ZunrEZ6NeH8hV5hm67WYZ+qRFOPvI="
+          on:
+            tags: true
+            rvm: 2.1.9
+            condition: '($SKIP_PUBLISH != true)'
