@@ -21,27 +21,6 @@ module Simp::BeakerHelpers::SimpRakeHelpers::PkgRpmHelpers
     hosts,
     root_dir=File.expand_path('../../../',__FILE__)
   )
-    # make sure all generated files from previous rake tasks have
-    # permissions that allow the copy in the 'prep' below
-    dist_dirs = Dir.glob(File.join(root_dir, '**', 'dist'))
-    dist_dirs.each { |dir| FileUtils.chmod_R(0755, dir) }
-    FileUtils.chmod_R(0755, 'junit')
-    FileUtils.chmod_R(0755, 'log')
-    #
-    # FIXME: ^^^ Ive faithfully refactored the code above into the helpers, but
-    #        it doesn't make sense to me: the file permissions are modified on
-    #        the host *after* they've been uploaded to the SUTs.
-    #
-    #        I've added a `cp -a` + `chown/chmod -R` below, which seems to
-    #        accomplish what the section above it documented as doing.
-    #
-    #        So: Is this section really doing something we need?
-    #
-    #          * If `no`:  let's remove it
-    #          * If `yes`: let's demonstrate + document it
-    #          * If you'd rather try something else, turn to page 386
-    #
-
     # I've added the `ch* -R` on the SUT-side, which seems to work on a fresh checkout
     on hosts, 'cp -a /host_files /home/build_user/; ' +
              'chmod -R go=u-w /home/build_user/host_files/{dist,**/dist,junit,log}; ' +
@@ -71,7 +50,7 @@ module Simp::BeakerHelpers::SimpRakeHelpers::PkgRpmHelpers
     result = on host, %Q(rpm -qp --scripts #{rpm_file})
 
     scriptlets = {}
-    result.stdout.scan(rx_scriptlet_blocks) do
+    result.stdout.to_s.scan(rx_scriptlet_blocks) do
       scriptlet = scriptlets[$~[:scriptlet]] ||= { :count => 0 }
       scriptlet[:count]       += 1
       scriptlet[:content]      = $~[:content].strip
@@ -90,7 +69,7 @@ module Simp::BeakerHelpers::SimpRakeHelpers::PkgRpmHelpers
     result = on host, %Q(rpm -qp --triggers #{rpm_file})
 
     triggers = {}
-    result.stdout.scan(rx_trigger_blocks) do
+    result.stdout.to_s.scan(rx_trigger_blocks) do
       trigger=  triggers[$~[:trigger]] ||= { :count => 0 }
       trigger[:count]       += 1
       trigger[:content]      = $~[:content].strip

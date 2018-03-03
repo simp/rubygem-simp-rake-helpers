@@ -32,6 +32,7 @@
 ### 5.3.1 / 2018-02-18
 * Add a conditional check so simp-core can build an ISO with a
   pre-existing tarball with no user input
+
 ### 5.3.0 / 2018-02-02
 * Add ability to specify external, non-module, RPM dependencies for
   a checked-out repo from `simp-core/build/rpm/dependencies.yaml`
