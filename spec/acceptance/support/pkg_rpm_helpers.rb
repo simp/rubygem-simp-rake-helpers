@@ -3,7 +3,7 @@ module Simp::BeakerHelpers::SimpRakeHelpers::PkgRpmHelpers
   # rake command string to run on hosts
   # passes on useful troubleshooting env vars
   def rake_cmd
-    cmd = 'rake'
+    cmd = 'bundle exec rake'
     %w(
       SIMP_RPM_LUA_debug
       SIMP_RAKE_PKG_verbose
