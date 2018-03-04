@@ -1,3 +1,6 @@
+### 5.4.1 / 2018-03-04
+* Fix Travis CI deployment script
+
 ### 5.4.0 / 2018-02-12
 * Add support for RPM customization (e.g., scriptlets, triggers)
   - Scans new location `build/rpm_metadata/custom/` to find new content to
