@@ -1,3 +1,34 @@
+### 5.4.0 / 2018-02-12
+* Add support for RPM customization (e.g., scriptlets, triggers)
+  - Scans new location `build/rpm_metadata/custom/` to find new content to
+    inject into the RPM spec (e.g., scriptlets, triggers).
+  - There is logic to permit overriding the `%pre`/`%post`/`%preun`/`%postun`
+    default scriptlets.
+* Enable `%triggerpostun` fix for SIMP-3895
+  - The custom scriptlet feature provides a means for module RPMs that obsolete
+    the same module name to introduce a `%triggerpostun -- <obsoleted-package>`
+    scriptlet as a workaround to prevent `simp_rpm_helpers` from deleting
+    everything.
+  - The acceptance tests specifically demonstrate this type of trigger
+* Improve RPM build troubleshooting:
+  - New env var: `SIMP_RPM_verbose=yes`
+  - New env var: `SIMP_RAKE_PKG_verbose=yes`
+* Improve `simpdefault.spec` RPM Lua code troubleshooting:
+  - Cleaned up header documentation
+  - Added optional stderr warnings
+  - Refactored (some) code into functions
+  - Improved error messages
+* Improve acceptance test / development workflow
+  - Add `Vagrantfile` to provide a quick & pristine beaker/docker setup
+* Refactor acceptance test structure
+  - Code formerly embedded in the `pkg_rpm` tests have been refactored into
+    common helpers that other tests can use.
+  - There are mock prereq RPMs to test installation of newly-built RPMs
+  - A `simp_rpm_helper` (a copy of the script in simp-adapter) for scenarios
+* Update README.md
+  - Removed obsolete references to `mock`-based development
+  - Clarified RPM Generation documentation
+
 ### 5.3.1 / 2018-02-18
 * Add a conditional check so simp-core can build an ISO with a
   pre-existing tarball with no user input
@@ -14,13 +45,13 @@
   - Provides more extensive validation of date strings and changelog
     entry ordering.
   - Stops processing at the first invalid changelog entry, to minimize
-    non-catestrophic errors from old changelog entries.
+    non-catastrophic errors from old changelog entries.
 * Create pkg:compare_latest_tag, which is a more general replacement
   for the Simp::Rake::Pupmod::Helpers compare_latest_tag task.
   - Now supports non-Puppet SIMP assets for which version and changelog
     information is specified in an RPM spec files.
   - Does the same validation as the new pkg:create_tag_changelog task.
-* Fix broken acceptance tests 
+* Fix broken acceptance tests
   - Remove logic to build SIMP 4 and SIMP 5 RPMs.
   - Remove mock logic
 

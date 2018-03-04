@@ -54,6 +54,7 @@ module Simp::Rake
         'dist/rpmbuild',
         'spec/fixtures/modules'
       ]
+      @verbose = ENV.fetch('SIMP_RAKE_PKG_verbose','no') == 'yes'
 
       # This is only meant to be used to work around the case where particular
       # packages need to ignore some set of artifacts that get updated out of
@@ -65,7 +66,7 @@ module Simp::Rake
         @ignore_changes_list += ENV['SIMP_INTERNAL_pkg_ignore'].split(',')
       end
 
-      FileUtils.mkdir_p(@pkg_tmp_dir)
+      FileUtils.mkdir_p(@pkg_tmp_dir, verbose: @verbose)
 
       local_spec = Dir.glob(File.join(@base_dir, 'build', '*.spec'))
       unless local_spec.empty?
@@ -79,7 +80,7 @@ module Simp::Rake
         @spec_tempfile.flush
         @spec_tempfile.close
 
-        FileUtils.chmod(0640, @spec_file)
+        FileUtils.chmod(0640, @spec_file, verbose: @verbose)
       end
 
       ::CLEAN.include( @pkg_dir )
@@ -134,7 +135,7 @@ module Simp::Rake
         end
 
         @rpm_srcdir ||= "#{@pkg_dir}/rpmbuild/SOURCES"
-        FileUtils.mkdir_p(@rpm_srcdir)
+        FileUtils.mkdir_p(@rpm_srcdir, verbose: @verbose)
 
         @tar_dest ||= "#{@pkg_dir}/#{@full_pkg_name}.tar.gz"
 
@@ -210,6 +211,9 @@ module Simp::Rake
     end
 
     def define_pkg_rpm
+
+      # :pkg:rpm
+      # -----------------------------
       namespace :pkg do
         desc <<-EOM
         Build the #{@pkg_name} RPM.
@@ -226,21 +230,29 @@ module Simp::Rake
             %(-D '_srcrpmdir #{@pkg_dir}'),
             %(-D '_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm')
           ]
-
+          rpm_opts << '-v' if @verbose
+          rpm_opts << "-D 'lua_debug 1'" if (ENV.fetch('SIMP_RAKE_PKG_LUA_verbose','no') =='yes')
+          rpm_opts << "-D 'pup_module_info_dir #{@base_dir}'"
           Dir.chdir(@pkg_dir) do
 
             # Copy in the materials required for the module builds
             # The following are required to build successful RPMs using
             # the new LUA-based RPM template
             puppet_module_info_files = [
-              Dir.glob(%(#{@base_dir}/build/rpm_metadata/*)),
+              Dir.glob(%(#{@base_dir}/build/rpm_metadata/**)),
               %(#{@base_dir}/CHANGELOG),
               %(#{@base_dir}/metadata.json)
             ].flatten
 
+            if @verbose
+              puts "==== pkg:rpm: @base_dir: #{@base_dir}"
+              puts "==== pkg:rpm: rpm_opts:\n #{rpm_opts.map{|x| "\n  #{x}"}.join}"
+              puts "==== pkg:rpm: puppet_module_info_files: #{puppet_module_info_files.map{|x| "\n  #{x}"}.join}"
+            end
+
             puppet_module_info_files.each do |f|
               if File.exist?(f)
-                FileUtils.cp_r(f, @rpm_srcdir)
+                FileUtils.cp_r(f, @rpm_srcdir, verbose: @verbose)
               end
             end
 
@@ -251,26 +263,28 @@ module Simp::Rake
             Dir.chdir(@rpm_srcdir) do
               extra_deps.each do |dep|
                 unless File.exist?(dep)
-                  FileUtils.cp_r("../../#{dep}", dep)
+                  FileUtils.cp_r("../../#{dep}", dep, verbose: @verbose)
                 end
               end
             end
 
-            FileUtils.mkdir_p('logs')
-            FileUtils.mkdir_p('rpmbuild/BUILDROOT')
-            FileUtils.mkdir_p('rpmbuild/BUILD')
+            FileUtils.mkdir_p('logs', verbose: @verbose)
+            FileUtils.mkdir_p('rpmbuild/BUILDROOT', verbose: @verbose)
+            FileUtils.mkdir_p('rpmbuild/BUILD', verbose: @verbose)
 
             srpms = [@full_pkg_name + '.src.rpm']
             if require_rebuild?(srpms.first, @tar_dest)
               # Need to build the SRPM so that we can get the build dependencies
-              %x(rpmbuild #{rpm_opts.join(' ')} -bs #{@spec_file} > logs/build.out 2> logs/build.err)
+              cmd = %(rpmbuild #{rpm_opts.join(' ')} -bs #{@spec_file} > logs/build.srpm.out 2> logs/build.srpm.err)
+              puts "==== pkg:rpm SRPM BUILD:   #{cmd}" if @verbose
+              %x(#{cmd})
 
-              srpms = File.read('logs/build.out').scan(%r(Wrote:\s+(.*\.rpm))).flatten
+              srpms = File.read('logs/build.srpm.out').scan(%r(Wrote:\s+(.*\.rpm))).flatten
 
               if srpms.empty?
                 raise <<-EOM
   Could not create SRPM for '#{@spec_info.basename}
-    Error: #{File.read('logs/build.err')}
+    Error: #{File.read('logs/build.srpm.err')}
                 EOM
               end
             end
@@ -327,7 +341,10 @@ module Simp::Rake
                 rpms = expected_rpms
               else
                 # Try a build
-                %x(rpmbuild #{rpm_opts.join(' ')} --rebuild #{srpms.first} > logs/build.out 2> logs/build.err)
+                cmd = %(rpmbuild #{rpm_opts.join(' ')} --rebuild #{srpms.first} > logs/build.rpm.out 2> logs/build.rpm.err)
+                puts "==== pkg:rpm: #{cmd}" if @verbose
+                _result = %x(#{cmd})
+                puts _result if @verbose
 
                 # If the build failed, it was probably due to missing dependencies
                 unless $?.success?
@@ -359,6 +376,7 @@ module Simp::Rake
                   unless Process.uid == 0
                     yum_install_cmd = 'sudo ' + yum_install_cmd
                   end
+                  puts "==== pkg:rpm: #{yum_install_cmd}" if @verbose
 
                   install_output = %x(#{yum_install_cmd} 2>&1)
 
@@ -373,14 +391,16 @@ module Simp::Rake
                 # Try it again!
                 #
                 # If this doesn't work, something we can't fix automatically is wrong
-                %x(rpmbuild #{rpm_opts.join(' ')} --rebuild #{srpms.first} > logs/build.out 2> logs/build.err)
+                cmd = %(rpmbuild #{rpm_opts.join(' ')} --rebuild #{srpms.first} > logs/build.rpm.out 2> logs/build.rpm.err)
+                puts "==== pkg:rpm: #{cmd}" if @verbose
+                %x(#{cmd})
 
-                rpms = File.read('logs/build.out').scan(%r(Wrote:\s+(.*\.rpm))).flatten - srpms
+                rpms = File.read('logs/build.rpm.out').scan(%r(Wrote:\s+(.*\.rpm))).flatten - srpms
 
                 if rpms.empty?
                   raise <<-EOM
     Could not create RPM for '#{@spec_info.basename}
-      Error: #{File.read('logs/build.err')}
+      Error: #{File.read('logs/build.rpm.err')}
                   EOM
                 end
               end
@@ -514,7 +534,7 @@ module Simp::Rake
         # -----------------------------
         desc <<-EOM
         Generate an appropriate changelog for an annotated tag from a
-        component's CHANGELOG or RPM spec file.  
+        component's CHANGELOG or RPM spec file.
 
         The changelog text will be for the latest version and contain
         1 or more changelog entries for that version, in reverse

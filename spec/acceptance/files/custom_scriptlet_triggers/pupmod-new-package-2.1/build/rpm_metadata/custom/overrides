@@ -1,0 +1,14 @@
+%triggerpostun -- pupmod-old-package
+
+echo
+echo "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
+echo "@@@@@@ Executing SIMP-3895 workaround @@@@@@"
+echo "@@@@@@                                @@@@@@"
+echo "@@@@@@  upgrading from obsoleted pkg  @@@@@@"
+echo "@@@@@@      'pupmod-old-package'      @@@@@@"
+echo "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
+echo
+echo "pupmod-new-package: post   1=2 (triggered by: %triggerpostun -- pupmod-old-package)"
+
+# re-send the 'post' message
+/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/package --rpm_section='post' --rpm_status=2

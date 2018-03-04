@@ -15,8 +15,7 @@ HOSTS:
       - 'useradd -b /home -m -c "Build User" -s /bin/bash -U build_user'
       - 'yum install -y facter'
       # simp build-deps
-      - 'yum install -y rpm-build augeas-devel createrepo genisoimage git gnupg2 libicu-devel libxml2 libxml2-devel libxslt libxslt-devel mock rpmdevtools clamav which'
-      - 'usermod -a -G mock build_user'
+      - 'yum install -y rpm-build augeas-devel createrepo genisoimage git gnupg2 libicu-devel libxml2 libxml2-devel libxslt libxslt-devel rpmdevtools which'
       # rvm build-deps
       - 'yum install -y libyaml-devel glibc-headers autoconf gcc-c++ glibc-devel readline-devel libffi-devel openssl-devel automake libtool bison sqlite-devel'
       - 'runuser build_user -l -c "gpg2 --keyserver hkp://keys.gnupg.net --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3"'
@@ -51,8 +50,7 @@ HOSTS:
       - 'useradd -b /home -m -c "Build User" -s /bin/bash -U build_user'
       - 'yum install -y facter'
       # simp build-deps
-      - 'yum install -y rpm-build augeas-devel createrepo genisoimage git gnupg2 libicu-devel libxml2 libxml2-devel libxslt libxslt-devel mock rpmdevtools clamav clamav-update which'
-      - 'usermod -a -G mock build_user'
+      - 'yum install -y rpm-build augeas-devel createrepo genisoimage git gnupg2 libicu-devel libxml2 libxml2-devel libxslt libxslt-devel rpmdevtools clamav-update which'
       # rvm build-deps
       - 'yum install -y libyaml-devel glibc-headers autoconf gcc-c++ glibc-devel readline-devel libffi-devel openssl-devel automake libtool bison sqlite-devel'
       - 'runuser build_user -l -c "gpg2 --keyserver hkp://keys.gnupg.net --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3"'

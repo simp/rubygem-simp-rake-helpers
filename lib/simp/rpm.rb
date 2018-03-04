@@ -12,12 +12,16 @@ module Simp
     require 'rake'
 
     @@gpg_keys = Hash.new
-    attr_reader :verbose, :packages
+    attr_reader :verbose, :lua_debug, :packages
 
     if Gem.loaded_specs['rake'].version >= Gem::Version.new('0.9')
       def self.sh(args)
         system args
       end
+    end
+
+    def self.rpm_cmd
+      @rpm_cmd ||= (ENV.fetch('SIMP_RPM_LUA_debug','no') =='yes') ? "rpm -D 'lua_debug 1'" : 'rpm'
     end
 
     # Constructs a new Simp::RPM object. Requires the path to the spec file, or
@@ -38,6 +42,8 @@ module Simp
     #   apply when +rpm_source+ is an RPM spec file.
     # [rpm_name] The full name of the rpm
     def initialize(rpm_source)
+      @verbose = ENV.fetch('SIMP_RPM_verbose','no') =='yes'
+
       update_rpmmacros
 
       # Simp::RPM.get_info returns a Hash or an Array of Hashes.
@@ -52,7 +58,14 @@ module Simp
         @info[package_info[:basename]] = package_info
       end
 
+
       @packages = @info.keys
+
+      if @verbose
+        require 'pp'
+        puts "== Simp::RPM @packages"
+        puts @packages.pretty_inspect
+      end
     end
 
     # @returns The RPM '.dist' of the system. 'nil' will be will be returned if
@@ -60,7 +73,13 @@ module Simp
     def self.system_dist
       # We can only have one of these
       unless defined?(@@system_dist)
-        dist = %x(rpm -E '%{dist}' 2> /dev/null).strip.split('.')
+        cmd  = %Q(#{rpm_cmd} -E '%{dist}' 2> /dev/null)
+        if @verbose
+          puts "== Simp::RPM.system_dist"
+          puts "   #{cmd} "
+        end
+        dist = %x{#{cmd}}.strip.split('.')
+        puts "  result = '#{dist}'" if @verbose
 
         if dist.size > 1
           @@system_dist = '.' + dist[1]
@@ -106,6 +125,13 @@ module Simp
           fh.flush
         end
 
+        if @verbose
+          puts "== SIMP::RPM#update_rpmmacros:"
+          puts "   wrote to '#{rpmmacros_file}': "
+          puts "   #{'-'*20}"
+          puts rpmmacros.map{|x| "   #{x}\n"}.join
+          puts
+        end
         @@macros_updated = true
       end
     end
@@ -259,7 +285,11 @@ module Simp
     # stdout output and stderr output.
     # cmd:: command to be executed
     def self.execute(cmd)
-      #puts "Executing: [#{cmd}]"
+      if @verbose ||= ENV.fetch('SIMP_RPM_verbose','no') =='yes'
+        puts "== Simp::RPM.execute(#{cmd})"
+        puts "  #{cmd}"
+      end
+
       outfile = File.join('/tmp', "#{ENV['USER']}_#{SecureRandom.hex}")
       errfile = File.join('/tmp', "#{ENV['USER']}_#{SecureRandom.hex}")
       pid = spawn(cmd, :out=>outfile, :err=>errfile)
@@ -276,6 +306,13 @@ module Simp
 
       { :exit_status => exit_status, :stdout => stdout, :stderr => stderr }
     ensure
+      if @verbose
+        puts "    -------- exit_status: #{exit_status}"
+        puts "    -------- stdout ",''
+        puts File.readlines(outfile).map{|x| "    #{x}"}.join
+        puts '',"    -------- stderr ",''
+        puts File.readlines(errfile).map{|x| "    #{x}"}.join
+      end
       FileUtils.rm_f([outfile, errfile])
     end
 
@@ -313,9 +350,9 @@ module Simp
         :dist => system_dist
       }
 
-      rpm_version_query = %(rpm -q --queryformat '%{NAME} %{VERSION} %{RELEASE} %{ARCH}\n' 2>/dev/null)
+      rpm_version_query = %Q(#{rpm_cmd} -q --queryformat '%{NAME} %{VERSION} %{RELEASE} %{ARCH}\\n')
 
-      rpm_signature_query = %(rpm -q --queryformat '%|DSAHEADER?{%{DSAHEADER:pgpsig}}:{%|RSAHEADER?{%{RSAHEADER:pgpsig}}:{%|SIGGPG?{%{SIGGPG:pgpsig}}:{%|SIGPGP?{%{SIGPGP:pgpsig}}:{(none)}|}|}|}|\n\')
+      rpm_signature_query = %Q(#{rpm_cmd} -q --queryformat '%|DSAHEADER?{%{DSAHEADER:pgpsig}}:{%|RSAHEADER?{%{RSAHEADER:pgpsig}}:{%|SIGGPG?{%{SIGGPG:pgpsig}}:{%|SIGPGP?{%{SIGPGP:pgpsig}}:{(none)}|}|}|}|\\n')
 
       source_is_rpm = rpm_source.split('.').last == 'rpm'
       if source_is_rpm
@@ -373,6 +410,12 @@ EOE
         info_array << info
       end
 
+      if @verbose
+        puts "== SIMP::RPM.get_info"
+        require 'pp'
+        pp info_array
+      end
+
       if info_array.size == 1
         return info_array[0]
       else
@@ -387,7 +430,7 @@ EOE
     end
 
     def self.create_rpm_build_metadata(project_dir, srpms=nil, rpms=nil)
-      require 'yaml' 
+      require 'yaml'
 
       last_build = {
         'git_hash' => %x(git rev-list --max-count=1 HEAD).chomp,

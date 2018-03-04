@@ -1,0 +1,18 @@
+%pretrans -p <lua>
+-- Custom scriptlet
+
+%triggerun -- bar
+# Custom trigger
+echo "This trigger runs just before the 'bar' package's %%preun"
+
+%triggerun -- foo
+# Custom trigger
+echo "The 'foo' package is great; why would you uninstall it?"
+
+%pre
+# Custom scriptlet override
+echo 'I override the default %%pre section provided by the spec file.'
+
+%triggerun -- foo
+# Custom trigger
+echo "This is a duplicate definition and won't be included"

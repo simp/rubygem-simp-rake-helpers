@@ -1,4 +1,5 @@
-Obsoletes: pupmod-unmanaged_mod-test >= 0.0.1
+Obsoletes: pupmod-unmanaged_mod-test < 0.0.1
+Provides: pupmod-unmanaged_mod-test = 0.0.1
 Requires: pupmod-puppetlabs-inifile < 2.0.0-0
 Requires: pupmod-puppetlabs-inifile >= 1.6.0-0
 Requires: pupmod-puppetlabs-postgresql < 5.0.0-0
