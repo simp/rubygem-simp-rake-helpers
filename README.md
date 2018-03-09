@@ -154,8 +154,18 @@ level of the project, if it exists.
 
   * The file is expected to conform to the [RPM Changelog][RPM CHANGELOG]
     format described in the Fedora packaging guidelines
+
   * The file MUST start with a well-formatted RPM changelog string, or it will
     be ignored.
+
+    Example:
+
+        * Mon Nov 06 2017 Tom Smith <tom.smith@simp.com> - 3.8.0-0
+        - Add feature x
+
+    **Important:** Note the leading zero in "`Nov 05`".  It is a convention
+
+    that is **required** by our CHANGELOG validation tasks.
   * The format is *not* fully checked before attempting to build the RPM―the
     RPM build will fail if the Changelog entries are not valid.
 

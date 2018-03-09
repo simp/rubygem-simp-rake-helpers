@@ -1,3 +1,9 @@
+### 5.4.2 / 2018-03-06
+* Document requirement for double-digit day in CHANGELOG date.
+* Add optional spec test for CHANGELOG file at `$SIMP_SPEC_changelog`
+* Fix invalid `module_without_changelog` spec test for `Simp::RelChecks`
+* `load_and_validate_changelog` now passes on `verbose` to `Simp::ComponentInfo`
+
 ### 5.4.1 / 2018-03-04
 * Fix Travis CI deployment script
 

@@ -31,7 +31,7 @@ class Simp::RelChecks
   #                   can be fetched.
   # +verbose+::       Set to 'true' if you want to see detailed messages
   def self.compare_latest_tag(component_dir, tags_source = 'origin', verbose = false)
-    info, changelogs = load_and_validate_changelog(component_dir, verbose)
+    info, _ = load_and_validate_changelog(component_dir, verbose)
     Dir.chdir(component_dir) do
       # determine last tag
       `git fetch -t #{tags_source} 2>/dev/null`
@@ -133,7 +133,6 @@ class Simp::RelChecks
   def self.extract_version_changelog(changelog_entries, version,
       release=nil, verbose=false)
 
-    version_entry_found = false
     changelogs = []
     changelog_entries.each do |entry|
       if entry[:version] > version
@@ -162,7 +161,7 @@ class Simp::RelChecks
   def self.load_and_validate_changelog(component_dir, verbose)
     # only get valid changelog entries for the latest version
     # (up to the first malformed entry)
-    info = Simp::ComponentInfo.new(component_dir, true)
+    info = Simp::ComponentInfo.new(component_dir, true, verbose)
 
     changelogs = extract_version_changelog(info.changelog, info.version,
         info.release, verbose)

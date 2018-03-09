@@ -78,12 +78,26 @@ NOTICE: New tag of version '1.1.0' is required for 3 changed files:
     end
 
     # spot check just one of many failures handled by
-    # Simp::RelCheck.load_and_validate_changelog, as that method is 
+    # Simp::RelCheck.load_and_validate_changelog, as that method is
     # extensively tested elsewhere.
     it 'fails when module info cannot be loaded' do
-      comp_dir = File.join(files_dir, 'module_without_changelo')
+      comp_dir = File.join(files_dir, 'module_without_changelog')
       expect{ Simp::RelChecks.compare_latest_tag(comp_dir) }.
-        to raise_error(/No RPM spec file found in/ )
+        to raise_error(/No CHANGELOG file found in/ )
+    end
+  end
+
+  # If the environment variable `SIMP_SPEC_changelog` is the path to a file,
+  # test to see if will be considered a valid CHANGELOG (useful for debugging)
+  context 'with custom CHANGELOG at $SIMP_SPEC_changelog' do
+    _changelog_file = ENV['SIMP_SPEC_changelog'].to_s
+    if File.file?( _changelog_file )
+      it "validates the CHANGELOG file at '#{_changelog_file}'" do
+        comp_dir = File.dirname( _changelog_file )
+        expect{ Simp::RelChecks.load_and_validate_changelog(comp_dir, true) }.not_to raise_error
+      end
+    else
+        skip 'This test is disabled by default.'
     end
   end
 end
