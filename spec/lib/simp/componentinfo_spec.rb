@@ -225,7 +225,7 @@ describe Simp::ComponentInfo do
       expect( info.component_dir ).to eq component_dir
       expect( info.type ).to eq :asset
       expect( info.version ).to eq '1.0.0'
-      expect( info.release ).to match /0/
+      expect( info.release ).to match(/0/)
       expected_changelog = [
         {
           :date => 'Wed Oct 18 2017',

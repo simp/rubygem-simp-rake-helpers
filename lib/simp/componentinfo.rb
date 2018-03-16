@@ -149,7 +149,7 @@ class Simp::ComponentInfo
   #
   def parse_changelog(changelog, latest_version_only, verbose)
     # split on the entry-separating lines
-    changelog_entries = changelog.split(/^\s*$/)
+    changelog_entries = changelog.split(/\n\n+/)
     latest_version = nil # 1st version found is latest version
     prev_entry_date = nil
     changelogs = []
@@ -170,7 +170,6 @@ class Simp::ComponentInfo
         full_version += "-#{match[4]}" unless match[4].nil?
         current_version = Gem::Version.new(full_version)
         latest_version = current_version if latest_version.nil?
-
         if current_version > latest_version
           fail("ERROR:  Changelog entries are not properly version ordered")
         end
