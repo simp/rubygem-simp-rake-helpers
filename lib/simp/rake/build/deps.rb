@@ -85,6 +85,8 @@ class R10KHelper
         mod = {
           :name        => mod.name,
           :path        => mod.path.to_s,
+          :remote      => mod.repo.instance_variable_get('@remote'),
+          :desired_ref => mod.desired_ref,
           :git_source  => mod.repo.repo.origin,
           :git_ref     => mod.repo.head,
           :module_dir  => mod.basedir,

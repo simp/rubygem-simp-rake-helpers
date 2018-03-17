@@ -16,6 +16,7 @@
   * [Gemfile](#gemfile)
 * [Usage](#usage)
   * [In a Puppet module](#in-a-puppet-module)
+  * [Environment Variables](#environment-variables)
   * [In a Ruby Gem](#in-a-ruby-gem)
   * [Generating RPMs](#generating-rpms)
     * [RPM Changelog](#rpm-changelog)
@@ -99,6 +100,23 @@ require 'simp/rake/pupmod/helpers'
 Simp::Rake::Pupmod::Helpers.new(File.dirname(__FILE__))
 ```
 
+### Environment Variables
+
+Some environment variables have been added to help you work with different
+types of testing scenarios and are documented below.
+
+* `SIMP_RSPEC_PUPPETFILE`
+  * Ignore the local `.fixtures.yml` and use the modules listed in the specified Puppetfile
+  * Downloaded items that are not Puppet modules will be removed from the
+    downloaded fixtures prior to testing
+
+* `SIMP_RSPEC_MODULEPATH`
+  * Will ignore the local `.fixtures.yml` file and create one entirely of
+    symlinks that point to the modules present at the specified path.
+  * If specified with `SIMP_RSPEC_PUPPETFILE` then will use the
+    matching modules from the target directory instead of downloading them.
+    Modules not present in the target directory will still be downloaded.
+
 ### In a Ruby Gem
 
 Within the project's Rakefile:
@@ -136,7 +154,7 @@ directory .  The full list of files considered are:
 ├── metadata.json     # REQUIRED keys: name, version, license, summary, source
 ├── CHANGELOG         # OPTIONAL written in RPM's CHANGELOG format
 └── build/            # OPTIONAL
-    └── rpm_metadata/ # OPTIONAL
+    └── rpm_metadata/ # OPTIONAL
         ├── release   # OPTIONAL defines the RPM's "-0" release number
         ├── requires  # OPTIONAL supplementary 'Requires','Provides','Obsoletes'
         └── custom/   # OPTIONAL
@@ -204,8 +222,8 @@ Build the tar package for the current SIMP project
 
 This is a limitation of Bundler, not the gem.
 
-If you are running on a FIPS-enabled system, you will need to use `bundler '~> 1.14.0'`
-until the FIPS support can be corrected.
+If you are running on a FIPS-enabled system, you will need to use
+`bundler '~> 1.14.0'` or `bundler '~> 1.16'`
 
 If you are using RVM, the appropriate steps are as follows:
 

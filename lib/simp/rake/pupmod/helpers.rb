@@ -29,6 +29,7 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
       require rake_file
     end
     define_tasks
+
   end
 
   def define_tasks
@@ -63,6 +64,7 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
 
     Simp::Rake::Pkg.new( @base_dir ) do | t |
       t.clean_list << "#{t.base_dir}/spec/fixtures/hieradata/hiera.yaml"
+      t.clean_list << "#{t.base_dir}/spec/fixtures/simp_rspec"
     end
 
     Simp::Rake::Beaker.new( @base_dir )
@@ -285,6 +287,97 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
       ParallelTests::CLI.new.run('--type test -t rspec'.split + test_targets)
       if ENV.fetch('SPEC_clean', 'no') == 'yes'
         Rake::Task[:spec_clean].invoke
+      end
+    end
+
+    # This hidden task provides a way to create and use a fixtures.yml file
+    # based on an externally specified Puppetfile
+    #
+    # Downloaded repos that do not contain a metadata.json will be removed
+    #
+    # Set the environment variable SIMP_RSPEC_PUPPETFILE to point to a remote Puppetfile
+    #
+    # Set the environment variable SIMP_RSPEC_MODULEPATH to symlink named
+    # modules from the designated directory instead of downloading them.
+    task :custom_fixtures_hook do
+      # Don't do anything if the user has already set a path to their fixtures
+      unless ENV['FIXTURES_YML']
+        short_name = metadata['name'].split('-').last
+
+        fixtures_hash = {
+          'fixtures' => {
+            'symlinks' => {
+              short_name => '#{source_dir}'
+            }
+          }
+        }
+
+        modulepath = ENV['SIMP_RSPEC_MODULEPATH']
+        local_modules = {}
+
+        if modulepath
+          unless File.directory?(modulepath)
+            fail("Could not find a module directory at #{modulepath}")
+          end
+
+          # Grab all of the local modules and convert them into something
+          # that can be turned into a Hash easily
+          local_modules = Hash[Dir.glob(File.join(modulepath, '*', 'metadata.json')).map do |m|
+            [File.basename(File.dirname(m)), File.absolute_path(File.dirname(m))]
+          end]
+
+          local_modules.delete(short_name)
+        end
+
+        puppetfile = ENV['SIMP_RSPEC_PUPPETFILE']
+
+        if puppetfile
+          fail("Could not find Puppetfile at #{puppetfile}") unless File.exist?(puppetfile)
+
+          require 'simp/rake/build/deps'
+
+          puppetfile = R10KHelper.new(puppetfile)
+
+          puppetfile.modules.each do |pupmod|
+            next unless pupmod[:name]
+            next if pupmod[:status] == :unknown
+
+            if local_modules[pupmod[:name]]
+              fixtures_hash['fixtures']['symlinks'][pupmod[:name]] = local_modules[pupmod[:name]]
+            else
+              fixtures_hash['fixtures']['repositories'] ||= {}
+
+              next unless pupmod[:remote] && pupmod[:desired_ref]
+              next if pupmod[:name] == short_name
+
+              fixtures_hash['fixtures']['repositories'][pupmod[:name]] = {
+                'repo' => pupmod[:remote],
+                'ref'  => pupmod[:desired_ref]
+              }
+            end
+          end
+        elsif modulepath
+          local_modules.each_pair do |k,v|
+            fixtures_hash['fixtures']['symlinks'][k] = v
+          end
+        end
+
+        if puppetfile || modulepath
+          @custom_fixtures_path = File.join('spec','fixtures','simp_rspec','fixtures.yml')
+          FileUtils.mkdir_p(File.dirname(@custom_fixtures_path))
+
+          File.open(@custom_fixtures_path, 'w') do |fh|
+            fh.puts(fixtures_hash.to_yaml)
+          end
+
+          ENV['FIXTURES_YML'] = @custom_fixtures_path
+        end
+      end
+    end
+
+    Rake::Task['spec_prep'].enhance [:custom_fixtures_hook] do
+      Dir.glob(File.join('spec','fixtures','modules','*')).each do |dir|
+        FileUtils.remove_entry_secure(dir) unless File.exist?(File.join(dir, 'metadata.json'))
       end
     end
   end

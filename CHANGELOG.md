@@ -1,3 +1,8 @@
+### 5.4.3 / 2018-03-16
+* Add support for setting SIMP_RSPEC_PUPPETFILE and/or SIMP_RSPEC_MODULEPATH to
+  create a custom fixtures.yml based on a Puppetfile, the modules in a
+  directory, or the combination of both.
+
 ### 5.4.2 / 2018-03-06
 * Document requirement for double-digit day in CHANGELOG date.
 * Add optional spec test for CHANGELOG file at `$SIMP_SPEC_changelog`
