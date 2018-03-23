@@ -1,4 +1,4 @@
-### 5.4.3 / 2018-03-16
+### 5.5.0 / 2018-03-16
 * Add support for setting SIMP_RSPEC_PUPPETFILE and/or SIMP_RSPEC_MODULEPATH to
   create a custom fixtures.yml based on a Puppetfile, the modules in a
   directory, or the combination of both.

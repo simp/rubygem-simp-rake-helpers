@@ -105,6 +105,9 @@ Simp::Rake::Pupmod::Helpers.new(File.dirname(__FILE__))
 Some environment variables have been added to help you work with different
 types of testing scenarios and are documented below.
 
+By default, only the modules found in the local `.fixtures.yml` file will be
+included.
+
 * `SIMP_RSPEC_PUPPETFILE`
   * Ignore the local `.fixtures.yml` and use the modules listed in the specified Puppetfile
   * Downloaded items that are not Puppet modules will be removed from the
@@ -116,6 +119,11 @@ types of testing scenarios and are documented below.
   * If specified with `SIMP_RSPEC_PUPPETFILE` then will use the
     matching modules from the target directory instead of downloading them.
     Modules not present in the target directory will still be downloaded.
+
+* `SIMP_RSPEC_FIXTURES_OVERRIDE`
+  * Set to `yes` to ignore the local `.fixtures.yml` file
+  * This will cause the generated file to include **all** modules from the
+    Puppetfile or Module Path
 
 ### In a Ruby Gem
 
