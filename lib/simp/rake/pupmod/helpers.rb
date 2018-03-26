@@ -37,6 +37,10 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
 
   def initialize( base_dir = Dir.pwd )
     @base_dir = base_dir
+    @temp_fixtures_path = File.join(base_dir,'spec','fixtures','simp_rspec')
+
+    FileUtils.mkdir_p(@temp_fixtures_path)
+
     Dir[ File.join(File.dirname(__FILE__),'*.rb') ].each do |rake_file|
       next if rake_file == __FILE__
       require rake_file
@@ -77,7 +81,7 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
 
     Simp::Rake::Pkg.new( @base_dir ) do | t |
       t.clean_list << "#{t.base_dir}/spec/fixtures/hieradata/hiera.yaml"
-      t.clean_list << "#{t.base_dir}/spec/fixtures/simp_rspec"
+      t.clean_list << @temp_fixtures_path
     end
 
     Simp::Rake::Beaker.new( @base_dir )
@@ -232,14 +236,12 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
       end
 
       if local_fixtures_mods.empty?
-        custom_fixtures_path = File.join('spec','fixtures','simp_rspec','fixtures.yml')
+        custom_fixtures_path = File.join(@temp_fixtures_path, 'fixtures.yml')
       else
-        custom_fixtures_path = File.join('spec','fixtures','simp_rspec','fixtures_tmp.yml')
+        custom_fixtures_path = File.join(@temp_fixtures_path, 'fixtures_tmp.yml')
       end
 
       if puppetfile || modulepath
-        FileUtils.mkdir_p(File.dirname(custom_fixtures_path))
-
         File.open(custom_fixtures_path, 'w') do |fh|
           fh.puts(fixtures_hash.sort_by_key(true).to_yaml)
         end
@@ -441,7 +443,17 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
         opts = { :short_name => metadata['name'].split('-').last }
 
         if ENV['SIMP_RSPEC_PUPPETFILE']
-          opts[:puppetfile] = File.absolute_path(ENV['SIMP_RSPEC_PUPPETFILE'])
+          puppetfile = ENV['SIMP_RSPEC_PUPPETFILE']
+
+          puppetfile_tgt = File.join(@temp_fixtures_path, 'Puppetfile')
+
+          if puppetfile =~ %r{://}
+            %x{curl -k -s -o #{puppetfile_tgt} #{puppetfile}}
+          else
+            FileUtils.cp(File.absolute_path(puppetfile), puppetfile_tgt)
+          end
+
+          opts[:puppetfile] = puppetfile_tgt
         end
 
         if ENV['SIMP_RSPEC_MODULEPATH']
