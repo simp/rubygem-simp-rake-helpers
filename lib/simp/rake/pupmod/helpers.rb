@@ -231,19 +231,30 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
         end
       end
 
-      unless local_fixtures_mods.empty?
-        fail(%{The following modules in .fixtures.yml were not found in the Puppetfile:\n  * #{local_fixtures_mods.join("\n  * ")}})
+      if local_fixtures_mods.empty?
+        custom_fixtures_path = File.join('spec','fixtures','simp_rspec','fixtures.yml')
+      else
+        custom_fixtures_path = File.join('spec','fixtures','simp_rspec','fixtures_tmp.yml')
       end
 
-      custom_fixtures_path = nil
-
       if puppetfile || modulepath
-        custom_fixtures_path = File.join('spec','fixtures','simp_rspec','fixtures.yml')
         FileUtils.mkdir_p(File.dirname(custom_fixtures_path))
 
         File.open(custom_fixtures_path, 'w') do |fh|
           fh.puts(fixtures_hash.sort_by_key(true).to_yaml)
         end
+      end
+
+      unless local_fixtures_mods.empty?
+        errmsg = [
+          '===',
+          'The following modules in .fixtures.yml were not found in the Puppetfile:',
+          %{  * #{local_fixtures_mods.join("\n  * ")}},
+          %{A temporary fixtures file has been written to #{custom_fixtures_path}},
+          '==='
+        ]
+
+        fail(errmsg.join("\n"))
       end
 
       return custom_fixtures_path
