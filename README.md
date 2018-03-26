@@ -112,6 +112,7 @@ included.
   * Ignore the local `.fixtures.yml` and use the modules listed in the specified Puppetfile
   * Downloaded items that are not Puppet modules will be removed from the
     downloaded fixtures prior to testing
+  * Set this to a valid URL to download a remote Puppetfile for use
 
 * `SIMP_RSPEC_MODULEPATH`
   * Will ignore the local `.fixtures.yml` file and create one entirely of
@@ -134,7 +135,7 @@ require 'simp/rake/rubygem'
 
 # e.g., "simp-rake-helpers"
 package = 'name-of-rubygem'
-Simp::Rake::Rubygem.new(package, File.direname(__FILE__)
+Simp::Rake::Rubygem.new(package, File.dirname(__FILE__)
 
 ```
 
