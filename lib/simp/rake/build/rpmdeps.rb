@@ -59,7 +59,6 @@ module Simp::Rake::Build::RpmDeps
       # version or the RPM will be malformed
       main_version, release = version.split('-')
       release = '0' unless release
-      release = release.to_i
 
       if Gem::Version.new(module_version) > Gem::Version.new(main_version)
         rpm_metadata_content << "Obsoletes: #{pkg} < #{main_version}-#{release}.obsolete"

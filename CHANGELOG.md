@@ -1,3 +1,6 @@
+### 5.4.3 / 2018-03-29
+* Fix RPM release processing when generating 'Obsoletes' metadata
+
 ### 5.4.2 / 2018-03-06
 * Document requirement for double-digit day in CHANGELOG date.
 * Add optional spec test for CHANGELOG file at `$SIMP_SPEC_changelog`
