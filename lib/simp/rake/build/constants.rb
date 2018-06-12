@@ -11,9 +11,13 @@ module Simp::Rake::Build::Constants
     $simp6 = true
     $simp6_clean_dirs = []
 
-    @build_distro = Facter.fact('operatingsystem').value
-    @build_version = Facter.fact('operatingsystemmajrelease').value
-    @build_arch = Facter.fact('architecture').value
+    if ENV['SIMP_BUILD_distro']
+      distro, version, arch = ENV['SIMP_BUILD_distro'].split(/,|\//)
+    end
+
+    @build_distro = distro || Facter.fact('operatingsystem').value
+    @build_version = version || Facter.fact('operatingsystemmajrelease').value
+    @build_arch = arch || Facter.fact('architecture').value
 
     @run_dir           = Dir.pwd
     @base_dir          = base_dir
