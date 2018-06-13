@@ -19,6 +19,12 @@ module Simp::Rake::Build::Constants
     @build_version = version || Facter.fact('operatingsystemmajrelease').value
     @build_arch = arch || Facter.fact('architecture').value
 
+    # Working around the SIMP::RPM.system_dist workaround
+    if @build_distro =~ /CentOS|RedHat/i
+      @build_rpm_dist = ".el#{@build_version}"
+      ENV['SIMP_RPM_dist'] = @build_rpm_dist
+    end
+
     @run_dir           = Dir.pwd
     @base_dir          = base_dir
     @build_dir         = File.join(@base_dir, 'build')

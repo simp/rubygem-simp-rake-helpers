@@ -6,6 +6,9 @@ module Simp
   #
   # Simp::RPM also contains class methods that are useful for
   # processing RPMs in the SIMP build process.
+  #
+  # @note Set the environment variable `SIMP_RPM_dist` to ensure all
+  #       packages use a particular dist.
   class Simp::RPM
     require 'expect'
     require 'pty'
@@ -58,7 +61,6 @@ module Simp
         @info[package_info[:basename]] = package_info
       end
 
-
       @packages = @info.keys
 
       if @verbose
@@ -68,8 +70,11 @@ module Simp
       end
     end
 
-    # @returns The RPM '.dist' of the system. 'nil' will be will be returned if
-    # the dist is not found.
+    # @returns The RPM '.dist' of the system. 'nil' will be will be
+    #          returned if the dist is not found.
+    # @note This causes problems for ISO builds that target a particular
+    #       OS if it doesn't match the host.  Set the environment variable
+    #       `SIMP_RPM_dist` to ensure all packages use a particular dist.
     def self.system_dist
       # We can only have one of these
       unless defined?(@@system_dist)
@@ -101,11 +106,9 @@ module Simp
       unless defined?(@@macros_updated)
 
         # Workaround for CentOS system builds
-        dist = system_dist
-        dist_macro = %(%dist #{dist})
-
-        rpmmacros = [dist_macro]
-
+        dist           = ENV['SIMP_RPM_dist'] || system_dist
+        dist_macro     = %(%dist #{dist})
+        rpmmacros      = [dist_macro]
         rpmmacros_file = File.join(ENV['HOME'], '.rpmmacros')
 
         if File.exist?(rpmmacros_file)
@@ -344,11 +347,14 @@ module Simp
     def self.get_info(rpm_source)
       raise "Error: unable to read '#{rpm_source}'" unless File.readable?(rpm_source)
 
+      if ENV['SIMP_RPM_dist']
+        target_dist = ".#{ENV['SIMP_RPM_dist']}"
+      else
+        target_dist = system_dist
+      end
+
       info_array = []
-      common_info = {
-        :has_dist_tag => false,
-        :dist => system_dist
-      }
+      common_info = {}
 
       rpm_version_query = %Q(#{rpm_cmd} -q --queryformat '%{NAME} %{VERSION} %{RELEASE} %{ARCH}\\n')
 
@@ -361,11 +367,28 @@ module Simp
         unless dist_info.empty?
           common_info[:has_dist_tag] = true
           common_info[:dist] = '.' + dist_info.first
+        else
+          common_info[:has_dist_tag] = false
+          common_info[:dist] = target_dist
+        end
+      elsif File.read(rpm_source).include?('%{?dist}')
+        common_info[:dist] =target_dist
+        common_info[:has_dist_tag] = true
+      else
+        common_info[:has_dist_tag] = false
+        common_info[:dist]     = target_dist
+      end
+
+      unless source_is_rpm
+        macros = {
+          'dist' => target_dist
+        }
+        macros.each do |k,v|
+          rpm_version_query += %Q[ -D '#{k} #{v}']
         end
 
-      elsif File.read(rpm_source).include?('%{?dist}')
-        common_info[:has_dist_tag] = true
       end
+
 
       if source_is_rpm
         query_source = "-p #{rpm_source}"
