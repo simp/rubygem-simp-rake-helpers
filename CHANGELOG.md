@@ -1,10 +1,6 @@
-### 5.5.2 / 2018-06-22
+### 5.5.0 / 2018-06-22
 * Pin fog-openstack to 0.1.25 if Ruby is prior to 2.2.0 due to a deprecation
-
-### 5.5.1 / 2018-06-13
 * Fix regression that broke env var `SIMP_BUILD_distro`
-
-### 5.5.0 / 2018-03-30
 * Add support for setting SIMP_RSPEC_PUPPETFILE and/or SIMP_RSPEC_MODULEPATH to
   create a custom fixtures.yml based on a Puppetfile, the modules in a
   directory, or the combination of both.
