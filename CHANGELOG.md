@@ -1,10 +1,14 @@
+### 5.5.1 / 2018-06-25
+* Remove the dependency pin attempt on fog-openstack since this is handled by
+  the simp-beaker-helpers dependency
+
 ### 5.5.0 / 2018-06-22
 * Pin fog-openstack to 0.1.25 if Ruby is prior to 2.2.0 due to a deprecation
 * Fix regression that broke env var `SIMP_BUILD_distro`
 * Add support for setting SIMP_RSPEC_PUPPETFILE and/or SIMP_RSPEC_MODULEPATH to
   create a custom fixtures.yml based on a Puppetfile, the modules in a
   directory, or the combination of both.
-  
+
 ### 5.4.3 / 2018-03-29
 * Fix RPM release processing when generating 'Obsoletes' metadata
 
