@@ -41,11 +41,6 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'beaker-rspec',              '~> 6.1'
   s.add_runtime_dependency 'rspec-core',                '~> 3.0'
 
-  # Because fog-openstack dropped support for Ruby < 2.2.0
-  if RUBY_VERSION <= '2.2.0'
-    s.add_runtime_dependency 'fog-openstack', '0.1.25'
-  end
-
   # for development
   s.add_development_dependency 'pry',         '~> 0.0'
   s.add_development_dependency 'pry-doc',     '~> 0.0'
