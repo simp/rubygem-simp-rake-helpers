@@ -21,7 +21,7 @@ module Simp::Rake::Build::Constants
 
     # Working around the SIMP::RPM.system_dist workaround
     if @build_distro =~ /CentOS|RedHat/i
-      @build_rpm_dist = ".el#{@build_version}"
+      @build_rpm_dist = "el#{@build_version}"
       ENV['SIMP_RPM_dist'] = @build_rpm_dist
     end
 

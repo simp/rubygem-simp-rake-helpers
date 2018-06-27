@@ -223,6 +223,14 @@ describe Simp::RPM do
     end
 
     context '#dist' do
+      before :each do
+        @pre_env = ENV['SIMP_RPM_dist']
+        ENV['SIMP_RPM_dist'] = nil
+      end
+
+      after :each do
+        ENV['SIMP_RPM_dist'] = @pre_env
+      end
       it 'returns dist' do
         Simp::RPM.stubs(:system_dist).returns('.testdist')
         rpm_obj    = Simp::RPM.new( @rpm_file )
@@ -238,12 +246,12 @@ describe Simp::RPM do
 
       context 'when ENV[SIMP_RPM_dist] is set' do
         before :each do
-          @pre_env = ENV['SIMP_RPM_dist']
+          @_pre_env = ENV['SIMP_RPM_dist']
           ENV['SIMP_RPM_dist'] = 'foo'
         end
 
         after :each do
-          ENV['SIMP_RPM_dist'] = @pre_env
+          ENV['SIMP_RPM_dist'] = @_pre_env
         end
 
         it 'returns target dist for spec files when SIMP_RPM_dist is set' do
