@@ -1,6 +1,11 @@
-### 5.5.1 / 2018-06-25
+### 5.5.1 / 2018-07-09
 * Remove the dependency pin attempt on fog-openstack since this is handled by
   the simp-beaker-helpers dependency
+* Update pkg:create_tag_change to verify all CHANGELOG entries for a component
+  are in reverse chronological order, not just the entries for the latest
+  version.
+* Add pkg:check_rpm_changelog task to verify the 'rpm' command can parse a
+  component's changelog.
 
 ### 5.5.0 / 2018-06-22
 * Pin fog-openstack to 0.1.25 if Ruby is prior to 2.2.0 due to a deprecation

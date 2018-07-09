@@ -107,6 +107,7 @@ module Simp::Rake
       define_clobber
       define_pkg_tar
       define_pkg_rpm
+      define_pkg_check_rpm_changelog
       define_pkg_check_version
       define_pkg_compare_latest_tag
       define_pkg_create_tag_changelog
@@ -415,6 +416,28 @@ module Simp::Rake
       end
     end
 
+   def define_pkg_check_rpm_changelog
+      # :pkg:check_rpm_changelog
+      # -----------------------------
+      namespace :pkg do
+        desc <<-EOM
+        Check the #{@pkg_name} RPM changelog using the 'rpm' command.
+
+        This task will fail if 'rpm' detects any changelog problems,
+        such as changelog entries not being in reverse chronological
+        order.
+        EOM
+        task :check_rpm_changelog, [:verbose] do |t,args|
+          if args[:verbose].to_s == 'true'
+            verbose = true
+          else
+            verbose = false
+          end
+          Simp::RelChecks::check_rpm_changelog(@base_dir, @spec_file, verbose)
+        end
+      end
+    end
+
     def define_pkg_check_version
       namespace :pkg do
         # :pkg:check_version
@@ -581,13 +604,13 @@ module Simp::Rake
               the release in a changelog entry for the version.
             - Any changelog entry below the first entry has a version
               greater than that of the first entry.
-            - The changelog entries for the latest version are out of
-              date order.
+            - The changelog entries for all versions are out of date
+              order.
             - The weekday for a changelog entry for the latest version
               does not match the date specified.
 
         EOM
-        task :create_tag_changelog, [:verbose] do |t,args|
+        task :create_tag_changelog, [:verbose] => [:check_rpm_changelog] do |t,args|
           if args[:verbose].to_s == 'true'
             verbose = true
           else
