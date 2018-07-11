@@ -19,7 +19,8 @@ HOSTS:
       # rvm build-deps
       - 'yum install -y libyaml-devel glibc-headers autoconf gcc-c++ glibc-devel readline-devel libffi-devel openssl-devel automake libtool bison sqlite-devel'
       - 'runuser build_user -l -c "gpg2 --keyserver hkp://keys.gnupg.net --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3"'
-      - 'runuser build_user -l -c "curl -sSL https://get.rvm.io | bash -s stable --ruby=2.1"'
+      - 'runuser build_user -l -c "curl -sSL https://get.rvm.io | bash -s stable"'
+      - 'runuser build_user -l -c "rvm install 2.1"'
       - 'runuser build_user -l -c "rvm use --default 2.1"'
       - 'runuser build_user -l -c "rvm all do gem install bundler"'
       - 'runuser build_user -l -c "rvm use default; gem install --no-ri --no-rdoc simp-rake-helpers"'
@@ -54,7 +55,8 @@ HOSTS:
       # rvm build-deps
       - 'yum install -y libyaml-devel glibc-headers autoconf gcc-c++ glibc-devel readline-devel libffi-devel openssl-devel automake libtool bison sqlite-devel'
       - 'runuser build_user -l -c "gpg2 --keyserver hkp://keys.gnupg.net --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3"'
-      - 'runuser build_user -l -c "curl -sSL https://get.rvm.io | bash -s stable --ruby=2.1"'
+      - 'runuser build_user -l -c "curl -sSL https://get.rvm.io | bash -s stable"'
+      - 'runuser build_user -l -c "rvm install 2.1"'
       - 'runuser build_user -l -c "rvm use --default 2.1"'
       - 'runuser build_user -l -c "rvm all do gem install bundler"'
       - 'runuser build_user -l -c "rvm use default; gem install --no-ri --no-rdoc simp-rake-helpers"'

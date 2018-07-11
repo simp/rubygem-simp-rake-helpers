@@ -1,10 +1,49 @@
 require 'date'
 require 'simp/componentinfo'
+require 'tmpdir'
 
 module Simp; end
 
 # Class that provide release-related checks
 class Simp::RelChecks
+
+  # Check a component's RPM changelog using the 'rpm' command.
+  #
+  # This task will fail if 'rpm' detects any changelog problems,
+  # such as changelog entries not being in reverse chronological
+  # order.
+  #
+  # +component_dir+:: The root directory of the component project.
+  # +spec_file+::     The RPM specfile for the component.
+  # +verbose+::       Set to 'true' if you want to see details about the
+  #                   RPM command executed.
+  def self.check_rpm_changelog(component_dir, spec_file, verbose = false)
+    rpm_opts = [
+      # for modules, '_sourcedir' tells the RPM LUA code the location
+      # of the CHANGELOG and metadata.json files
+      %(-D '_sourcedir #{component_dir}'),
+      '-q',
+      '--changelog',
+      "--specfile  #{spec_file}"
+    ]
+    rpm_opts << '-v' if verbose
+
+    cmd = %(rpm #{rpm_opts.join(' ')} 2>&1)
+    puts "==== Simp::RelChecks::check_rpm_changelog: #{cmd}" if verbose
+    console = %x(#{cmd})
+    result = $?
+    if result
+      if result.exitstatus != 0
+        err_msg = [ "ERROR: Invalid changelog for #{File.basename(component_dir)}:\n" ]
+        err_msg << console.split("\n").map { |line| "   #{line}" }
+        err_msg << "\n"
+        fail(err_msg.flatten.join("\n"))
+      end
+    else
+      # Ruby can return nil for spawned shells, sigh
+      fail("Unable to determine changelog for #{File.basename(component_dir)}")
+    end
+  end
 
   # Compares mission-impacting (significant) files with the latest
   # tag and identifies the relevant files that have changed.

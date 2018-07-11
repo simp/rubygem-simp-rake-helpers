@@ -1,0 +1,8 @@
+* Tue Nov 14 2017 Mary Jones <mary.jones@simp.com> - 1.1.0-0
+- Oops, misordered changelog entry
+
+* Wed Nov 15 2017 Mary Jones <mary.jones@simp.com> - 1.1.0-0
+- Disable deprecation warnings by default
+
+* Tue Sep 26 2017 Joe Brown <joe.brown@simp.com> - 1.0.0-0
+- Add Puppet function `mod::assert_metadata_os()`
