@@ -8,7 +8,7 @@ end
 
 shared_examples_for "an RPM generator with edge cases" do
   it 'should use specified release number for the RPM' do
-    on host, %(#{run_cmd} "cd #{pkg_root_dir}/testpackage_with_release; rake pkg:rpm")
+    on host, %(#{run_cmd} "cd #{pkg_root_dir}/testpackage_with_release; #{rake_cmd} pkg:rpm")
     release_test_rpm = File.join(pkg_root_dir, 'testpackage_with_release',
       'dist', 'pupmod-simp-testpackage-0.0.1-42.noarch.rpm')
     on host, %(test -f #{release_test_rpm})
