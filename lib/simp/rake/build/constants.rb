@@ -20,8 +20,8 @@ module Simp::Rake::Build::Constants
     @build_arch = arch || Facter.fact('architecture').value
 
     # Working around the SIMP::RPM.system_dist workaround
-    if @build_distro =~ /CentOS|RedHat/i
-      @build_rpm_dist = "el#{@build_version}"
+    if ENV['SIMP_RPM_dist'].nil? && @build_distro =~ /CentOS|RedHat/i
+      @build_rpm_dist = ".el#{@build_version}"
       ENV['SIMP_RPM_dist'] = @build_rpm_dist
     end
 
