@@ -87,10 +87,11 @@ module Simp
         puts "  result = '#{dist}'" if @verbose
 
         if dist.size > 1
-          @@system_dist = '.' + dist[1]
+          @@system_dist = (dist[1] =~ /^\./) ? dist[1] : ('.' + dist[1])
         else
           @@system_dist = nil
         end
+        puts "  @@system_dist = #{@@system_dist ||'nil'}" if @verbose
       end
 
       return @@system_dist
@@ -348,7 +349,7 @@ module Simp
       raise "Error: unable to read '#{rpm_source}'" unless File.readable?(rpm_source)
 
       if ENV['SIMP_RPM_dist']
-        target_dist = ".#{ENV['SIMP_RPM_dist']}"
+        target_dist = (ENV['SIMP_RPM_dist'] =~ /^\./) ? ENV['SIMP_RPM_dist'] : ('.' + ENV['SIMP_RPM_dist'])
       else
         target_dist = system_dist
       end
