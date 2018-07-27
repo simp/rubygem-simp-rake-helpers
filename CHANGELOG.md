@@ -1,4 +1,10 @@
 ### 5.5.1 / 2018-07-09
+* It is possible to build RPMs for other OSes again (broken since 5.0.0)
+* Fix regression that broke env var `SIMP_BUILD_distro`
+* Add env var `SIMP_RPM_dist` to `SIMP::RPM` to target a specific `dist` while
+  building RPMs from spec files.
+* During a `rake build:auto`, the information from env var `SIMP_BUILD_distro`
+  is used to set `SIMP_RPM_dist`
 * Remove the dependency pin attempt on fog-openstack since this is handled by
   the simp-beaker-helpers dependency
 * Update pkg:create_tag_change to verify all CHANGELOG entries for a component

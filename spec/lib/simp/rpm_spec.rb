@@ -223,6 +223,14 @@ describe Simp::RPM do
     end
 
     context '#dist' do
+      before :each do
+        @pre_env = ENV['SIMP_RPM_dist']
+        ENV['SIMP_RPM_dist'] = nil
+      end
+
+      after :each do
+        ENV['SIMP_RPM_dist'] = @pre_env
+      end
       it 'returns dist' do
         Simp::RPM.stubs(:system_dist).returns('.testdist')
         rpm_obj    = Simp::RPM.new( @rpm_file )
@@ -234,6 +242,39 @@ describe Simp::RPM do
         expect( d_rpm_obj.dist ).to eq '.el7'
         expect( spec_obj.dist ).to eq '.testdist'
         expect( d_spec_obj.dist ).to eq '.testdist'
+      end
+
+      context 'when ENV[SIMP_RPM_dist] is set' do
+        before :each do
+          @_pre_env = ENV['SIMP_RPM_dist']
+          ENV['SIMP_RPM_dist'] = 'foo'
+        end
+
+        after :each do
+          ENV['SIMP_RPM_dist'] = @_pre_env
+        end
+
+        it 'returns target dist for spec files when SIMP_RPM_dist is set' do
+          rpm_obj    = Simp::RPM.new(@rpm_file)
+          spec_obj   = Simp::RPM.new(@spec_file)
+          d_spec_obj = Simp::RPM.new(@d_spec_file)
+          m_spec_obj = Simp::RPM.new(@m_spec_file)
+          d_rpm_obj  = Simp::RPM.new(@d_rpm_file)
+
+          expect( rpm_obj.has_dist_tag?).to eq false
+          expect( spec_obj.has_dist_tag?).to eq false
+          expect( d_rpm_obj.has_dist_tag?).to eq true
+          expect( d_spec_obj.has_dist_tag?).to eq true
+
+          expect( d_spec_obj.dist ).to eq '.foo'
+          expect( d_spec_obj.full_version ).to match /\.foo$/
+          expect( d_spec_obj.name ).to match /\.foo$/
+          expect( d_spec_obj.release ).to match /\.foo$/
+
+          # The RPMs are already created as .el7; no env vars or hinting
+          # should affect them
+          expect( d_rpm_obj.dist ).to eq '.el7'
+        end
       end
 
       it 'fails when invalid package specified' do
