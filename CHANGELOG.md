@@ -1,3 +1,9 @@
+### 5.5.2 / 2018-08-21
+* Add additional UEFI support options to the ISO build based on user feedback.
+  All of our testing could use the ISO on different UEFI systems successfully
+  but apparently there can be vendor differences and this solves at least one
+  of them.
+
 ### 5.5.1 / 2018-07-09
 * It is possible to build RPMs for other OSes again (broken since 5.0.0)
 * Fix regression that broke env var `SIMP_BUILD_distro`

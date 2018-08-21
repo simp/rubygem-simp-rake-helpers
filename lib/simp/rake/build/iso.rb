@@ -307,6 +307,11 @@ module Simp::Rake::Build
                 '-boot-load-size 4',
                 '-boot-info-table',
                 '-no-emul-boot',
+                '-eltorito-alt-boot',
+                '-e images/efiboot.img',
+                # This is apparently needed twice to get the lines above it to
+                # take. Not sure why.
+                '-no-emul-boot',
                 '-m TRANS.TBL',
                 '-x ./lost+found',
                 "-o #{@simp_output_iso}",
