@@ -452,7 +452,7 @@ module Simp::Rake::Build
 
           args.with_defaults(:key => 'dev')
           args.with_defaults(:rpm_dir => File.join(File.dirname(@rpm_dir), '*RPMS'))
-          args.with_default(:force => 'false')
+          args.with_defaults(:force => 'false')
 
           force = (args[:force].to_s == 'false' ? false : true)
 
@@ -472,7 +472,10 @@ module Simp::Rake::Build
             :progress => t.name
           ) do |rpm|
             rpm_info = Simp::RPM.new(rpm)
-            Simp::RPM.signrpm(rpm, "#{@build_dir}/build_keys/#{args[:key]}") unless rpm_info.signature
+
+            if force || !rpm_info.signature
+              Simp::RPM.signrpm(rpm, "#{@build_dir}/build_keys/#{args[:key]}")
+            end
           end
         end
 
