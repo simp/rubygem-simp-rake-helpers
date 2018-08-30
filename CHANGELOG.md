@@ -1,3 +1,6 @@
+### 5.5.3 / 2018-08-28
+* Fix issue where the `pkg:signrpms` rake task would not honor 'force'
+
 ### 5.5.2 / 2018-08-21
 * Add additional UEFI support options to the ISO build based on user feedback.
   All of our testing could use the ISO on different UEFI systems successfully

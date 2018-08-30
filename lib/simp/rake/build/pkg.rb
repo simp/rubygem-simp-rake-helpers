@@ -446,13 +446,23 @@ module Simp::Rake::Build
           build(@build_dirs[:doc],t)
         end
 
-        desc "Sign the RPMs."
+        desc <<-EOM
+          Sign a set of RPMs.
+
+            Signs any unsigned RPMs in the specified directory
+              * :key - The key directory to use under #{@build_dir}/build_keys
+                * Defaults to #{File.join(File.dirname(@rpm_dir), '*RPMS')}
+              * :rpm_dir - A directory containing RPM files to sign. Will recurse!
+                * Defaults to 'dev'
+              * :force - Force rpms that are already signed to be resigned
+                * Defaults to 'false', can be enabled with 'true'
+        EOM
         task :signrpms,[:key,:rpm_dir,:force] => [:prep,:key_prep] do |t,args|
           which('rpmsign') || raise(StandardError, 'Could not find rpmsign on your system. Exiting.')
 
           args.with_defaults(:key => 'dev')
           args.with_defaults(:rpm_dir => File.join(File.dirname(@rpm_dir), '*RPMS'))
-          args.with_default(:force => 'false')
+          args.with_defaults(:force => 'false')
 
           force = (args[:force].to_s == 'false' ? false : true)
 
@@ -472,7 +482,10 @@ module Simp::Rake::Build
             :progress => t.name
           ) do |rpm|
             rpm_info = Simp::RPM.new(rpm)
-            Simp::RPM.signrpm(rpm, "#{@build_dir}/build_keys/#{args[:key]}") unless rpm_info.signature
+
+            if force || !rpm_info.signature
+              Simp::RPM.signrpm(rpm, "#{@build_dir}/build_keys/#{args[:key]}")
+            end
           end
         end
 
