@@ -1,5 +1,7 @@
 ### 5.5.3 / 2018-08-28
 * Fix issue where the `pkg:signrpms` rake task would not honor 'force'
+* Add a check for the existence of /usr/local/sbin/simp_rpm_helper, before
+  running it in the latest Puppet-module RPM spec file.
 
 ### 5.5.2 / 2018-08-21
 * Add additional UEFI support options to the ISO build based on user feedback.

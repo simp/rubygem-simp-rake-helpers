@@ -137,12 +137,12 @@ describe 'rake pkg:rpm' do
 
             comment 'produces RPM with appropriate pre/post/preun/postun'
             result = on host, %(rpm -qp --scripts #{testpackage_rpm})
-            scriptlets = result.stdout.scan( %r{^.*?scriptlet.*?/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage.*?$}m )
+            scriptlets = result.stdout.scan( %r{^.*?scriptlet.*?/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage.*?fi$}m )
 
-            expect( scriptlets.grep( %r{\Apreinstall scriptlet.*\n/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='pre' --rpm_status=\$1\Z}m )).not_to be_empty
-            expect( scriptlets.grep( %r{\Apostinstall scriptlet.*\n/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='post' --rpm_status=\$1\Z}m )).not_to be_empty
-            expect( scriptlets.grep( %r{\Apreuninstall scriptlet.*\n/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='preun' --rpm_status=\$1\Z}m )).not_to be_empty
-            expect( scriptlets.grep( %r{\Apostuninstall scriptlet.*\n/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='postun' --rpm_status=\$1\Z}m )).not_to be_empty
+            expect( scriptlets.grep( %r{\Apreinstall scriptlet.*  /usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='pre' --rpm_status=\$1}m )).not_to be_empty
+            expect( scriptlets.grep( %r{\Apostinstall scriptlet.*  /usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='post' --rpm_status=\$1}m )).not_to be_empty
+            expect( scriptlets.grep( %r{\Apreuninstall scriptlet.*  /usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='preun' --rpm_status=\$1}m )).not_to be_empty
+            expect( scriptlets.grep( %r{\Apostuninstall scriptlet.*  /usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='postun' --rpm_status=\$1}m )).not_to be_empty
           end
 
           it_should_behave_like 'an RPM generator with edge cases'

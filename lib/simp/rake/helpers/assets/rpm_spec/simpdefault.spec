@@ -484,8 +484,8 @@ mkdir -p %{buildroot}/%{prefix}
 
   -- Declares default scriptlets for SIMP 6.X (referenced from 6.1.0)
   --
-  --   In order to keep the package-maintained pupmod-*-* pacakges
-  --   Packages notify /usr/local/sbin/simp_rpm_helper, which
+  --   In order to keep the package-maintained pupmod-*-* packages.
+  --   Packages notify /usr/local/sbin/simp_rpm_helper.
   --   See: https://github.com/simp/simp-adapter/blob/master/src/sbin/simp_rpm_helper
   --
   -- This function should be called last
@@ -504,8 +504,10 @@ mkdir -p %{buildroot}/%{prefix}
         '# (default scriptlet for SIMP 6.x)\n'..
         '# when $1 = 1, this is an install\n'..
         '# when $1 = '.. data.upgrade ..', this is an upgrade\n'..
-        '/usr/local/sbin/simp_rpm_helper --rpm_dir='..
-        rpm_dir.." --rpm_section='"..name.."' --rpm_status=$1\n\n"
+        'if [ -x /usr/local/sbin/simp_rpm_helper ] ; then\n'..
+        '  /usr/local/sbin/simp_rpm_helper --rpm_dir='..
+        rpm_dir.." --rpm_section='"..name.."' --rpm_status=$1\n"..
+        'fi\n\n'
       )
 
       define_custom_content(content, custom_content_table, declared_scriptlets_table)
