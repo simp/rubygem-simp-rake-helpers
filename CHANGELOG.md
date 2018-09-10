@@ -1,3 +1,6 @@
+### 5.6.0 / 2018-09-09
+* Add support for Beaker 4
+
 ### 5.5.3 / 2018-08-28
 * Fix issue where the `pkg:signrpms` rake task would not honor 'force'
 * Add a check for the existence of /usr/local/sbin/simp_rpm_helper, before
