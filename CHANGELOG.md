@@ -1,5 +1,8 @@
-### 5.6.0 / 2018-09-09
+### 5.6.0 / 2018-09-26
 * Add support for Beaker 4
+
+### 5.5.4 / 2018-09-24
+* Ensure that modules do not contain symlinks per the standard Puppet guidance.
 
 ### 5.5.3 / 2018-08-28
 * Fix issue where the `pkg:signrpms` rake task would not honor 'force'

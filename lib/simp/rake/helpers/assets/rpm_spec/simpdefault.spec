@@ -380,6 +380,9 @@ curdir=`pwd`
 dirname=`basename $curdir`
 cp -r ../$dirname %{buildroot}/%{prefix}/%{module_name}
 
+# Modules should *never* contain symlinks
+find %{buildroot} -type l -delete
+
 # Remove unnecessary assets
 rm -rf %{buildroot}/%{prefix}/%{module_name}/.git
 rm -f %{buildroot}/%{prefix}/%{module_name}/*.lock
