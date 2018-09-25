@@ -23,7 +23,7 @@ Gem::Specification.new do |s|
   #   for the published gem
   # ensure the gem is built out of versioned files
 
-  s.add_runtime_dependency 'simp-beaker-helpers',     '~> 1.0'
+  s.add_runtime_dependency 'simp-beaker-helpers',     '~> 1.11'
   s.add_runtime_dependency 'bundler',                 '~> 1.14'
   s.add_runtime_dependency 'rake',                    '>= 10.0', '< 13.0'
   s.add_runtime_dependency 'puppet',                  '>= 3.0', '< 6.0'
@@ -39,7 +39,6 @@ Gem::Specification.new do |s|
   # for development
   s.add_development_dependency 'pry',         '~> 0.0'
   s.add_development_dependency 'pry-doc',     '~> 0.0'
-  s.add_development_dependency 'highline',    '~> 2.0'
 
   s.files = Dir[
                 'Rakefile',

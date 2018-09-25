@@ -13,7 +13,7 @@ HOSTS:
       - "echo 'Defaults:build_user !requiretty' >> /etc/sudoers"
       - "echo 'build_user ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers"
       - 'useradd -b /home -m -c "Build User" -s /bin/bash -U build_user'
-      - 'yum install -y facter'
+      - 'yum install -y facter rubygem-json'
       # simp build-deps
       - 'yum install -y rpm-build augeas-devel createrepo genisoimage git gnupg2 libicu-devel libxml2 libxml2-devel libxslt libxslt-devel rpmdevtools which'
       # rvm build-deps
@@ -42,7 +42,7 @@ HOSTS:
       - "echo 'Defaults:build_user !requiretty' >> /etc/sudoers"
       - "echo 'build_user ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers"
       - 'useradd -b /home -m -c "Build User" -s /bin/bash -U build_user'
-      - 'yum install -y facter'
+      - 'yum install -y facter rubygem-json'
       # simp build-deps
       - 'yum install -y rpm-build augeas-devel createrepo genisoimage git gnupg2 libicu-devel libxml2 libxml2-devel libxslt libxslt-devel rpmdevtools clamav-update which'
       # rvm build-deps
