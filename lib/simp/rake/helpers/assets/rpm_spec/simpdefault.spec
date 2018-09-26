@@ -333,15 +333,6 @@ Requires(preun): simp-adapter >= 0.0.1
 Requires(preun): simp-adapter >= 0.0.1
 Requires(postun): simp-adapter >= 0.0.1
 
-%if ("%{package_name}" != "pupmod-simp-simplib") && ("%{package_name}" != "pupmod-puppetlabs-stdlib")
-Requires: pupmod-simp-simplib >= 1.2.6
-%endif
-
-%if "%{package_name}" != "pupmod-puppetlabs-stdlib"
-Requires: pupmod-puppetlabs-stdlib >= 4.9.0
-Requires: pupmod-puppetlabs-stdlib < 6.0.0
-%endif
-
 %{lua: print(module_requires)}
 
 Provides: pupmod-%{lua: print(module_name)} = %{lua: print(package_version .. "-" .. package_release)}
