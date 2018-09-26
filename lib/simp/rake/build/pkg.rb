@@ -750,6 +750,7 @@ protect=1
 
           rpm_dependency_file = File.join(@base_dir, 'build', 'rpm', 'dependencies.yaml')
 
+          rpm_metadata = {}
           if File.exist?(rpm_dependency_file)
             rpm_metadata = YAML.load(File.read(rpm_dependency_file))
           end
@@ -765,7 +766,7 @@ protect=1
               #   release qualifier from the 'dependencies.yaml';
               #   only created if release qualifier if specified in
               #   the 'dependencies.yaml'
-              Simp::Rake::Build::RpmDeps::generate_rpm_meta_files(dir, rpm_metadata) if rpm_metadata
+              Simp::Rake::Build::RpmDeps::generate_rpm_meta_files(dir, rpm_metadata)
 
               new_rpm = Simp::Rake::Pkg.new(Dir.pwd, opts[:unique_namespace], @simp_version)
               new_rpm_info = Simp::RPM.new(new_rpm.spec_file)

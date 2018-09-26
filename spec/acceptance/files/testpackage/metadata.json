@@ -10,6 +10,10 @@
   "tags": [ "simp", "test"],
   "dependencies": [
     {
+      "name": "puppetlabs/stdlib",
+      "version_requirement": ">= 1.1.0"
+    },
+    {
       "name": "simp/simplib",
       "version_requirement": ">= 1.1.0"
     }

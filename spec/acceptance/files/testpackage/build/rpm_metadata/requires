@@ -1,1 +1,3 @@
 Requires: pupmod-simp-foo >= 1.2.3
+Requires: pupmod-simp-simplib >= 1.2.3
+Requires: pupmod-puppetlabs-stdlib >= 1.2.3

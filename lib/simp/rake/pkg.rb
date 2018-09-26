@@ -216,12 +216,14 @@ module Simp::Rake
       # :pkg:rpm
       # -----------------------------
       namespace :pkg do
+=begin
         desc <<-EOM
         Build the #{@pkg_name} RPM.
 
             By default, the package will be built to support a SIMP-6.X file structure.
             To build the package for a different version of SIMP, export SIMP_BUILD_version=<5.X,4.X>
         EOM
+=end
         task :rpm => [:tar] do |t,args|
           rpm_opts = [
             %(-D 'buildroot #{@pkg_dir}/rpmbuild/BUILDROOT'),
