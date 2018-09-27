@@ -889,14 +889,14 @@ protect=1
           _verbose = ENV.fetch('SIMP_PKG_verbose','no') == 'yes'
           dbg_prefix = '  ' # prefix for debug messages
 
+          fail("Could not find RPM dependency file '#{@rpm_dependency_file}'") unless File.exist?(@rpm_dependency_file)
+
           begin
             yum_helper = Simp::YUM.new(
               Simp::YUM.generate_yum_conf(File.join(@distro_build_dir, 'yum_data'))
             )
           rescue Simp::YUM::Error
           end
-
-          fail("Could not find RPM dependency file '#{@rpm_dependency_file}'") unless File.exist?(@rpm_dependency_file)
 
           Parallel.map(
             # Allow for shell globs
