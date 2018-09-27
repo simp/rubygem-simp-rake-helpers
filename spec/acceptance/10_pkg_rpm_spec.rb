@@ -124,6 +124,7 @@ describe 'rake pkg:rpm' do
 
             comment 'produces RPM with appropriate dependencies'
             on host, %(rpm -qpR #{testpackage_rpm} | grep -q simp-adapter)
+            on host, %(rpm -qpR #{testpackage_rpm} | grep -q pupmod-simp-foo), :acceptable_exit_codes => [1]
             on host, %(rpm -qpR #{testpackage_rpm} | grep -q pupmod-simp-simplib)
             on host, %(rpm -qpR #{testpackage_rpm} | grep -q pupmod-puppetlabs-stdlib)
             on host, %(rpm -qp --provides #{testpackage_rpm} | grep -q -x 'pupmod-testpackage = 0.0.1-0')

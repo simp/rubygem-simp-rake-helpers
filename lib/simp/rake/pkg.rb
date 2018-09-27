@@ -9,6 +9,7 @@ require 'find'
 require 'simp/relchecks'
 require 'simp/rpm'
 require 'simp/rake/helpers/rpm_spec'
+require 'simp/rake/build/rpmdeps'
 
 module Simp; end
 module Simp::Rake
@@ -217,6 +218,9 @@ module Simp::Rake
       # -----------------------------
       namespace :pkg do
 =begin
+        WARNING: THIS DOES NOT PULL FROM THE simp-core RPM DEPENDENCIES FILE
+        WARNING: YOU WILL PROBABLY NOT GET PROPER FULL SIMP RPMS FROM THIS TASK
+
         desc <<-EOM
         Build the #{@pkg_name} RPM.
 
@@ -277,6 +281,9 @@ module Simp::Rake
 
             srpms = [@full_pkg_name + '.src.rpm']
             if require_rebuild?(srpms.first, @tar_dest)
+              # TODO: Uncomment this after revamping the tests to use a dependencies.yaml file
+              # Simp::Rake::Build::RpmDeps.generate_rpm_meta_files(@base_dir, {})
+
               # Need to build the SRPM so that we can get the build dependencies
               cmd = %(rpmbuild #{rpm_opts.join(' ')} -bs #{@spec_file} > logs/build.srpm.out 2> logs/build.srpm.err)
               puts "==== pkg:rpm SRPM BUILD:   #{cmd}" if @verbose
