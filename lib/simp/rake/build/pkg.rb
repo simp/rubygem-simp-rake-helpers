@@ -18,6 +18,7 @@ module Simp::Rake::Build
 
       @verbose = ENV.fetch('SIMP_PKG_verbose','no') == 'yes'
       @rpm_build_metadata = 'last_rpm_build_metadata.yaml'
+      @rpm_dependency_file = File.join(@base_dir, 'build', 'rpm', 'dependencies.yaml')
 
       define_tasks
     end
@@ -748,12 +749,7 @@ protect=1
           result = false
 
 
-          rpm_dependency_file = File.join(@base_dir, 'build', 'rpm', 'dependencies.yaml')
-
-          rpm_metadata = {}
-          if File.exist?(rpm_dependency_file)
-            rpm_metadata = YAML.load(File.read(rpm_dependency_file))
-          end
+          rpm_metadata = File.exist?(@rpm_dependency_file) ? YAML.load(File.read(@rpm_dependency_file)) : {}
 
           Dir.chdir(dir) do
             if File.exist?('metadata.json')
@@ -899,6 +895,8 @@ protect=1
             )
           rescue Simp::YUM::Error
           end
+
+          fail("Could not find RPM dependency file '#{@rpm_dependency_file}'") unless File.exist?(@rpm_dependency_file)
 
           Parallel.map(
             # Allow for shell globs
