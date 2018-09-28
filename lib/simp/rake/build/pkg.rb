@@ -18,6 +18,7 @@ module Simp::Rake::Build
 
       @verbose = ENV.fetch('SIMP_PKG_verbose','no') == 'yes'
       @rpm_build_metadata = 'last_rpm_build_metadata.yaml'
+      @rpm_dependency_file = File.join(@base_dir, 'build', 'rpm', 'dependencies.yaml')
 
       define_tasks
     end
@@ -748,11 +749,7 @@ protect=1
           result = false
 
 
-          rpm_dependency_file = File.join(@base_dir, 'build', 'rpm', 'dependencies.yaml')
-
-          if File.exist?(rpm_dependency_file)
-            rpm_metadata = YAML.load(File.read(rpm_dependency_file))
-          end
+          rpm_metadata = File.exist?(@rpm_dependency_file) ? YAML.load(File.read(@rpm_dependency_file)) : {}
 
           Dir.chdir(dir) do
             if File.exist?('metadata.json')
@@ -765,7 +762,7 @@ protect=1
               #   release qualifier from the 'dependencies.yaml';
               #   only created if release qualifier if specified in
               #   the 'dependencies.yaml'
-              Simp::Rake::Build::RpmDeps::generate_rpm_meta_files(dir, rpm_metadata) if rpm_metadata
+              Simp::Rake::Build::RpmDeps::generate_rpm_meta_files(dir, rpm_metadata)
 
               new_rpm = Simp::Rake::Pkg.new(Dir.pwd, opts[:unique_namespace], @simp_version)
               new_rpm_info = Simp::RPM.new(new_rpm.spec_file)
@@ -891,6 +888,8 @@ protect=1
         def build(dirs, task, rebuild_for_arch=false, remake_yum_cache = false)
           _verbose = ENV.fetch('SIMP_PKG_verbose','no') == 'yes'
           dbg_prefix = '  ' # prefix for debug messages
+
+          fail("Could not find RPM dependency file '#{@rpm_dependency_file}'") unless File.exist?(@rpm_dependency_file)
 
           begin
             yum_helper = Simp::YUM.new(

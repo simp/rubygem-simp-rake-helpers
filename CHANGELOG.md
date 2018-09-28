@@ -1,3 +1,6 @@
+### 5.6.1 / 2018-09-26
+* Ensure that modules do not contain symlinks per the standard Puppet guidance.
+
 ### 5.6.0 / 2018-09-09
 * Add support for Beaker 4
 

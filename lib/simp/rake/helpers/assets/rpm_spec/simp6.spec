@@ -1,38 +1,104 @@
 %{lua:
 
+-- This RPM spec file can build
 --
--- When you build you must to pass this along so that we know how
--- to get the preliminary information.
--- This directory should hold the following items:
---   * 'build/rpm_metadata/requires' <- optional list of 'Requires', 'Provides',
---      and 'Obsoletes' to supplement those auto-generated in this spec file
---   * 'build/rpm_metadata/release' <- optional RPM release number to use in
---      lieu of number hard-coded in this spec file
---   * 'CHANGELOG' <- optional RPM formatted Changelog to use in lieu of minimal,
---      changelog entry auto-generated in this spec file
---   * 'metadata.json' <- required file that must contain the following metadata:
---     - 'name' - package name
---     - 'version' - package version
---     - 'license' - package license
---     - 'summary' - package summary
---     - 'source' - package source
+-- ## Usage
+--
+-- ### pup_module_info_dir
+--
+-- When you build, you must define the macro 'pup_module_info_dir' so that rpm
+-- knows where to find preliminary information.
+--
+-- If 'pup_module_info_dir' isn't defined or available, rpm will look in
+-- '_sourcedir' for the files, falling back to the current directory as a last
+-- resort.
 --
 -- Example:
---   rpmbuild -D 'pup_module_info_dir /home/user/project/puppet_module' -ba SPECS/specfile.spec
 --
--- If this is not found, we will look in %{_sourcedir} for the files and fall
--- back to the current directory
+--     rpmbuild -D 'pup_module_info_dir /home/user/project/puppet_module' -ba SPECS/specfile.spec
+--
+-- ### relevant files
+--
+-- 'pup_module_info_dir' should be a directory that contains the following items:
+--
+--   * 'metadata.json'                  <- REQUIRED file that must contain the
+--                                         following metadata:
+--                                           - 'name' - package name
+--                                           - 'version' - package version
+--                                           - 'license' - package license
+--                                           - 'summary' - package summary
+--                                           - 'source' - package source
+--   * 'build/rpm_metadata/requires'    <- optional list of 'Requires',
+--                                         'Provides', and 'Obsoletes' to
+--                                         supplement those auto-generated in
+--                                         this spec file.
+--   * 'build/rpm_metadata/release'     <- optional RPM release number to use in
+--                                         lieu of the number '0' hard-coded in
+--                                         this spec file.
+--   * 'CHANGELOG'                      <- optional RPM-formatted CHANGELOG to
+--                                         use in lieu of the minimal changelog
+--                                         entry auto-generated in this file.
+--   * 'build/rpm_metadata/custom/'     <- optional directory to place files to
+--                                         add custom scriptlets and triggers.
+--
 --
 
-src_dir = rpm.expand('%{pup_module_info_dir}')
+local LUA_DEBUG = ((rpm.expand('%{lua_debug}') or '0') == '1')
 
-if string.match(src_dir, '^%%') or (posix.stat(src_dir, 'type') ~= 'directory') then
-  src_dir = rpm.expand('%{_sourcedir}')
-
-  if (posix.stat((src_dir .. "/metadata.json"), 'type') ~= 'regular') then
-    src_dir = './'
+-- Print debugging info to STDERR (if LUA_DEBUG is true)
+function lua_stderr( msg )
+  if LUA_DEBUG then
+    -- io.stderr:write(tostring(msg):gsub("%f[^%z\n]","LUA #stderr#: "))
+    -- io.stderr:write(tostring(msg))
+    io.stderr:write(msg)
   end
 end
+
+
+local function get_src_dir()
+  local src_dir = rpm.expand('%{pup_module_info_dir}')
+  if src_dir:match('^%%') or (posix.stat(src_dir, 'type') ~= 'directory') then
+    lua_stderr("WARNING: -D pup_module_info_dir ("..tostring(src_dir)..") could not be used!\n")
+    lua_stderr("         falling back to src_dir = _sourcedir\n")
+
+    -- FIXME?: rpmlint considers the use of _sourcedir to be an Error:
+    --   (see: https://fedoraproject.org/wiki/Packaging:RPM_Source_Dir)
+    src_dir = rpm.expand('%{_sourcedir}')
+
+    if (posix.stat((src_dir .. "/metadata.json"), 'type') ~= 'regular') then
+      lua_stderr("WARNING: couldn't find metadata.json in '"..tostring(src_dir).."'!\n")
+      lua_stderr("         falling back to src_dir = posix.getcwd() ("..posix.getcwd()..")\n")
+
+      src_dir = posix.getcwd()
+    end
+  end
+  return src_dir
+end
+
+-- path to project directory / source files
+src_dir = get_src_dir()
+
+-- directory to look for customizations (e.g., scriptlets, triggers)
+custom_content_dir = src_dir .. "/build/rpm_metadata/custom/"
+
+-- list of custom content to inject into the spec file
+custom_content_table = {}
+
+-- list of scriptlets/triggers that have been declared (to avoid duplicates)
+declared_scriptlets_table = {}
+
+-- patterns to recognize scriptlet and trigger declarations
+--
+-- NOTE: Lua patterns are not regexes , and do not support alternation.
+--       So, we try to stay efficient by iterating through as few patterns as
+--       possible by short-ciruiting several matches.
+--       (e.g. '^%%pre' matches both '%pre' and '%pretrans')
+--
+SCRIPTLET_PATTERNS = {
+  '^%%pre',
+  '^%%post',
+  '^%%trigger'
+}
 
 -- These UNKNOWN entries should break the build if something bad happens
 
@@ -40,30 +106,54 @@ package_name = "UNKNOWN"
 package_version = "UNKNOWN"
 module_license = "UNKNOWN"
 
---
 -- Default to 0
---
-
 package_release = 0
-}
 
-%{lua:
+lua_stderr("\n")
+lua_stderr("--------------------------------------------------------------------------------\n")
+lua_stderr("RPM/LUA build environment:\n")
+lua_stderr("------:\n")
+lua_stderr("LUA _VERSION       = '".._VERSION.."'\n")
+lua_stderr("posix.getcwd()     = '"..posix.getcwd().."'\n")
+lua_stderr("\n")
+lua_stderr("macros:\n")
+lua_stderr("------:\n")
+lua_stderr("'%{pup_module_info_dir}' = '"..rpm.expand('%{pup_module_info_dir}').."'\n")
+lua_stderr("_specdir           = '"..rpm.expand('%{_specdir}').."'\n")
+lua_stderr("_buildrootdir      = '"..rpm.expand('%{_buildrootdir}').."'\n")
+lua_stderr("buildroot          = '"..rpm.expand('%{buildroot}').."'\n")
+lua_stderr("RPM_BUILD_ROOT     = '"..rpm.expand('%{RPM_BUILD_ROOT}').."'\n")
+lua_stderr("\n")
+lua_stderr("local variables:\n")
+lua_stderr("------:\n")
+lua_stderr("src_dir            = '".. src_dir .."'\n")
+lua_stderr("custom_content_dir = '"..custom_content_dir.."'\n# ---\n")
+lua_stderr("--------------------------------------------------------------------------------\n")
+lua_stderr("\n")
+
+
 -- Pull the Relevant Metadata out of the Puppet module metadata.json.
+function read_metadata(src_dir)
+  local metadata = ''
+  local metadata_file = src_dir .. "/metadata.json"
+  local metadata_fh   = io.open(metadata_file,'r')
+  if metadata_fh then
+    metadata = metadata_fh:read("*all")
 
-metadata = ''
-metadata_file = io.open(src_dir .. "/metadata.json","r")
-if metadata_file then
-  metadata = metadata_file:read("*all")
+    -- Ignore the first curly brace
+    metadata = metadata:gsub("{}?", '|', 1)
 
-  -- Ignore the first curly brace
-  metadata = metadata:gsub("{}?", '|', 1)
-
-  -- Ignore all keys that are below the first level
-  metadata = metadata:gsub("{.-}", '')
-  metadata = metadata:gsub("%[.-%]", '')
-else
-  error("Could not open 'metadata.json'", 0)
+    -- Ignore all keys that are below the first level
+    metadata = metadata:gsub("{.-}", '')
+    metadata = metadata:gsub("%[.-%]", '')
+  else
+    error("Could not open 'metadata.json': ".. metadata_file, 0)
+  end
+  return metadata
 end
+
+
+metadata = read_metadata(src_dir)
 
 -- This starts as an empty string so that we can build it later
 module_requires = ''
@@ -74,7 +164,7 @@ module_requires = ''
 
 -- Get the Module Name and put it in the correct format
 
-local name_match = string.match(metadata, '"name":%s+"(.-)"%s*,')
+local name_match = metadata:match('"name":%s+"(.-)"%s*,')
 
 module_author = ''
 module_name = ''
@@ -83,7 +173,7 @@ if name_match then
   package_name = ('pupmod-' .. name_match)
 
   local i = 0
-  for str in string.gmatch(name_match,'[^-]+') do
+  for str in name_match:gmatch('[^-]+') do
     if i == 0 then
       module_author = str
     else
@@ -106,7 +196,7 @@ end
 
 -- Get the Module Version
 
-local version_match = string.match(metadata, '"version":%s+"(.-)"%s*,')
+local version_match = metadata:match('"version":%s+"(.-)"%s*,')
 
 if version_match then
   package_version = version_match
@@ -120,7 +210,7 @@ end
 
 -- Get the Module License
 
-local license_match = string.match(metadata, '"license":%s+"(.-)"%s*,')
+local license_match = metadata:match('"license":%s+"(.-)"%s*,')
 
 if license_match then
   module_license = license_match
@@ -134,7 +224,7 @@ end
 
 -- Get the Module Summary
 
-local summary_match = string.match(metadata, '"summary":%s+"(.-)"%s*,')
+local summary_match = metadata:match('"summary":%s+"(.-)"%s*,')
 
 if summary_match then
   module_summary = summary_match
@@ -148,7 +238,7 @@ end
 
 -- Get the Module Source line for the URL string
 
-local source_match = string.match(metadata, '"source":%s+"(.-)"%s*,')
+local source_match = metadata:match('"source":%s+"(.-)"%s*,')
 
 if source_match then
   module_source = source_match
@@ -173,8 +263,8 @@ end
 
 if rel_file then
   for line in rel_file:lines() do
-    is_comment = string.match(line, "^%s*#")
-    is_blank = string.match(line, "^%s*$")
+    is_comment = line:match("^%s*#")
+    is_blank = line:match("^%s*$")
 
     if not (is_comment or is_blank) then
       package_release = line
@@ -197,7 +287,7 @@ end
 
 if req_file then
   for line in req_file:lines() do
-    valid_line = (string.match(line, "^Requires: ") or string.match(line, "^Obsoletes: ") or string.match(line, "^Provides: "))
+    valid_line = (line:match("^Requires: ") or line:match("^Obsoletes: ") or line:match("^Provides: "))
 
     if valid_line then
       module_requires = (module_requires .. "\n" .. line)
@@ -238,16 +328,10 @@ URL:       %{lua: print(module_source)}
 BuildRoot: %{_tmppath}/%{package_name}-%{version}-%{release}-buildroot
 BuildArch: noarch
 
-Requires(pre,preun,post,postun): simp-adapter >= 0.0.1
-
-%if ("%{package_name}" != "pupmod-simp-simplib") && ("%{package_name}" != "pupmod-puppetlabs-stdlib")
-Requires: pupmod-simp-simplib >= 1.2.6
-%endif
-
-%if "%{package_name}" != "pupmod-puppetlabs-stdlib"
-Requires: pupmod-puppetlabs-stdlib >= 4.9.0
-Requires: pupmod-puppetlabs-stdlib < 6.0.0
-%endif
+Requires(pre): simp-adapter >= 0.0.1
+Requires(preun): simp-adapter >= 0.0.1
+Requires(preun): simp-adapter >= 0.0.1
+Requires(postun): simp-adapter >= 0.0.1
 
 %{lua: print(module_requires)}
 
@@ -287,6 +371,9 @@ curdir=`pwd`
 dirname=`basename $curdir`
 cp -r ../$dirname %{buildroot}/%{prefix}/%{module_name}
 
+# Modules should *never* contain symlinks
+find %{buildroot} -type l -delete
+
 # Remove unnecessary assets
 rm -rf %{buildroot}/%{prefix}/%{module_name}/.git
 rm -f %{buildroot}/%{prefix}/%{module_name}/*.lock
@@ -300,29 +387,151 @@ rm -rf %{buildroot}/%{prefix}/%{module_name}/log
 
 mkdir -p %{buildroot}/%{prefix}
 
+%{lua:
+
+  -- returns true if 'scriptlet_name' has already been declared
+  function is_scriplet_declared(scriptlet_name, declared_scriptlets_table)
+    for _,name in ipairs(declared_scriptlets_table) do
+      if (name == scriptlet_name) then
+        return true
+      end
+    end
+    return false
+  end
+
+  -- returns true if 'line' is a scriptlet or trigger header
+  function is_valid_scriptlet_header(line)
+    local match = false
+    for _, patt in ipairs(SCRIPTLET_PATTERNS) do
+      if line:match(patt) then
+        match = true
+        break
+      end
+    end
+    return match
+  end
+
+  --
+  -- adds content to the custom_content_table
+  --
+  function define_custom_content(
+     content,
+     custom_content_table,
+     declared_scriptlets_table
+  )
+    lua_stderr("# evaluating extra content: \n".. (content:gsub("%f[^%z\n]","  | ")) .."\n")
+
+    if content then
+      local _content = ''
+      local recording = true
+
+      for line in content:gmatch("([^\n]*)\n?") do
+
+        -- skip duplicate scriptlets
+        if is_valid_scriptlet_header(line) then
+          local _line = line:gsub("^%s+",""):gsub("%s+$","")
+          if is_scriplet_declared(_line, declared_scriptlets_table) then
+            lua_stderr("WARNING: scriptlet '".._line..
+                       "' has already been declared (skipping scriptlet).\n")
+            recording = false
+          else
+            lua_stderr('+ "'.._line..'" is recognized as a scriptlet/trigger.\n')
+            recording = true
+            table.insert(declared_scriptlets_table, _line)
+          end
+        end
+
+        if recording then
+           _content = _content .. line .. "\n"
+        else
+           lua_stderr("  skipping line '"..line.."'\n")
+        end
+      end
+      table.insert(custom_content_table, _content )
+    end
+  end
+
+
+  function load_custom_content_files(custom_content_dir, custom_content_table, declared_scriptlets_table)
+    if (posix.stat(custom_content_dir, 'type') == 'directory') then
+      for i,basename in pairs(posix.dir(custom_content_dir)) do
+        local file = custom_content_dir .. basename
+        -- only accept files that are not dot files (".filename")
+        if (basename:match('^[^%.]') and (posix.stat(file, 'type') == 'regular')) then
+          lua_stderr("INFO: found custom RPM spec file snippet: '" .. file .. "'\n")
+          local file_handle = io.open(file,'r')
+          if file_handle then
+            local _content = file_handle:read("*all")
+            define_custom_content(_content, custom_content_table, declared_scriptlets_table)
+          else
+            lua_stderr("WARNING: could not read '"..file.."'\n")
+          end
+          file_handle:close()
+        else
+          lua_stderr("WARNING: skipping invalid filename '"..basename.."'\n")
+        end
+      end
+    else
+      lua_stderr("WARNING: not found: " .. custom_content_dir .. "\n")
+    end
+  end
+
+  -- Declares default scriptlets for SIMP 6.X (referenced from 6.1.0)
+  --
+  --   In order to keep the package-maintained pupmod-*-* packages.
+  --   Packages notify /usr/local/sbin/simp_rpm_helper.
+  --   See: https://github.com/simp/simp-adapter/blob/master/src/sbin/simp_rpm_helper
+  --
+  -- This function should be called last
+  --
+  function declare_default_scriptlets(custom_content_table, declared_scriptlets_table)
+    local DEFAULT_SCRIPTLETS = {
+      ['pre']    = {upgrade = 2},
+      ['post']   = {upgrade = 2},
+      ['preun']  = {upgrade = 0},
+      ['postun'] = {upgrade = 0}
+    }
+    local rpm_dir = rpm.expand('%{prefix}/' .. module_name)
+
+    for name,data in pairs(DEFAULT_SCRIPTLETS) do
+      local content = ('%'..name.."\n"..
+        '# (default scriptlet for SIMP 6.x)\n'..
+        '# when $1 = 1, this is an install\n'..
+        '# when $1 = '.. data.upgrade ..', this is an upgrade\n'..
+        'if [ -x /usr/local/sbin/simp_rpm_helper ] ; then\n'..
+        '  /usr/local/sbin/simp_rpm_helper --rpm_dir='..
+        rpm_dir.." --rpm_section='"..name.."' --rpm_status=$1\n"..
+        'fi\n\n'
+      )
+
+      define_custom_content(content, custom_content_table, declared_scriptlets_table)
+    end
+  end
+
+
+  -- insert custom content (e.g., rpm_metadata/custom/*, scriptlets)
+  function print_extra_content( custom_content_table )
+    local extra_content = table.concat(custom_content_table, "\n") .. "\n"
+    lua_stderr("\n========== DYNAMIC CONTENT SUMMARY ========== (begin)\n" ..
+                rpm.expand( extra_content ) ..
+                "\n========== DYNAMIC CONTENT SUMMARY ========== (end)\n")
+    print(extra_content)
+  end
+
+
+  load_custom_content_files(
+    custom_content_dir,
+    custom_content_table,
+    declared_scriptlets_table
+  )
+  declare_default_scriptlets(custom_content_table, declared_scriptlets_table)
+  print_extra_content(custom_content_table)
+}
+
+
 %files
 %defattr(0640,root,root,0750)
 %{prefix}/%{module_name}
-
-# when $1 = 1, this is an install
-# when $1 = 2, this is an upgrade
-%pre
-/usr/local/sbin/simp_rpm_helper --rpm_dir=%{prefix}/%{module_name} --rpm_section='pre' --rpm_status=$1
-
-# when $1 = 1, this is an install
-# when $1 = 2, this is an upgrade
-%post
-/usr/local/sbin/simp_rpm_helper --rpm_dir=%{prefix}/%{module_name} --rpm_section='post' --rpm_status=$1
-
-# when $1 = 1, this is the uninstall of the previous version during an upgrade
-# when $1 = 0, this is the uninstall of the only version during an erase
-%preun
-/usr/local/sbin/simp_rpm_helper --rpm_dir=%{prefix}/%{module_name} --rpm_section='preun' --rpm_status=$1
-
-# when $1 = 1, this is the uninstall of the previous version during an upgrade
-# when $1 = 0, this is the uninstall of the only version during an erase
-%postun
-/usr/local/sbin/simp_rpm_helper --rpm_dir=%{prefix}/%{module_name} --rpm_section='postun' --rpm_status=$1
 
 %changelog
 %{lua:
@@ -345,7 +554,7 @@ default_lookup_table = {
 changelog = io.open(src_dir .. "/CHANGELOG","r")
 if changelog then
   first_line = changelog:read()
-  if string.match(first_line, "^*%s+%a%a%a%s+%a%a%a%s+%d%d?%s+%d%d%d%d%s+.+") then
+  if first_line:match("^*%s+%a%a%a%s+%a%a%a%s+%d%d?%s+%d%d%d%d%s+.+") then
     changelog:seek("set",0)
     print(changelog:read("*all"))
   else
