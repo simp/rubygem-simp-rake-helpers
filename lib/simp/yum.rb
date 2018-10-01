@@ -126,7 +126,7 @@ module Simp
     #
     # Returns nil if nothing found
     def available_package(rpm)
-      yum_output = %x(#{@@yum} -C list #{rpm} 2>/dev/null)
+      yum_output = %x(#{@@yum} list #{rpm} 2>/dev/null)
 
       found_rpm = nil
       if $?.success?

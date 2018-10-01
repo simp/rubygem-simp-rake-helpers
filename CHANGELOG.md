@@ -1,5 +1,9 @@
-### 5.6.1 / 2018-09-26
+### 5.6.1 / 2018-10-01
 * Ensure that modules do not contain symlinks per the standard Puppet guidance.
+* Do not try to only use the system cache for yum operations since this
+  silently causes all EL6 builds to be rebuilt and can't really work anyway
+  since there isn't a local cache unitl after yum runs. After yum runs, the
+  local cache will be preferred unless it has expired anyway.
 
 ### 5.6.0 / 2018-09-09
 * Add support for Beaker 4
