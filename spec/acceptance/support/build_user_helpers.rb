@@ -1,15 +1,20 @@
 module Simp::BeakerHelpers::SimpRakeHelpers::BuildUserHelpers
-
-  def copy_host_files_into_build_user_homedir(
-    hosts,
-    root_dir=File.expand_path('../../../',__FILE__)
-  )
-    # I've added the `ch* -R` on the SUT-side, which seems to work on a fresh checkout
-    on hosts, 'cp -a /host_files /home/build_user/; ' +
-             'find /home/build_user/host_files -type d \( ' +
-               '-name dist -o -name junit -o -name log \) ' +
-               '-exec chmod -R go=u-w {} \\; ; ' +
-             'chown -R build_user:build_user /home/build_user/host_files; '
+  def build_user_homedir
+    '/home/build_user'
   end
 
+  def build_user_host_files
+    "#{build_user_homedir}/host_files"
+  end
+
+  def copy_host_files_into_build_user_homedir(hosts, opts = {})
+    commands = <<-COMMANDS.gsub(/^ {6}/,'')
+      cp -aT /host_files #{build_user_host_files} ;
+      find #{build_user_host_files} \\
+        -type d -a \\( -name dist -o -name junit -o -name log \\) \\
+        -exec chmod -R go=u-w {} \\; ;
+      chown -R build_user:build_user #{build_user_host_files}
+    COMMANDS
+    on(hosts,commands,opts)
+  end
 end

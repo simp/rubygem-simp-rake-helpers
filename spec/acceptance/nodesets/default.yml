@@ -53,6 +53,7 @@ HOSTS:
       - 'runuser build_user -l -c "rvm install 2.1"'
       - 'runuser build_user -l -c "rvm use --default 2.1"'
       - 'runuser build_user -l -c "rvm all do gem install bundler"'
+      - 'yum install -y rpm-sign'
     mount_folders:
       folder1:
         host_path: ./
