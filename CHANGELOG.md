@@ -1,3 +1,7 @@
+### 5.6.2 / 2018-10-02
+* Refactor 'dev' GPG signing key logic into `Simp::LocalGpgSigningKey`
+* Add acceptance tests for GPG logic and `rake pkg:signrpms`
+
 ### 5.6.1 / 2018-10-01
 * Ensure that modules do not contain symlinks per the standard Puppet guidance.
 * Do not try to only use the system cache for yum operations since this

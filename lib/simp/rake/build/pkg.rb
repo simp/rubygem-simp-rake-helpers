@@ -1,6 +1,7 @@
 #!/usr/bin/rake -T
 
 require 'simp/yum'
+require 'simp/local_gpg_signing_key.rb'
 require 'simp/rake/pkg'
 require 'simp/rake/build/constants'
 require 'simp/rake/build/rpmdeps'
@@ -105,155 +106,63 @@ module Simp::Rake::Build
           end
         end
 
-=begin
         desc <<-EOM
-          Prepare the GPG key space for a SIMP build.
+          Prepare a GPG signing key to sign build packages
 
-          If passed anything but 'dev', will fail if the directory is not present in
-          the 'build/build_keys' directory.
+            * :key - the name of the directory under build/build_keys to
+                     prepare (defaults to 'dev')
+
+          When :key is `dev`, a temporary signing key is created, if needed:
+
+            - A 14-day `dev` key will be created if none exists, including:
+              - The `<build_dir>/build_keys/dev/` dir
+              - gpgagent assets to create/update the key
+
+          When :key is *not* `dev`, the logic is much stricter:
+
+            - You must already have create `<build_dir>/build_keys/<:key>/`
+              directoy, and placed a valid GPG signing key inside
+            - If the directory or key are missing, the task will fail.
 
           ENV vars:
             - Set `SIMP_PKG_verbose=yes` to report file operations as they happen.
         EOM
-=end
         task :key_prep,[:key] => [:prep] do |t,args|
-          require 'securerandom'
-          _verbose = ENV.fetch('SIMP_PKG_verbose','no') == 'yes'
-
           args.with_defaults(:key => 'dev')
+          key = args.key
+          build_keys_dir = File.join(@build_dir, 'build_keys')
+          key_dir = File.join(build_keys_dir,key)
+          dvd_dir = @dvd_src
 
-          FileUtils.mkdir_p("#{@build_dir}/build_keys")
+          FileUtils.mkdir_p build_keys_dir
 
-          Dir.chdir("#{@build_dir}/build_keys") do
-            if (args.key != 'dev')
-              fail("Could not find GPG keydir '#{args[:key]}' in '#{Dir.pwd}'") unless File.directory?(args[:key])
+          Dir.chdir(build_keys_dir) do
+            if key == 'dev'
+              Simp::LocalGpgSigningKey.new(key_dir,{verbose: @verbose}).ensure_key
             else
-
-              mkdir('dev') unless File.directory?('dev')
-              chmod(0700,'dev')
-
-              Dir.chdir('dev') do
-                dev_email = 'gatekeeper@simp.development.key'
-                current_key = `gpg --homedir=#{Dir.pwd} --list-keys #{dev_email} 2>/dev/null`
-                days_left = 0
-                unless current_key.empty?
-                  lasts_until = current_key.lines.first.strip.split("\s").last.delete(']')
-                  days_left = (Date.parse(lasts_until) - DateTime.now).to_i
-                end
-
-                if days_left > 0
-                  puts "GPG key will expire in #{days_left} days."
-                else
-                  puts "Generating new GPG key"
-
-                  Dir.glob('*').each do |todel|
-                    rm_rf(todel, :verbose => _verbose)
-                  end
-
-                  expire_date = (DateTime.now + 14)
-                  now = Time.now.to_i.to_s
-                  dev_email = 'gatekeeper@simp.development.key'
-                  passphrase = SecureRandom.base64(500)
-
-                  gpg_infile = <<-EOM
-        %echo Generating Development GPG Key
-        %echo
-        %echo This key will expire on #{expire_date}
-        %echo
-        Key-Type: RSA
-        Key-Length: 4096
-        Key-Usage: sign
-        Name-Real: SIMP Development
-        Name-Comment: Development key #{now}
-        Name-Email: #{dev_email}
-        Expire-Date: 2w
-        Passphrase: #{passphrase}
-        %pubring pubring.gpg
-        %secring secring.gpg
-        # The following creates the key, so we can print "Done!" afterwards
-        %commit
-        %echo New GPG Development Key Created
-                  EOM
-
-                  gpg_agent_script = <<-EOM
-        #!/bin/sh
-
-        gpg-agent --homedir=#{Dir.pwd} --batch --daemon --pinentry-program /usr/bin/pinentry-curses < /dev/null &
-                  EOM
-
-                  File.open('gengpgkey','w'){ |fh| fh.puts(gpg_infile) }
-                  File.open('run_gpg_agent','w'){ |fh| fh.puts(gpg_agent_script) }
-                  chmod(0755,'run_gpg_agent')
-
-                  gpg_agent_pid = nil
-                  gpg_agent_socket = nil
-
-                  if File.exist?(%(#{ENV['HOME']}/.gnupg/S.gpg-agent))
-                    gpg_agent_socket = %(#{ENV['HOME']}/.gnupg/S.gpg-agent)
-                    gpg_agent_socket = %(#{ENV['HOME']}/.gnupg/S.gpg-agent)
-                  end
-
-                  begin
-                    unless gpg_agent_socket
-                      gpg_agent_output = %x(./run_gpg_agent).strip
-
-                      if gpg_agent_output.empty?
-                        # This is a working version of gpg-agent, that means we need to
-                        # connect to it to figure out what's going on
-
-                        gpg_agent_socket = %(#{Dir.pwd}/S.gpg-agent)
-                        gpg_agent_pid_info = %x(gpg-agent --homedir=#{Dir.pwd} /get serverpid).strip
-                        gpg_agent_pid_info =~ %r(\[(\d+)\])
-                        gpg_agent_pid = $1
-                      else
-                        # Are we running a broken version of the gpg-agent? If so, we'll
-                        # get back info on the command line.
-
-                        gpg_agent_info = gpg_agent_output.split(';').first.split('=').last.split(':')
-                        gpg_agent_socket = gpg_agent_info[0]
-                        gpg_agent_pid = gpg_agent_info[1].strip.to_i
-
-                        unless File.exist?(%(#{Dir.pwd}/#{File.basename(gpg_agent_socket)}))
-                          ln_s(gpg_agent_socket,%(#{Dir.pwd}/#{File.basename(gpg_agent_socket)}))
-                        end
-                      end
-                    end
-
-                    sh %{gpg --homedir=#{Dir.pwd} --batch --gen-key gengpgkey}
-                    %x{gpg --homedir=#{Dir.pwd} --armor --export #{dev_email} > RPM-GPG-KEY-SIMP-Dev}
-                  ensure
-                    begin
-                      rm('S.gpg-agent') if File.symlink?('S.gpg-agent')
-
-                      if gpg_agent_pid
-                        Process.kill(0,gpg_agent_pid)
-                        Process.kill(15,gpg_agent_pid)
-                      end
-                      rescue Errno::ESRCH
-                      # Not Running, Nothing to do!
-                    end
-                  end
-                end
+              unless File.directory?(key_dir)
+                fail("Could not find GPG keydir '#{key_dir}' in '#{Dir.pwd}'")
               end
             end
 
-            Dir.chdir(args[:key]) do
+            Dir.chdir(key_dir) do
               rpm_build_keys = Dir.glob('RPM-GPG-KEY-*')
+              if rpm_build_keys.empty?
+                fail("Could not find any RPM-GPG-KEY-* files in '#{key_dir}'")
+              end
 
-              fail("Could not find any RPM-GPG-KEY files in '#{Dir.pwd}'") if rpm_build_keys.empty?
-
-              # Drop the development key in the root of the ISO for convenience
-              if args[:key] == 'dev'
-                target_dir = @dvd_src
-
-                fail("Could not find directory '#{target_dir}'") unless File.directory?(target_dir)
+              # Copy development keys into the root of the ISO for convenience
+              if key == 'dev'
+                unless File.directory?(dvd_dir)
+                  fail("Could not find DVD ISO root directory '#{dvd_dir}'")
+                end
 
                 rpm_build_keys.each do |gpgkey|
-                  cp(gpgkey,target_dir, :verbose => _verbose)
+                  cp(gpgkey, dvd_dir, :verbose => @verbose)
                 end
               # Otherwise, make sure it isn't present for the build
               else
-                Dir.glob(File.join(@dvd_src,'RPM-GPG-KEY-SIMP*')).each do |to_del|
+                Dir[File.join(dvd_dir,'RPM-GPG-KEY-SIMP*')].each do |to_del|
                   rm(to_del)
                 end
               end
@@ -279,7 +188,6 @@ module Simp::Rake::Build
             fail("No RPMs found at #{rpm_dir}") if (rpms.nil? || rpms.empty?)
 
             have_signed_rpm = false
-
             Dir.chdir(rpm_dir) do
               rpms.each_key do |rpm|
                 if @verbose
@@ -335,9 +243,6 @@ module Simp::Rake::Build
         EOM
 =end
         task :build,[:docs,:key] => [:prep,:key_prep] do |t,args|
-
-          _verbose = ENV.fetch('SIMP_PKG_verbose','no') == 'yes'
-
           args.with_defaults(:key => 'dev')
           args.with_defaults(:docs => 'true')
 
@@ -603,7 +508,6 @@ module Simp::Rake::Build
             args[:aux_dir] = File.expand_path(args[:aux_dir])
           end
 
-          _verbose = ENV.fetch('SIMP_PKG_verbose','no') == 'yes'
           _repoclose_pe = ENV.fetch('SIMP_PKG_repoclose_pe','no') == 'yes'
 
           yum_conf_template = <<-EOF
@@ -644,7 +548,7 @@ protect=1
                 Find.find(base_dir) do |path|
                   if (path =~ /.*\.rpm$/) and (path !~ /.*.src\.rpm$/)
                     sym_path = "repos/base/#{File.basename(path)}"
-                    ln_s(path,sym_path, :verbose => _verbose) unless File.exists?(sym_path)
+                    ln_s(path,sym_path, :verbose => @verbose) unless File.exists?(sym_path)
                   end
                 end
               end
@@ -654,7 +558,7 @@ protect=1
                   Find.find(aux_dir) do |path|
                     if (path =~ /.*\.rpm$/) and (path !~ /.*.src\.rpm$/)
                       sym_path = "repos/lookaside/#{File.basename(path)}"
-                      ln_s(path,sym_path, :verbose => _verbose) unless File.exists?(sym_path)
+                      ln_s(path,sym_path, :verbose => @verbose) unless File.exists?(sym_path)
                     end
                   end
                 end
@@ -909,15 +813,15 @@ protect=1
             Dir.chdir(dir) do
               built_rpm = false
 
-              if _verbose
+              if @verbose
                 $stderr.puts("\nPackaging #{File.basename(dir)}")
               end
 
               # We're building a module, override anything down there
               if File.exist?('metadata.json')
                 unique_namespace = generate_namespace
-                if require_rebuild?(dir, yum_helper, { :unique_namespace => unique_namespace, :fetch => true, :verbose => _verbose, :prefix => dbg_prefix})
-                  $stderr.puts("#{dbg_prefix}Running 'rake pkg:rpm' on #{File.basename(dir)}") if _verbose
+                if require_rebuild?(dir, yum_helper, { :unique_namespace => unique_namespace, :fetch => true, :verbose => @verbose, :prefix => dbg_prefix})
+                  $stderr.puts("#{dbg_prefix}Running 'rake pkg:rpm' on #{File.basename(dir)}") if @verbose
                   Rake::Task["#{unique_namespace}:pkg:rpm"].invoke
                 else
                   # Record metadata for the downloaded RPM
@@ -929,8 +833,8 @@ protect=1
               # We're building one of the extra assets and should honor its Rakefile
               # and RPM spec file.
               elsif File.exist?('Rakefile')
-                if require_rebuild?(dir, yum_helper, { :fetch => true, :verbose => _verbose, :prefix => dbg_prefix })
-                  $stderr.puts("#{dbg_prefix}Running 'rake pkg:rpm' in #{File.basename(dir)}") if _verbose
+                if require_rebuild?(dir, yum_helper, { :fetch => true, :verbose => @verbose, :prefix => dbg_prefix })
+                  $stderr.puts("#{dbg_prefix}Running 'rake pkg:rpm' in #{File.basename(dir)}") if @verbose
                   rake_flags = Rake.application.options.trace ? '--trace' : ''
                   cmd = %{SIMP_BUILD_version=#{@simp_version} rake pkg:rpm #{rake_flags} 2>&1}
 
@@ -945,7 +849,7 @@ protect=1
                   end
 
                   unless build_success
-                    if _verbose
+                    if @verbose
                       $stderr.puts("First 'rake pkg:rpm' attempt for #{dir} failed, running bundle and trying again.")
                     end
 
@@ -981,7 +885,7 @@ protect=1
                 raise("No RPMs generated for #{dir}") if rpms.empty?
               end
 
-              if _verbose
+              if @verbose
                 rpms = Dir.glob('dist/*.rpm')
 #                $stderr.puts("#{dbg_prefix}RPMS: #{rpms.join("\n#{dbg_prefix}      ")}")
                 $stderr.puts("Finished  #{File.basename(dir)}")
@@ -1005,4 +909,5 @@ protect=1
       end
     end
   end
+
 end
