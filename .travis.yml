@@ -35,6 +35,7 @@ jobs:
 
     - stage: deploy
       rvm: 2.4.4
+      if: 'fork = false AND tag = true'
       script:
         - true
       before_deploy:
