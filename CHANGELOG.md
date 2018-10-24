@@ -1,3 +1,8 @@
+### 5.6.3 / 2018-10-30
+* Add information about the distribution OS to the simp-packer `vars.json`.
+* Add builder version information to the simp-packer `vars.json`.
+* Refactor writing the vars.json to its own method.
+
 ### 5.6.2 / 2018-10-02
 * Refactor 'dev' GPG signing key logic into `Simp::LocalGpgSigningKey`
 * Add acceptance tests for GPG logic and `rake pkg:signrpms`
