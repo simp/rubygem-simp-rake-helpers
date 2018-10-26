@@ -1,0 +1,96 @@
+require 'simp/local_gpg_signing_key'
+require 'spec_helper'
+require 'fileutils'
+require 'tmpdir'
+
+describe Simp::LocalGpgSigningKey do
+  include FileUtils
+
+  before :all do
+    TMP_DIR     = Dir.mktmpdir('spec_test__simp_local_gpg_signing_key')
+    TMP_DEV_DIR = File.join(TMP_DIR, 'dev')
+    OPTS        = {verbose: ENV['VERBOSE'].to_s =~ /^(yes|true)$/ }
+
+    mkdir_p TMP_DIR
+
+    # Be a good citizen and preserve pre-existing agent variables
+    ORIGINAL_GPG_AGENT_INFO = ENV['GPG_AGENT_INFO']
+  end
+
+  after :all do
+    rm_rf TMP_DIR
+
+    # Be a good citizen and preserve pre-existing agent variables
+    ENV['GPG_AGENT_INFO'] = ORIGINAL_GPG_AGENT_INFO
+  end
+
+  shared_examples_for 'it just generated a local gpg signing key' do
+    it 'creates a local gpg-agent' do
+      expect(agent_info.reject{|x| x.nil?}.keys).to include(:info, :socket, :pid)
+    end
+
+    it 'had a gpg-agent socket' do
+      socket = agent_info[:socket]
+      expect(File.absolute_path(socket.to_s)).to eq socket.to_s
+    end
+
+    it 'has killed the local gpg-agent' do
+      expect(File.exist?(agent_info[:socket])).to be false
+    end
+  end
+
+
+  shared_examples_for 'a valid gpg signing key environment' do
+    it 'has a local GPG signing key' do
+      Dir.chdir(TMP_DEV_DIR) { expect(Dir['*']).to include('RPM-GPG-KEY-SIMP-Dev') }
+    end
+
+    it 'has a populated a gpg-agent directory' do
+      Dir.chdir(TMP_DEV_DIR) do |_dir|
+        expect(Dir['*'].sort).to include(
+          'gengpgkey',
+          'pubring.gpg',
+        )
+      end
+    end
+  end
+
+  shared_examples_for 'it encountered an unexpired local gpg signing key' do
+    it 'reuses an unexpired local gpg signing key' do
+      expect{described_class.new(TMP_DEV_DIR,OPTS).ensure_key}.to output(
+        /^GPG key \(gatekeeper@simp\.development\.key\) will expire in 14 days\./
+      ).to_stdout
+    end
+
+    it 'reuses an unexpired local gpg signing key' do
+      expect{described_class.new(TMP_DEV_DIR,OPTS).ensure_key}.to output(
+        /^GPG key \(gatekeeper@simp\.development\.key\) will expire in 14 days\./
+      ).to_stdout
+    end
+  end
+
+  context '#ensure_key' do
+    before :all do
+      rm_rf   TMP_DEV_DIR
+      ENV['GPG_AGENT_INFO'] = nil
+    end
+
+    context 'when run from scratch' do
+      before :all do
+        FIRST_RUN_AGENT_INFO  = described_class.new(TMP_DEV_DIR,OPTS).ensure_key
+      end
+      let(:agent_info){ FIRST_RUN_AGENT_INFO }
+      it_behaves_like 'it just generated a local gpg signing key'
+      it_behaves_like 'a valid gpg signing key environment'
+    end
+
+    context 'when run again' do
+      before :all do
+        SECOND_RUN_AGENT_INFO = described_class.new(TMP_DEV_DIR,OPTS).ensure_key
+      end
+      let(:agent_info){ SECOND_RUN_AGENT_INFO }
+      it_behaves_like 'it encountered an unexpired local gpg signing key'
+      it_behaves_like 'a valid gpg signing key environment'
+    end
+  end
+end

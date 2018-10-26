@@ -1,0 +1,3 @@
+        #!/bin/sh
+
+        gpg-agent --homedir=/src/build/distributions/CentOS/7/x86_64/build_keys/dev --batch --daemon --pinentry-program /usr/bin/pinentry-curses < /dev/null &
