@@ -18,10 +18,10 @@ HOSTS:
       - 'yum install -y rpm-build augeas-devel createrepo genisoimage git gnupg2 libicu-devel libxml2 libxml2-devel libxslt libxslt-devel rpmdevtools which'
       # rvm build-deps
       - 'yum install -y libyaml-devel glibc-headers autoconf gcc-c++ glibc-devel readline-devel libffi-devel openssl-devel automake libtool bison sqlite-devel'
-      - 'runuser build_user -l -c "gpg2 --keyserver hkp://pgp.mit.edu --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3 7D2BAF1CF37B13E2069D6956105BD0E739499BDB || gpg2 --keyserver hkp://keys.gnupg.net --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3 7D2BAF1CF37B13E2069D6956105BD0E739499BDB"'
+      - 'runuser build_user -l -c "{ gpg2 --keyserver hkp://pgp.mit.edu --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3 || gpg2 --keyserver hkp://keys.gnupg.net --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3; } || { gpg2 --keyserver hkp://pgp.mit.edu --recv-keys 7D2BAF1CF37B13E2069D6956105BD0E739499BDB || gpg2 --keyserver hkp://keys.gnupg.net --recv-keys 7D2BAF1CF37B13E2069D6956105BD0E739499BDB ; }"'
       - 'runuser build_user -l -c "curl -sSL https://get.rvm.io | bash -s stable"'
-      - 'runuser build_user -l -c "rvm install 2.1"'
-      - 'runuser build_user -l -c "rvm use --default 2.1"'
+      - 'runuser build_user -l -c "rvm install 2.4"'
+      - 'runuser build_user -l -c "rvm use --default 2.4"'
       - 'runuser build_user -l -c "rvm all do gem install bundler"'
     mount_folders:
       folder1:
@@ -47,11 +47,10 @@ HOSTS:
       - 'yum install -y rpm-build augeas-devel createrepo genisoimage git gnupg2 libicu-devel libxml2 libxml2-devel libxslt libxslt-devel rpmdevtools clamav-update which'
       # rvm build-deps
       - 'yum install -y libyaml-devel glibc-headers autoconf gcc-c++ glibc-devel readline-devel libffi-devel openssl-devel automake libtool bison sqlite-devel'
-      - 'runuser build_user -l -c "gpg2 --keyserver hkp://pgp.mit.edu --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3 7D2BAF1CF37B13E2069D6956105BD0E739499BDB || gpg2 --keyserver hkp://keys.gnupg.net --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3 7D2BAF1CF37B13E2069D6956105BD0E739499BDB"'
-      - 'runuser build_user -l -c "gpg2 --keyserver hkp://keys.gnupg.net --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3"'
+      - 'runuser build_user -l -c "{ gpg2 --keyserver hkp://pgp.mit.edu --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3 || gpg2 --keyserver hkp://keys.gnupg.net --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3; } || { gpg2 --keyserver hkp://pgp.mit.edu --recv-keys 7D2BAF1CF37B13E2069D6956105BD0E739499BDB || gpg2 --keyserver hkp://keys.gnupg.net --recv-keys 7D2BAF1CF37B13E2069D6956105BD0E739499BDB ; }"'
       - 'runuser build_user -l -c "curl -sSL https://get.rvm.io | bash -s stable"'
-      - 'runuser build_user -l -c "rvm install 2.1"'
-      - 'runuser build_user -l -c "rvm use --default 2.1"'
+      - 'runuser build_user -l -c "rvm install 2.4"'
+      - 'runuser build_user -l -c "rvm use --default 2.4"'
       - 'runuser build_user -l -c "rvm all do gem install bundler"'
       - 'yum install -y rpm-sign'
     mount_folders:
@@ -66,4 +65,4 @@ HOSTS:
 
 CONFIG:
   log_level: verbose
-  type:      foss
+  type:      aio

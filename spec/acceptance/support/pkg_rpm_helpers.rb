@@ -29,7 +29,7 @@ module Simp::BeakerHelpers::SimpRakeHelpers::PkgRpmHelpers
       'postinstall'   => 'post',
       'preuninstall'  => 'preun',
       'postuninstall' => 'postun',
-      'posttrans'     => nil,
+      'posttrans'     => 'posttrans',
     }
   end
 

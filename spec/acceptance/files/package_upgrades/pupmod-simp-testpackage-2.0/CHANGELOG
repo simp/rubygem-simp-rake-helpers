@@ -1,0 +1,5 @@
+* Wed Dec 05 2018 Richard Stallman <rms@gnu.org> - 2.0.0-0
+- Remove unused data-in-modules files
+
+* Sat Dec 13 2014 Richard Stallman <rms@gnu.org> - 1.0.0-0
+- Behold, there was a brave GNU world....

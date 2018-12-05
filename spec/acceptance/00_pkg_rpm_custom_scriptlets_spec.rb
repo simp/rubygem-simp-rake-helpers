@@ -18,7 +18,7 @@ shared_examples_for 'an RPM generator with customized scriptlets' do
     expect(scriptlets.keys.sort).to eq [
       'pretrans',
       'preinstall',
-      'postinstall',
+      'posttrans',
       'preuninstall',
       'postuninstall',
     ].sort
@@ -34,8 +34,8 @@ shared_examples_for 'an RPM generator with customized scriptlets' do
       "echo 'I override the default %%pre section provided by the spec file.'"
     )
 
-    comment '...remaining default scriptlets call simp_rpm_helper with correct arguments'
-    expected_simp_rpm_helper_scriptlets = scriptlet_label_map.select{|k,v| %w(post preun postun).include? v }
+    comment '...default preun postun scriptlets call simp_rpm_helper with correct arguments'
+    expected_simp_rpm_helper_scriptlets = scriptlet_label_map.select{|k,v| %w(preun postun).include? v }
     expected_simp_rpm_helper_scriptlets.each do |rpm_label, simp_helper_label|
       expected = <<EOM
 if [ -x /usr/local/sbin/simp_rpm_helper ] ; then
@@ -44,6 +44,25 @@ fi
 EOM
       expect(scriptlets[rpm_label][:bare_content]).to eq(expected.strip)
     end
+
+    comment '...default posttrans scriptlets call simp_rpm_helper with correct arguments'
+#FIXME  I can see the rpm query for scripts is correct, but the helper munges the output
+# so doing a partial match for now
+#    expected = <<EOM
+#if [ -e %{_localstatedir}/lib/rpm-state/simp-adapter/testpackage ] ; then
+#  rm %{_localstatedir}/lib/rpm-state/simp-adapter/testpackage
+#  if [ -x /usr/local/sbin/simp_rpm_helper ] ; then
+#    /usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='posttrans' --rpm_status=0
+#  fi
+#fi
+#EOM
+    expected = <<EOM
+if [ -e %{_localstatedir}/lib/rpm-state/simp-adapter/testpackage ] ; then
+  rm %{_localstatedir}/lib/rpm-state/simp-adapter/testpackage
+  if [ -x /usr/local/sbin/simp_rpm_helper ] ; then
+    /usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section
+EOM
+    expect(scriptlets['posttrans'][:bare_content]).to match(Regexp.escape(expected.strip))
   end
 end
 

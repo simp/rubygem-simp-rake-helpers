@@ -1,3 +1,8 @@
+### 5.7.0 / 2018-12-05
+* Move use of simp_rpm_helper from %post to %postrans, to fix
+  a bug in which files that should have been removed from the old
+  version during RPM upgrade are copied.
+
 ### 5.6.3 / 2018-10-30
 * Add information about the distribution OS to the simp-packer `vars.json`.
 * Add builder version information to the simp-packer `vars.json`.
