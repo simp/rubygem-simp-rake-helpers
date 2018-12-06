@@ -45,24 +45,21 @@ EOM
       expect(scriptlets[rpm_label][:bare_content]).to eq(expected.strip)
     end
 
-    comment '...default posttrans scriptlets call simp_rpm_helper with correct arguments'
-#FIXME  I can see the rpm query for scripts is correct, but the helper munges the output
-# so doing a partial match for now
-#    expected = <<EOM
-#if [ -e %{_localstatedir}/lib/rpm-state/simp-adapter/testpackage ] ; then
-#  rm %{_localstatedir}/lib/rpm-state/simp-adapter/testpackage
-#  if [ -x /usr/local/sbin/simp_rpm_helper ] ; then
-#    /usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='posttrans' --rpm_status=0
-#  fi
-#fi
-#EOM
+    comment '...default posttrans scriptlet calls simp_rpm_helper with correct arguments'
     expected = <<EOM
-if [ -e %{_localstatedir}/lib/rpm-state/simp-adapter/testpackage ] ; then
-  rm %{_localstatedir}/lib/rpm-state/simp-adapter/testpackage
+if [ -e %{_localstatedir}/lib/rpm-state/simp-adapter/rpm_status1.testpackage ] ; then
+  rm %{_localstatedir}/lib/rpm-state/simp-adapter/rpm_status1.testpackage
   if [ -x /usr/local/sbin/simp_rpm_helper ] ; then
-    /usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section
+    /usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='posttrans' --rpm_status=1
+  fi
+elif [ -e %{_localstatedir}/lib/rpm-state/simp-adapter/rpm_status2.testpackage ] ; then
+  rm %{_localstatedir}/lib/rpm-state/simp-adapter/rpm_status2.testpackage
+  if [ -x /usr/local/sbin/simp_rpm_helper ] ; then
+    /usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='posttrans' --rpm_status=2
+  fi
+fi
 EOM
-    expect(scriptlets['posttrans'][:bare_content]).to match(Regexp.escape(expected.strip))
+    expect(scriptlets['posttrans'][:bare_content]).to eq(expected.strip)
   end
 end
 

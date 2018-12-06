@@ -486,7 +486,8 @@ mkdir -p %{buildroot}/%{prefix}
   --
   function declare_default_scriptlets(custom_content_table, declared_scriptlets_table)
     local marker_dir = '%{_localstatedir}/lib/rpm-state/simp-adapter'
-    local marker_file = marker_dir..'/'..module_name
+    local marker_file = marker_dir..'/rpm_status$1.'..module_name
+
 
     local DEFAULT_SCRIPTLETS = {
       ['pre']    = {upgrade = 2, custom='mkdir -p '..marker_dir..'\ntouch '..marker_file..'\n'},
@@ -510,13 +511,24 @@ mkdir -p %{buildroot}/%{prefix}
       define_custom_content(content, custom_content_table, declared_scriptlets_table)
     end
 
+    local install_marker_file = marker_dir..'/rpm_status1.'..module_name
+    local upgrade_marker_file = marker_dir..'/rpm_status2.'..module_name
     local posttrans_content = ('%posttrans\n'..
       '# (default scriptlet for SIMP 6.x)\n'..
-      'if [ -e '..marker_file..' ] ; then\n'..
-      '  rm '..marker_file..'\n'..
+      '# Marker file is created in %pre and only exists for installs or upgrades\n'..
+      "# when marker file is prepended with 'rpm_status1.', this is an install\n"..
+      "# when marker file is prepended with 'rpm_status2.', this is an upgrade\n"..
+      'if [ -e '..install_marker_file..' ] ; then\n'..
+      '  rm '..install_marker_file..'\n'..
       '  if [ -x /usr/local/sbin/simp_rpm_helper ] ; then\n'..
       '    /usr/local/sbin/simp_rpm_helper --rpm_dir='..
-      rpm_dir.." --rpm_section='posttrans' --rpm_status=0\n"..
+      rpm_dir.." --rpm_section='posttrans' --rpm_status=1\n"..
+      '  fi\n'..
+      'elif [ -e '..upgrade_marker_file..' ] ; then\n'..
+      '  rm '..upgrade_marker_file..'\n'..
+      '  if [ -x /usr/local/sbin/simp_rpm_helper ] ; then\n'..
+      '    /usr/local/sbin/simp_rpm_helper --rpm_dir='..
+      rpm_dir.." --rpm_section='posttrans' --rpm_status=2\n"..
       '  fi\n'..
       'fi\n\n'
     )
