@@ -328,10 +328,10 @@ URL:       %{lua: print(module_source)}
 BuildRoot: %{_tmppath}/%{package_name}-%{version}-%{release}-buildroot
 BuildArch: noarch
 
-Requires(pre): simp-adapter >= 0.0.1
-Requires(preun): simp-adapter >= 0.0.1
-Requires(preun): simp-adapter >= 0.0.1
-Requires(postun): simp-adapter >= 0.0.1
+Requires(pre): simp-adapter >= 0.1.1
+Requires(preun): simp-adapter >= 0.1.1
+Requires(preun): simp-adapter >= 0.1.1
+Requires(postun): simp-adapter >= 0.1.1
 
 %{lua: print(module_requires)}
 
