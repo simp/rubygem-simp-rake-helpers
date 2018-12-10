@@ -1,3 +1,6 @@
+### 5.7.1 / 2018-12-10
+* Fix long standing logic issues that were causing download failures
+
 ### 5.7.0 / 2018-12-05
 * Move use of simp_rpm_helper from %post to %postrans, to fix
   a bug in which files that should have been removed from the old
