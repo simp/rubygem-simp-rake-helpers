@@ -160,7 +160,7 @@ module Simp::Rake::Build
               full_pkg = source.split('/').last
               unless File.exist?(full_pkg)
                 puts("Downloading: #{full_pkg}")
-                yum_helper.download(full_pkg)
+                yum_helper.download(source)
 
                 begin
                   validate_rpm(full_pkg)

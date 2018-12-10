@@ -186,7 +186,7 @@ module Simp
             %x(#{@@curl} -L --max-redirs 10 -s -o #{rpm_name} -k #{rpm})
 
             # Check what we've just downloaded
-            if !(File.exist?(rpm_name) || %x(#{@@file} #{rpm_name}).include('RPM'))
+            if !(File.exist?(rpm_name) && %x(#{@@file} #{rpm_name}).include?('RPM'))
               # Fall back on yumdownloader
               FileUtils.rm_f(rpm_name)
 
