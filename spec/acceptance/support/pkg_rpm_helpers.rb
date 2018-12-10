@@ -29,7 +29,7 @@ module Simp::BeakerHelpers::SimpRakeHelpers::PkgRpmHelpers
       'postinstall'   => 'post',
       'preuninstall'  => 'preun',
       'postuninstall' => 'postun',
-      'posttrans'     => nil,
+      'posttrans'     => 'posttrans',
     }
   end
 
@@ -37,7 +37,7 @@ module Simp::BeakerHelpers::SimpRakeHelpers::PkgRpmHelpers
   # returns a Hash of information about an RPM file's scriptlets
   def rpm_scriptlets_for( host, rpm_file )
     _labels  = scriptlet_label_map.keys.join('|')
-    rx_scriptlet_blocks = /^(?<block>(?<scriptlet>#{_labels}) scriptlet.*?(\r|\n)(?<content>.*?))(?=\n#{_labels}|\Z)/m
+    rx_scriptlet_blocks = /^(?<block>(?<scriptlet>#{_labels}) scriptlet.*?(\r|\n)(?<content>.*?))(?=\n(#{_labels}) scriptlet|\Z)/m
 
     result = on host, %Q(rpm -qp --scripts #{rpm_file})
 

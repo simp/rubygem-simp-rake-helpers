@@ -3,8 +3,8 @@
 # Purpose
 # -------
 #
-# This script is meant to be called by the %preun and %post sections of the
-# various SIMP Puppet module RPMs.
+# This script is meant to be called by the %preun and %postttrans sections of
+# the various SIMP Puppet module RPMs.
 #
 # The purpose of the script is to provide helper methods that correctly
 # scaffold the system in such a way that all SIMP Puppet Modules can be
@@ -56,279 +56,307 @@ require 'find'
 # Make sure we can find the Puppet executables
 ENV['PATH'] += ':/opt/puppetlabs/bin'
 
-# Get the Puppet configuration parameters currently in use
-def get_puppet_config
-  system_config = %x{puppet config --section master print}
+class SimpRpmHelper
+  def initialize
+    @program_name = File.basename(__FILE__)
 
-  config_hash = Hash.new
-
-  system_config.each_line do |line|
-    k,v = line.split('=')
-    config_hash[k.strip] = v.strip
+    # A list of modules that should never be touched once installed
+    @safe_modules = ['site']
   end
 
-  return config_hash
-end
-
-# A more friendly failure message
-def fail(msg)
-  $stderr.puts(msg)
-  exit(1)
-end
-
-# Determine whether the passed path is under management by git or svn
-def is_managed?(path)
-  # Short circuit if the directory is not present
-  return false unless File.directory?(path)
-
-  git = Facter::Core::Execution.which('git')
-  svn = Facter::Core::Execution.which('svn')
-
-  Dir.chdir(path) do
-    if git
-      %x{#{git} ls-files . --error-unmatch &> /dev/null}
-
-      return true if $?.success?
-    end
-
-    if svn
-      %x{#{svn} info &> /dev/null}
-
-      return true if $?.success?
+  def debug(msg)
+    # SIMP RPMs do not enable debug when they call this script.  So, if
+    # you want to debug an RPM problem with this script, comment out
+    # the line below.
+    return unless @options.debug
+    msg.split("\n").each do |line|
+      puts ">>>#{@program_name} DEBUG: #{line}"
     end
   end
 
-  return false
-end
-
-def parse_options
-  options = OpenStruct.new
-  options.config_file = '/etc/simp/adapter_config.yaml'
-  options.preserve = false
-  # These are not settable, but it's nice to have all this material in one place
-  options.puppet_user = @puppet_config['user']
-  options.puppet_group = @puppet_config['group']
-
-  all_opts = OptionParser.new do |opts|
-    opts.banner = "Usage: #{$0} [options]"
-
-    opts.separator ""
-
-    opts.on(
-      "--rpm_dir PATH",
-      "The directory into which the RPM source material is installed"
-    ) do |arg|
-      options.rpm_dir = arg.strip
-      options.module_name = File.basename(options.rpm_dir)
-    end
-
-    opts.on(
-      "--rpm_section SECTION",
-      "The section of the RPM from which the script is being called.",
-      "    Must be one of 'pre', 'post', 'preun', 'postun'"
-    ) do |arg|
-      options.rpm_section = arg.strip
-    end
-
-    opts.on(
-      "--rpm_status STATUS",
-      "The status code passed to the RPM section"
-    ) do |arg|
-      options.rpm_status = arg.strip
-    end
-
-    opts.on(
-      "-f CONFIG_FILE",
-      "--config CONFIG_FILE",
-      "The configuration file to use",
-      "    Default: #{options.config_file}"
-    ) do |arg|
-      options.config_file = arg.strip
-    end
-
-    opts.on(
-      "-p",
-      "--preserve",
-      "Preserve material in 'target_dir' that is not in 'rpm_dir'"
-    ) do |arg|
-      options.preserve = true
-    end
-
-    opts.on(
-      "-e",
-      "--enforce",
-      "If set, enforce the copy, regardless of the setting in the config file",
-      "    Default: false"
-    ) do |arg|
-      options.copy_rpm_data = true
-    end
-
-    opts.on(
-      "-t DIR",
-      "--target_dir DIR",
-      "The subdirectory of #{simp_target_dir('')}",
-      "into which to copy the materials.",
-      "    Default: #{simp_target_dir.gsub(/#{simp_target_dir('')}/,'')}"
-    ) do |arg|
-      options.target_dir = simp_target_dir(arg.strip)
-    end
-
-    opts.on(
-      "-h",
-      "--help",
-      "Help Message"
-    ) do
-      puts opts
-      exit(0)
-    end
+  def info(msg)
+    # When these messages get written out in an RPM upgrade, name of program
+    # is helpful to end user
+    puts "#{@program_name}: #{msg}"
   end
 
-  begin
-    all_opts.parse!(ARGV)
-  rescue OptionParser::ParseError => e
-    puts e
-    puts all_opts
-    exit 1
+  # Get the Puppet configuration parameters currently in use
+  def get_puppet_config
+    system_config = %x{puppet config --section master print}
+
+    config_hash = Hash.new
+
+    system_config.each_line do |line|
+      k,v = line.split('=')
+      config_hash[k.strip] = v.strip
+    end
+
+    return config_hash
   end
 
-  validate_options(options, all_opts.to_s)
+  # Determine whether the passed path is under management by git or svn
+  def is_managed?(path)
+    # Short circuit if the directory is not present
+    return false unless File.directory?(path)
 
-  return options
-end
+    git = Facter::Core::Execution.which('git')
+    svn = Facter::Core::Execution.which('svn')
 
-# Process the config, validate the entries and do some munging
-# Return an options hash
-def process_config(config_file, options=OpenStruct.new)
-  # Defaults
-  config = {
-    'target_directory' => 'auto',
-    'copy_rpm_data'    => false
-  }
+    Dir.chdir(path) do
+      if git
+        %x{#{git} ls-files . --error-unmatch &> /dev/null}
 
-  if File.exist?(config_file)
+        return true if $?.success?
+      end
+
+      if svn
+        %x{#{svn} info &> /dev/null}
+
+        return true if $?.success?
+      end
+    end
+
+    return false
+  end
+
+  def parse_options(args)
+
+    @options = OpenStruct.new
+    @options.config_file = '/etc/simp/adapter_config.yaml'
+    @options.preserve = false
+
+    all_opts = OptionParser.new do |opts|
+      opts.banner = "Usage: #{@program_name} [options]"
+
+      opts.separator ''
+
+      opts.on(
+        '--rpm_dir PATH',
+        'The directory into which the RPM source material is installed'
+      ) do |arg|
+        @options.rpm_dir = arg.strip
+        @options.module_name = File.basename(@options.rpm_dir)
+      end
+
+      opts.on(
+        '--rpm_section SECTION',
+        'The section of the RPM from which the script is being called.',
+        "    Must be one of 'pre', 'preun', 'postun', 'posttrans'"
+      ) do |arg|
+        @options.rpm_section = arg.strip
+      end
+
+      opts.on(
+        '--rpm_status STATUS',
+        'The status code passed to the RPM section'
+      ) do |arg|
+        @options.rpm_status = arg.strip
+      end
+
+      opts.on(
+        '-f CONFIG_FILE',
+        '--config CONFIG_FILE',
+        'The configuration file to use.',
+        "    Default: #{@options.config_file}"
+      ) do |arg|
+        @options.config_file = arg.strip
+      end
+
+      opts.on(
+        '-p',
+        '--preserve',
+        "Preserve material in 'target_dir' that is not in 'rpm_dir'"
+      ) do |arg|
+        @options.preserve = true
+      end
+
+      opts.on(
+        '-e',
+        '--enforce',
+        'If set, enforce the copy, regardless of the setting in the config file',
+        '    Default: false'
+      ) do |arg|
+        @options.copy_rpm_data = true
+      end
+
+      opts.on(
+        '-t DIR',
+        '--target_dir DIR',
+        "The subdirectory of #{simp_target_dir('')}",
+        'into which to copy the materials.',
+        "    Default: #{simp_target_dir.gsub(/#{simp_target_dir('')}/,'')}"
+      ) do |arg|
+        @options.target_dir = simp_target_dir(arg.strip)
+      end
+
+      opts.on(
+        '-v',
+        '--verbose',
+        'Print out debug info when processing.'
+      ) do
+        @options.debug = true
+      end
+
+      opts.on(
+        '-h',
+        '--help',
+        'Help Message'
+      ) do
+        puts opts
+        @options.help_requested = true
+      end
+    end
+
     begin
-      system_config = YAML.load_file(config_file)
-      if system_config
-        config.merge!(system_config)
+      all_opts.parse!(args)
+    rescue OptionParser::ParseError => e
+      msg = "Error: #{e}\n\n#{all_opts}"
+      raise(msg)
+    end
+
+    validate_options(all_opts.to_s)
+  end
+
+  # Process the config, validate the entries and do some munging
+  # Sets @options hash.
+  def process_config
+    # Defaults
+    config = {
+      'target_directory' => 'auto',
+      'copy_rpm_data'    => false
+    }
+
+    if File.exist?(@options.config_file)
+      begin
+        system_config = YAML.load_file(@options.config_file)
+        if system_config
+          config.merge!(system_config)
+        end
+      rescue
+        raise("Error: Config file '#{@options.config_file}' could not be processed")
       end
-    rescue
-      fail("Error: Config file '#{config_file}' could not be processed")
     end
-  end
 
-  if options.copy_rpm_data.nil?
-    options.copy_rpm_data = (config['copy_rpm_data'].to_s == 'true')
-  end
+    if @options.copy_rpm_data.nil?
+      @options.copy_rpm_data = (config['copy_rpm_data'].to_s == 'true')
+    end
 
-  if options.target_dir.nil? && config['target_directory']
-    if config['target_directory'] == 'auto'
-      options.target_dir = simp_target_dir
-    else
-      unless config['target_directory'][0].chr == '/'
-        fail("Error: 'target_directory' in '#{config_file}' must be an absolute path")
+    if @options.target_dir.nil? && config['target_directory']
+      if config['target_directory'] == 'auto'
+        @options.target_dir = simp_target_dir
+      else
+        unless config['target_directory'][0].chr == '/'
+          raise("Error: 'target_directory' in '#{@options.config_file}' must be an absolute path")
+        end
+
+        @options.target_dir = config['target_directory'].strip
       end
-
-      options.target_dir = config['target_directory'].strip
     end
   end
 
-  return options
-end
-
-def puppet_codedir
-  # Figure out where the Puppet code should go
-  # Puppet 4+
-  code_dir = @puppet_config['codedir']
-  if !code_dir || code_dir.empty?
-    code_dir = @puppet_config['confdir']
-  end
-
-  return code_dir
-end
-
-# Return the target installation directory
-def simp_target_dir(subdir=File.join('simp','modules'))
-  install_target = puppet_codedir
-
-  if install_target.empty?
-    fail('Error: Could not find a Puppet code directory for installation')
-  end
-
-  install_target = File.join(install_target,'environments', subdir)
-
-  return install_target
-end
-
-# Input Validation
-def validate_options(options, usage)
-
-  unless options.rpm_dir
-    fail("Error: 'rpm_dir' is required\n#{usage}")
-  end
-
-  unless options.rpm_status
-    fail("Error: 'rpm_status' is required\n#{usage}")
-  end
-
-  unless options.rpm_section
-    fail("Error: 'rpm_section' is required\n#{usage}")
-  end
-
-  valid_rpm_sections = ['pre','post','preun','postun']
-
-  unless valid_rpm_sections.include?(options.rpm_section)
-    fail("Error: 'rpm_section' must be one of '#{valid_rpm_sections.join("', '")}'\n#{usage}")
-  end
-
-  if (options.rpm_section == 'post') || (options.rpm_section == 'preun')
-    unless File.directory?(options.rpm_dir)
-      fail("Error: Could not find 'rpm_dir': '#{options.rpm_dir}'")
+  def puppet_codedir
+    # Figure out where the Puppet code should go
+    # Puppet 4+
+    code_dir = puppet_config['codedir']
+    if !code_dir || code_dir.empty?
+      code_dir = puppet_config['confdir']
     end
+
+    return code_dir
   end
 
-  unless options.rpm_status =~ /^\d+$/
-    fail("Error: 'rpm_status' must be an integer\n#{usage}")
+  def puppet_config
+    unless @puppet_config
+      @puppet_config = get_puppet_config
+    end
+    @puppet_config
   end
 
-  fail('Error: Could not determine puppet user') if options.puppet_user.empty?
-  fail('Error: Could not determine puppet group') if options.puppet_group.empty?
-end
 
-### Main Code
+  def puppet_group
+    puppet_config['group']
+  end
 
-@puppet_config = get_puppet_config
-options = parse_options
-options = process_config(options.config_file, options)
+  # Return the target installation directory
+  def simp_target_dir(subdir=File.join('simp','modules'))
+    install_target = puppet_codedir
 
-# A list of modules that should never be touched once installed
-safe_modules = ['site']
+    if install_target.empty?
+      raise('Error: Could not find a Puppet code directory for installation')
+    end
 
-# If the target directory is managed, we're done
-unless is_managed?(File.join(options.target_dir, options.module_name)) || !options.copy_rpm_data
+    install_target = File.join(install_target,'environments', subdir)
 
-  rsync = Facter::Core::Execution.which('rsync')
-  fail("Error: Could not find 'rsync' command!") unless rsync
+    return install_target
+  end
 
-  # A regular installation or upgrade
-  if options.rpm_section == 'post'
-    if safe_modules.include?(options.module_name)
+  # Input Validation
+  def validate_options(usage)
+    return if @options.help_requested
+
+    unless @options.rpm_dir
+      raise("Error: 'rpm_dir' is required\n#{usage}")
+    end
+
+    unless @options.rpm_status
+      raise("Error: 'rpm_status' is required\n#{usage}")
+    end
+
+    unless @options.rpm_section
+      raise("Error: 'rpm_section' is required\n#{usage}")
+    end
+
+    # We allow 'post' for backward compatibility with SIMP RPMs that use
+    # this, but copying over files in the 'post' during an upgrade is
+    # problematic.  If the old package has files that are not in the new
+    # package, these files will not be removed in the destination directory.
+    # This is because during %post, the old package files have not yet
+    # been removed from the source directory by RPM. So, the 'rsync'
+    # operation copies over the OBE files from the old package.
+    valid_rpm_sections = ['pre','post','preun','postun', 'posttrans']
+
+    unless valid_rpm_sections.include?(@options.rpm_section)
+      raise("Error: 'rpm_section' must be one of '#{valid_rpm_sections.join("', '")}'\n#{usage}")
+    end
+
+    if (@options.rpm_section == 'posttrans') || (@options.rpm_section == 'preun') || (@options.rpm_section == 'post')
+      unless File.directory?(@options.rpm_dir)
+        raise("Error: Could not find 'rpm_dir': '#{@options.rpm_dir}'")
+      end
+    end
+
+    unless @options.rpm_status =~ /^\d+$/
+      raise("Error: 'rpm_status' must be an integer\n#{usage}")
+    end
+
+  end
+
+  def handle_install
+    debug("Processing install, upgrade, or downgrade of #{@options.module_name}")
+    if @safe_modules.include?(@options.module_name)
       # Make sure that we preserve anything in the safe modules on installation
-      options.preserve = true
+      @options.preserve = true
 
-      if options.rpm_status == '2'
+      if @options.rpm_status == '2'
         # Short circuit on upgrading safe modules, just don't touch them!
-        if File.directory?(File.join(options.target_dir, options.module_name))
-          exit(0)
+        target_module_dir = File.join(@options.target_dir, @options.module_name)
+        if File.directory?(target_module_dir)
+          debug("Skipping upgrade of 'safe' module directory #{target_module_dir}")
+          return
         end
       end
     end
 
+    raise('Error: Could not determine puppet group') if puppet_group.empty?
+    rsync = Facter::Core::Execution.which('rsync')
+    raise("Error: Could not find 'rsync' command!") unless rsync
+
     # Create the directories, with the proper mode, all the way down
-    dir_paths = options.target_dir.split(File::SEPARATOR).reject(&:empty?)
+    dir_paths = @options.target_dir.split(File::SEPARATOR).reject(&:empty?)
     top_dir = File::SEPARATOR + dir_paths.shift
     unless File.directory?(top_dir)
       FileUtils.mkdir(top_dir, :mode => 0750)
-      FileUtils.chown('root', options.puppet_group, top_dir)
+      FileUtils.chown('root', puppet_group, top_dir)
     end
 
     orig_dir = Dir.pwd
@@ -336,7 +364,7 @@ unless is_managed?(File.join(options.target_dir, options.module_name)) || !optio
     dir_paths.each do |dir|
       unless File.directory?(dir)
         FileUtils.mkdir(dir, :mode => 0750)
-        FileUtils.chown('root', options.puppet_group, dir)
+        FileUtils.chown('root', puppet_group, dir)
       end
 
       Dir.chdir(dir)
@@ -345,62 +373,123 @@ unless is_managed?(File.join(options.target_dir, options.module_name)) || !optio
 
     cmd = %(#{rsync} -a --force)
 
-    if options.preserve
+    if @options.preserve
       cmd += %( --ignore-existing)
     else
-     cmd += %( --delete)
+      cmd += %( --delete)
     end
 
-    cmd += %( #{options.rpm_dir} #{options.target_dir})
+    cmd += %( --verbose) if @options.debug
+
+    cmd += %( #{@options.rpm_dir} #{@options.target_dir})
     cmd += %( 2>&1)
 
+    info("Copying '#{@options.module_name}' files into '#{@options.target_dir}'")
+    debug("Executing: #{cmd}")
     output = %x{#{cmd}}
+    debug("Output:\n#{output}")
     unless $?.success?
-      fail(%(Error: Copy of '#{options.module_name}' into '#{options.target_dir}' using '#{cmd}' failed with the following error:\n    #{output.gsub("\n","\n    ")}))
+      raise(%(Error: Copy of '#{@options.module_name}' into '#{@options.target_dir}' using '#{cmd}' failed with the following error:\n    #{output.gsub("\n","\n    ")}))
     end
 
-    FileUtils.chown_R(nil, "#{options.puppet_group}", options.target_dir)
+    FileUtils.chown_R(nil, "#{puppet_group}", @options.target_dir)
   end
 
-  # A regular uninstall or downgrade
-  # This needs to happen *before* we uninstall since we need to compare with what's on disk
-  if options.rpm_section == 'preun' && options.rpm_status == '0'
+  def handle_uninstall
+    debug("Processing uninstall of #{@options.module_name}")
     # Play it safe, this needs to have at least 'environments/simp' in it!
-    if options.target_dir.split(File::SEPARATOR).reject(&:empty?).size < 3
-      fail("Error: Not removing directory '#{options.target_dir}' for safety")
-    else
-      unless safe_modules.include?(options.module_name)
-        # Find out what we have
-        ref_list = []
-        Dir.chdir(options.rpm_dir) do
-          Find.find('.').each do |file|
-            if File.symlink?(file)
-              ref_list << file
-              Find.prune
-            end
+    if @options.target_dir.split(File::SEPARATOR).reject(&:empty?).size < 3
+      raise("Error: Not removing directory '#{@options.target_dir}' for safety")
+    end
 
-            ref_list << file
-          end
+    if @safe_modules.include?(@options.module_name)
+      target_module_dir = File.join(@options.target_dir, @options.module_name)
+      debug("Skipping removal of 'safe' module directory #{target_module_dir}")
+      return
+    end
+
+    info("Removing '#{@options.module_name}' files from '#{@options.target_dir}'")
+
+    # Find out what we have
+    ref_list = []
+    Dir.chdir(@options.rpm_dir) do
+      Find.find('.').each do |file|
+        if File.symlink?(file)
+          ref_list << file
+          Find.prune
         end
 
-        # Delete from the bottom up to clear out the directories first
-        ref_list.reverse!
-        ref_list.map{|x| x.sub!(/^./, options.module_name)}
+        ref_list << file
+      end
+    end
 
-        # Only delete items that are in the reference repo
-        Dir.chdir(options.target_dir) do
-          ref_list.each do |to_rm|
-            if File.symlink?(to_rm)
-              FileUtils.rm_f(to_rm)
-            elsif File.directory?(to_rm) && (Dir.entries(to_rm).delete_if {|dir|
-                dir == '.' || dir == '..'}.size == 0)
-              FileUtils.rmdir(to_rm)
-            elsif File.exist?(to_rm)
-              FileUtils.rm_f(to_rm)
-            end
-          end
+    # Delete from the bottom up to clear out the directories first
+    # before removing them
+    ref_list.reverse!
+    ref_list.map{|x| x.sub!(/^./, @options.module_name)}
+
+    # Only delete items that are in the reference repo
+    Dir.chdir(@options.target_dir) do
+      ref_list.each do |to_rm|
+        if File.symlink?(to_rm)
+          debug("Removing symlink #{to_rm}")
+          FileUtils.rm_f(to_rm)
+        elsif File.directory?(to_rm) && (Dir.entries(to_rm).delete_if {|dir|
+            dir == '.' || dir == '..'}.size == 0)
+          debug("Removing directory #{to_rm}")
+          FileUtils.rmdir(to_rm)
+        elsif File.exist?(to_rm)
+          debug("Removing file #{to_rm}")
+          FileUtils.rm_f(to_rm)
         end
       end
     end
   end
+
+  def run(args)
+    parse_options(args)
+    return 0 if @options.help_requested
+
+    process_config
+    debug("Running with config=#{@options.to_s}")
+
+    # If the target directory is managed, we're done
+    target_module_dir = File.join(@options.target_dir, @options.module_name)
+    unless is_managed?(target_module_dir) || !@options.copy_rpm_data
+
+      debug("Processing unmanaged target directory #{target_module_dir}")
+
+      if (@options.rpm_section == 'posttrans') || (@options.rpm_section == 'post')
+        # A regular installation, upgrade or downgrade
+        # This *should* happen in the RPM %posttrans, but we allow this to
+        # occur in the %post for backward compatibility with SIMP RPMs that
+        # erroneously try to affect a copy in the %post. (Copying over the
+        # files in the RPM %post during an upgrade/downgrade is problematic.
+        # If the old package has files that are not in the new package,
+        # these files will not yet have been removed in the source
+        # directory, and thus end up in the target directory.)
+        handle_install
+      elsif @options.rpm_section == 'preun' && @options.rpm_status == '0'
+        # A regular uninstall
+        # This needs to happen *before* RPM removes the files (%preun with
+        # status 0), since we need to compare with what's on disk to undo
+        # the copy done during the RPM install via handle_install()
+        handle_uninstall
+      end
+    end
+    return 0
+  rescue RuntimeError => e
+    $stderr.puts(e)
+    return 1
+  rescue Exception => e
+    $stderr.puts(e)
+    e.backtrace.first(10).each{|l| $stderr.puts l }
+    return 1
+  end
 end
+
+if __FILE__ == $0
+  helper = SimpRpmHelper.new
+  exit helper.run(ARGV)
+end
+

@@ -135,14 +135,58 @@ describe 'rake pkg:rpm' do
             comment 'produces RPM with a sourced CHANGELOG'
             on host, %(rpm --changelog -qp #{testpackage_rpm} | grep -q Stallman)
 
-            comment 'produces RPM with appropriate pre/post/preun/postun'
-            result = on host, %(rpm -qp --scripts #{testpackage_rpm})
-            scriptlets = result.stdout.scan( %r{^.*?scriptlet.*?/usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage.*?fi$}m )
+            comment 'produces RPM with appropriate pre/preun/postun/posttrans'
+            scriptlets = rpm_scriptlets_for(host, testpackage_rpm)
 
-            expect( scriptlets.grep( %r{\Apreinstall scriptlet.*  /usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='pre' --rpm_status=\$1}m )).not_to be_empty
-            expect( scriptlets.grep( %r{\Apostinstall scriptlet.*  /usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='post' --rpm_status=\$1}m )).not_to be_empty
-            expect( scriptlets.grep( %r{\Apreuninstall scriptlet.*  /usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='preun' --rpm_status=\$1}m )).not_to be_empty
-            expect( scriptlets.grep( %r{\Apostuninstall scriptlet.*  /usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='postun' --rpm_status=\$1}m )).not_to be_empty
+            comment '...the expected scriptlet types are present'
+            expect(scriptlets.keys.sort).to eq [
+              'preinstall',
+              'preuninstall',
+              'postuninstall',
+              'posttrans',
+            ].sort
+
+            comment '...default preinstall scriptlet'
+            expected =<<-EOM
+mkdir -p %{_localstatedir}/lib/rpm-state/simp-adapter
+touch %{_localstatedir}/lib/rpm-state/simp-adapter/rpm_status$1.testpackage
+if [ -x /usr/local/sbin/simp_rpm_helper ] ; then
+  /usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='pre' --rpm_status=$1
+fi
+            EOM
+            expect(scriptlets['preinstall'][:bare_content]).to eq( expected.strip )
+
+            comment '...default preuninstall scriptlet'
+            expected =<<-EOM
+if [ -x /usr/local/sbin/simp_rpm_helper ] ; then
+  /usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='preun' --rpm_status=$1
+fi
+            EOM
+            expect(scriptlets['preuninstall'][:bare_content]).to eq( expected.strip )
+
+            comment '...default postuninstall scriptlet'
+            expected =<<-EOM
+if [ -x /usr/local/sbin/simp_rpm_helper ] ; then
+  /usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='postun' --rpm_status=$1
+fi
+            EOM
+            expect(scriptlets['postuninstall'][:bare_content]).to eq( expected.strip )
+
+            comment '...default posttrans scriptlet'
+            expected =<<-EOM
+if [ -e %{_localstatedir}/lib/rpm-state/simp-adapter/rpm_status1.testpackage ] ; then
+  rm %{_localstatedir}/lib/rpm-state/simp-adapter/rpm_status1.testpackage
+  if [ -x /usr/local/sbin/simp_rpm_helper ] ; then
+    /usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='posttrans' --rpm_status=1
+  fi
+elif [ -e %{_localstatedir}/lib/rpm-state/simp-adapter/rpm_status2.testpackage ] ; then
+  rm %{_localstatedir}/lib/rpm-state/simp-adapter/rpm_status2.testpackage
+  if [ -x /usr/local/sbin/simp_rpm_helper ] ; then
+    /usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='posttrans' --rpm_status=2
+  fi
+fi
+            EOM
+            expect(scriptlets['posttrans'][:bare_content]).to eq( expected.strip )
           end
 
           it_should_behave_like 'an RPM generator with edge cases'

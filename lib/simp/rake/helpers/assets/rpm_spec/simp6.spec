@@ -328,10 +328,10 @@ URL:       %{lua: print(module_source)}
 BuildRoot: %{_tmppath}/%{package_name}-%{version}-%{release}-buildroot
 BuildArch: noarch
 
-Requires(pre): simp-adapter >= 0.0.1
-Requires(preun): simp-adapter >= 0.0.1
-Requires(preun): simp-adapter >= 0.0.1
-Requires(postun): simp-adapter >= 0.0.1
+Requires(pre): simp-adapter >= 0.1.1
+Requires(preun): simp-adapter >= 0.1.1
+Requires(preun): simp-adapter >= 0.1.1
+Requires(posttrans): simp-adapter >= 0.1.1
 
 %{lua: print(module_requires)}
 
@@ -485,11 +485,14 @@ mkdir -p %{buildroot}/%{prefix}
   -- This function should be called last
   --
   function declare_default_scriptlets(custom_content_table, declared_scriptlets_table)
+    local marker_dir = '%{_localstatedir}/lib/rpm-state/simp-adapter'
+    local marker_file = marker_dir..'/rpm_status$1.'..module_name
+
+
     local DEFAULT_SCRIPTLETS = {
-      ['pre']    = {upgrade = 2},
-      ['post']   = {upgrade = 2},
-      ['preun']  = {upgrade = 0},
-      ['postun'] = {upgrade = 0}
+      ['pre']    = {upgrade = 2, custom='mkdir -p '..marker_dir..'\ntouch '..marker_file..'\n'},
+      ['preun']  = {upgrade = 0, custom=''},
+      ['postun'] = {upgrade = 0, custom=''}
     }
     local rpm_dir = rpm.expand('%{prefix}/' .. module_name)
 
@@ -498,6 +501,7 @@ mkdir -p %{buildroot}/%{prefix}
         '# (default scriptlet for SIMP 6.x)\n'..
         '# when $1 = 1, this is an install\n'..
         '# when $1 = '.. data.upgrade ..', this is an upgrade\n'..
+        data.custom ..
         'if [ -x /usr/local/sbin/simp_rpm_helper ] ; then\n'..
         '  /usr/local/sbin/simp_rpm_helper --rpm_dir='..
         rpm_dir.." --rpm_section='"..name.."' --rpm_status=$1\n"..
@@ -506,6 +510,30 @@ mkdir -p %{buildroot}/%{prefix}
 
       define_custom_content(content, custom_content_table, declared_scriptlets_table)
     end
+
+    local install_marker_file = marker_dir..'/rpm_status1.'..module_name
+    local upgrade_marker_file = marker_dir..'/rpm_status2.'..module_name
+    local posttrans_content = ('%posttrans\n'..
+      '# (default scriptlet for SIMP 6.x)\n'..
+      '# Marker file is created in %pre and only exists for installs or upgrades\n'..
+      "# when marker file is prepended with 'rpm_status1.', this is an install\n"..
+      "# when marker file is prepended with 'rpm_status2.', this is an upgrade\n"..
+      'if [ -e '..install_marker_file..' ] ; then\n'..
+      '  rm '..install_marker_file..'\n'..
+      '  if [ -x /usr/local/sbin/simp_rpm_helper ] ; then\n'..
+      '    /usr/local/sbin/simp_rpm_helper --rpm_dir='..
+      rpm_dir.." --rpm_section='posttrans' --rpm_status=1\n"..
+      '  fi\n'..
+      'elif [ -e '..upgrade_marker_file..' ] ; then\n'..
+      '  rm '..upgrade_marker_file..'\n'..
+      '  if [ -x /usr/local/sbin/simp_rpm_helper ] ; then\n'..
+      '    /usr/local/sbin/simp_rpm_helper --rpm_dir='..
+      rpm_dir.." --rpm_section='posttrans' --rpm_status=2\n"..
+      '  fi\n'..
+      'fi\n\n'
+    )
+
+    define_custom_content(posttrans_content, custom_content_table, declared_scriptlets_table)
   end
 
 
