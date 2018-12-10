@@ -1,0 +1,45 @@
+CAUTION:  This refactor requires fixes to some asset Rakefiles
+
+Initial RPM Refactor TODOs
+- Make sure simp-doc RPM builds, when Rakefile is adjusted appropriately.
+- Finish documentation and unit tests of new classes in lib/simp
+- Fix broken clean targets
+- Fix namespaces
+  - All SIMP Rake tasks should be in 'simp' namespace
+  - Make sure directory structure matches namespaces and that
+    the final Rake task names make sense
+- Clean up/normalize/fix debug messages
+  - Use numeric verbosity for SIMP_PKG_verbose and propagate through
+    the code properly
+  - Remove classnames from error messages, as they will be in the
+    backtrace?
+  - Standardize 'Error' versus 'ERROR' or, better yet, make a parent
+    exception class that prepends the message with an appropriate
+    error/warn/info/debug identifier
+  - Standardize where the debug messages go.  Currently, some debug
+    messages sent to stdout and some sent to stderr
+  - Verbosity is not being carried into 'bundle exec rake pkg:rpm' call for assets.
+    May need to pass ENV variables into that call.
+- Optimize RPM queries
+  - Simp::Rpm::SpecFileInfo.changelog --> integrate changelog query into basic query
+  - Simp::Rpm::PackageInfo.signature --> integrate signature query into basic query
+- Use Simp::Utils::execute in Simp::Rpm::Builder so that we are appropriately
+  handling the case in which a system() call (and its variants) results in nil
+  instead of a status object. (Thank you Ruby for not capturing that info 
+  correctly every time....)
+- Create library with getters for ENV variables?  There is duplicate logic
+  in common.rb and the two pkg.rb files that could be shared.
+- Update changelog with list of changes and bump the version
+  appropriately
+
+Other TODOs (separate PRs)
+- Split out code in lib/simp/rake/build/*.rb into testable classes
+  and eliminate as many Rake::Task[..].invoke calls as possible
+- Rework lib/simp/rake/build Rake tasks to be the subset we really want
+- Split out R10KHelper into its own file so it can be used by others Ruby code
+- Replace the use of the massive changelog regex with smaller checks
+  so that useful error messages can be emitted!
+- Add a check for the CHANGELOG beginning with a blank line.  This
+  causes an unintelligible error messages in pkg:create_tag_changelog
+  and pkg:compare_latest_tag and is an actual error (RPM changelog will
+  be generated changelog instead of contents of CHANGELOG...)

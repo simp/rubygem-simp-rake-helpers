@@ -1,0 +1,17 @@
+%echo Generating Development GPG Key
+%echo
+%echo This key will expire on 2018-12-25
+%echo
+Key-Type: RSA
+Key-Length: 4096
+Key-Usage: sign
+Name-Real: SIMP Development
+Name-Comment: Development key 1544555907
+Name-Email: gatekeeper@simp.development.key
+Expire-Date: 2w
+Passphrase: LijQDE/oC8eF/2hw+N7lJ14Uhj6FBkzTaEEQVlx1JswJmfmAXbCH5rNB5oANNYU3CI6EuPFGEJ+gJiE6c1BePCREM5YmKbvPMUqpwuOemvbijQZz+m/u11Sk6oIlspaYMynVr1C/f1Ei2gYiSgLzeDdyPZGoaZZtB0r1aws6AN9Er3HvJd1LIkWi3Fl8Wdoy5dAGPIBfo/rrnOhFNh9P0cukWwgyqqEfPYi5Lrtl3881cFZkWo4P8DWmyr+AAz9gs3jXCh0C3TJK1Hn03l10wVu2pO8LR0bRhQX+9Hf6umTuTX0WaXB8XJ9pqeqSpBErwyJ9lmBiAnj4DrMbsVs/TFhK7mLnOl5MxCw1g5i50XASzL8+YbXsTgonYxc7u7DzLlvWbszDtNwBOSUnX1Au3iUhNdFB6hnQnCurA5flkdRcn9mRu1ZIjde02/M+dhSLaPF/IkFojs9vedbxX7+UKil2Y2sExXVQtclL0tbMKIUSLFDKwKzk/hJKp39jTsyLfzEaLosTXJZj7d7C3nBHBCI41EahEWLB7h54lilkGo3aTNPGIBDS/FFh50rU0YjczHUh1ivMqTQSyD98aFi4aGQNTtT5JI44ojcnd0ZE70TDOLoXgQSqbySK3gGZgvYqbE7ot1F5P5sAEdbF/ZfO4TPSTlE=
+%pubring pubring.gpg
+%secring secring.gpg
+# The following creates the key, so we can print "Done!" afterwards
+%commit
+%echo New GPG Development Key Created

@@ -14,7 +14,6 @@ module Simp::Rake::Build
 
     def define_tasks
       ::CLEAN.include(
-        "#{@dist_dir}/*",
         ".discinfo",
         @dvd_dir,
         "#{@build_dir}/SIMP",
@@ -26,7 +25,6 @@ module Simp::Rake::Build
       end
 
       ::CLOBBER.include(
-        @dist_dir,
         "#{@build_dir}/build_keys/dev",
         "#{@build_dir}/yum_data/*/packages"
       )

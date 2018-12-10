@@ -1,5 +1,6 @@
 require 'date'
 require 'simp/componentinfo'
+require 'simp/rpm/specfileinfo'
 require 'tmpdir'
 
 module Simp; end
@@ -7,63 +8,63 @@ module Simp; end
 # Class that provide release-related checks
 class Simp::RelChecks
 
-  # Check a component's RPM changelog using the 'rpm' command.
-  #
-  # This task will fail if 'rpm' detects any changelog problems,
-  # such as changelog entries not being in reverse chronological
-  # order.
+  CHECK_RPM_CHANGELOG_DESCRIPTION = <<-EOM
+  Check a component's RPM changelog using the 'rpm' command.
+
+  This task will fail if 'rpm' detects any changelog problems,
+  such as changelog entries not being in reverse chronological
+  order.
+  EOM
   #
   # +component_dir+:: The root directory of the component project.
-  # +spec_file+::     The RPM specfile for the component.
+  # +simp_version+::  Version of SIMP.  Used to select the LUA-based,
+  #                   RPM spec file template, when the project does
+  #                   not contain a spec file in <base_dir>/build.
   # +verbose+::       Set to 'true' if you want to see details about the
   #                   RPM command executed.
-  def self.check_rpm_changelog(component_dir, spec_file, verbose = false)
-    rpm_opts = [
-      # for modules, '_sourcedir' tells the RPM LUA code the location
-      # of the CHANGELOG and metadata.json files
-      %(-D '_sourcedir #{component_dir}'),
-      '-q',
-      '--changelog',
-      "--specfile  #{spec_file}"
-    ]
-    rpm_opts << '-v' if verbose
-
-    cmd = %(rpm #{rpm_opts.join(' ')} 2>&1)
-    puts "==== Simp::RelChecks::check_rpm_changelog: #{cmd}" if verbose
-    console = %x(#{cmd})
-    result = $?
-    if result
-      if result.exitstatus != 0
-        err_msg = [ "ERROR: Invalid changelog for #{File.basename(component_dir)}:\n" ]
-        err_msg << console.split("\n").map { |line| "   #{line}" }
-        err_msg << "\n"
-        fail(err_msg.flatten.join("\n"))
+  def self.check_rpm_changelog(component_dir, simp_version=nil, verbose = false)
+    begin
+      info = nil
+      local_specs = Dir.glob(File.join(component_dir, 'build', '*.spec'))
+      unless local_specs.empty?
+        spec_file = local_specs.first
+        if local_specs.size > 1
+         $stderr.puts "WARNING:  Multiple spec files found for #{component_dir}.  Using #{spec_file}"
+        end
+        info = Simp::Rpm::SpecFileInfo.new(spec_file, [], verbose)
+      else
+        info = Simp::Rpm::TemplateSpecFileInfo.new(component_dir, simp_version, [], verbose)
       end
-    else
-      # Ruby can return nil for spawned shells, sigh
-      fail("Unable to determine changelog for #{File.basename(component_dir)}")
+      info.changelog
+    rescue Simp::Rpm::QueryError => e
+      err_msg =  "ERROR: Invalid changelog for #{File.basename(component_dir)}:\n"
+      err_msg +=  e.message
+      fail(err_msg)
     end
   end
 
-  # Compares mission-impacting (significant) files with the latest
-  # tag and identifies the relevant files that have changed.
-  #
-  # Fails if
-  # (1) There is any version validation or changelog parsing failure
-  #     that would prevent an annotated changelog tag from being
-  #     created. (See Simp::RelCheck::create_tag_changelog)
-  # (2) A version bump is required but not recorded in both the
-  #     CHANGELOG and metadata.json files.
-  # (3) The latest version is < latest tag.
+  COMPARE_LATEST_TAG_DESCRIPTION = <<-EOM
+  Compares mission-impacting (significant) files with the latest
+  tag and identifies the relevant files that have changed.
 
-  # Changes to the following files/directories are not considered
-  # significant:
-  # - Any hidden file/directory (entry that begins with a '.')
-  # - Gemfile
-  # - Gemfile.lock
-  # - Rakefile
-  # - spec directory
-  # - doc directory
+  Fails if
+  (1) There is any version validation or changelog parsing failure
+      that would prevent a changelog for an annotated tag from being
+      created.
+  (2) A version bump is required but not recorded in both the
+      CHANGELOG and metadata.json files.
+  (3) The latest version is < latest tag.
+
+  Changes to the following files/directories are not considered
+  significant:
+  - Any hidden file/directory (entry that begins with a '.')
+  - Gemfile
+  - Gemfile.lock
+  - Rakefile
+  - spec directory
+  - doc directory
+  EOM
+  # @see Simp::RelCheck::create_tag_changelog
   #
   # +component_dir+:: The root directory of the component project.
   # +tags_source+::   The remote from which the tags for this project
@@ -107,32 +108,51 @@ class Simp::RelChecks
     end
   end
 
-  # Generate an appropriate changelog for an annotated tag from a
-  # component's CHANGELOG or RPM spec file.
-  #
-  # The changelog is only parsed up to the first entry that fails
-  # validation.
-  #
-  # Fails if any of the following occur:
-  # - The metadata.json file for a Puppet module component cannot be
-  #   parsed.
-  # - The CHANGELOG file for a Puppet module component does not exist.
-  # - The CHANGELOG entries for the latest version are malformed.
-  # - The RPM spec file for a non-Puppet module component does not exist.
-  # - More than 1 RPM spec file for a non-Puppet module component exists.
-  # - No valid changelog entries for the version specified in the
-  #   metadata.json/spec file are found.
-  # - The latest changelog version is greater than the version in the
-  #   metadata.json or the RPM spec file.
-  # - The RPM release specified in the spec file does not match the
-  #   release in a changelog entry for the version.
-  # - Any changelog entry below the first entry has a version greater
-  #   than that of the first entry.  Changelog entries must be
-  #   ordered from latest version to earliest version.
-  # - The changelog entries for the latest version are out of date
-  #   order.
-  # - The weekday for a changelog entry for the latest version
-  #   does not match the date specified.
+  CREATE_TAG_CHANGELOG_DESCRIPTION = <<-EOM
+  Generate an appropriate changelog for an annotated tag from
+  a component's CHANGELOG or RPM spec file.
+
+  The changelog text will be for the latest version and contain
+  1 or more changelog entries for that version, in reverse
+  chronological order. However, the changelog is only parsed up
+  to the first entry that fails validation.
+
+  NOTES:
+    * Changelog entries must follow the following rules:
+      - An entry must start with * and be terminated by a blank line.
+      - The first line must be of the form
+          * Wed Jul 05 2017 Author Name <author@simp.com> - 1.2.3-4
+      - The date string must be RPM compatible.
+      - Dates must be in reverse chronological order, with the
+        newest dates occurring at the top of the changelog.
+      - Both an author name and email are required.
+      - The author email must be contained in < >.
+      - The version is required and must be of the form
+              <major>.<minor>.<patch>.
+      - The version may contain a release qualifier.
+      - When the release qualifier is present, it must appear
+        at the end of the version string and be separated from
+        the version by a '-'.
+
+    * Fails if any of the following occur:
+      - The metadata.json file for a Puppet module component cannot be parsed.
+      - The CHANGELOG file for a Puppet module component does not exist.
+      - The CHANGELOG file begins with a blank line.
+      - The CHANGELOG entries for the latest version are malformed.
+      - The RPM spec file or a non-Puppet module component does not exist.
+      - More than 1 RPM spec file for a non-Puppet module component exists.
+      - No valid changelog entries for the version specified in
+        the metadata.json/spec file are found.
+      - The latest changelog version is greater than the version
+        in the metadata.json or the RPM spec file.
+      - The RPM release specified in the spec file does not match
+        the release in a changelog entry for the version.
+      - Any changelog entry below the first entry has a version
+        greater than that of the first entry.
+      - The changelog entries for all versions are out of date order.
+      - The weekday for a changelog entry for the latest version
+        does not match the date specified.
+  EOM
   #
   # +component_dir+:: The root directory of the component project.
   # +verbose+:: Whether to log non-catestrophic changelog parsing

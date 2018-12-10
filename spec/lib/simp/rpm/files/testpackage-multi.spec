@@ -1,6 +1,6 @@
 Name:           testpackage
-Version:        1
-Release:        0%{?dist}
+Version:        1.0.0
+Release:        0
 Summary:        dummy test package #2
 BuildArch:      noarch
 
@@ -8,7 +8,7 @@ License:        Apache-2.0
 URL:            http://foo.bar
 
 %description
-A dummy package used to test Simp::RPM methods
+A dummy package used to test Simp::Rpm::SpecFileInfo methods
 
 %prep
 exit 0
@@ -38,5 +38,5 @@ Documentation for the 2nd dummy package used to test Simp::RPM methods
 
 
 %changelog
-* Wed Jun 10 2015 nobody
+* Wed Jun 10 2015 nobody <nobody@someplace.com> - 1.0.0
 - some comment

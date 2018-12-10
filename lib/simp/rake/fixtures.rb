@@ -1,4 +1,5 @@
 require 'rake/tasklib'
+require 'simp/utils'
 
 module Simp; end
 module Simp::Rake
@@ -40,7 +41,7 @@ module Simp::Rake
         task :generate do
           pwd = File.expand_path(@base_dir)
           _f  = YAML.load_file(File.join(pwd,'.fixtures.yml'))
-          _l  = clean_yaml(fixtures_yml_local( _f ).to_yaml)
+          _l  = Simp::Utils::clean_yaml(fixtures_yml_local( _f ).to_yaml)
           _o  = File.join(pwd,'.fixtures.yml.local')
           File.open( _o,'w'){|f| puts _l; f.puts _l}
           puts

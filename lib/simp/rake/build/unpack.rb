@@ -1,16 +1,13 @@
 require 'ruby-progressbar'
-require 'simp/rake/build/constants'
+require 'simp/utils'
 
 module Simp; end
 module Simp::Rake; end
 module Simp::Rake::Build
 
   class Unpack < ::Rake::TaskLib
-    include Simp::Rake::Build::Constants
 
-    def initialize( base_dir )
-      init_member_vars( base_dir )
-
+    def initialize
       define_tasks
     end
 
@@ -41,7 +38,7 @@ module Simp::Rake::Build
         )
 
         iso_path   = args.iso_path
-        iso_info   = which(args.isoinfo)
+        iso_info   = Simp::Utils::which(args.isoinfo)
         targetdir  = args.targetdir
         merge      = args.merge
         version = args.version

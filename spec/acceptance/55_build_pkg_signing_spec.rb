@@ -25,7 +25,7 @@ describe 'rake pkg:signrpms' do
     opts = {}
     test__dir  = "#{build_user_homedir}/test--#{dir}"
     rpms__dir  = "#{test__dir}/test.rpms"
-    src__rpm   =  "#{build_user_host_files}/spec/lib/simp/files/testpackage-1-0.noarch.rpm"
+    src__rpm   =  "#{build_user_host_files}/spec/acceptance/files/testpackage-1-0.noarch.rpm"
     host__dirs = {}
 
     hosts.each do |host|

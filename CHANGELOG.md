@@ -1,3 +1,6 @@
+### 5.8.0 / 2018-12-11
+* Minor refactor for unit testability
+
 ### 5.7.1 / 2018-12-10
 * Fix long standing logic issues that were causing download failures
 

@@ -118,25 +118,16 @@ class Simp::ComponentInfo
       fail("More than 1 RPM spec file found: #{rpm_spec_files.join(' ')}")
     end
 
-    # Determine asset version, which we will ASSUME to be the main
-    # package version.  The RPM query, below, will return the main
-    # package followed by subpackages.
-    version_query = "rpm -q --queryformat '%{VERSION} %{RELEASE}\\n'" +
-      " --specfile #{rpm_spec_files[0]}"
+    # Determine asset version and release, which we will ASSUME to be that
+    # of the main package.  Simp::Rpm::SpecFileInfo will extract this info
+    # for all packages.
+    require 'simp/rpm/specfileinfo'
+    rpm_info = Simp::Rpm::SpecFileInfo.new(rpm_spec_files[0])
+    main_package = rpm_info.packages.first
+    @version = rpm_info.version(main_package)
+    @release = rpm_info.release(main_package)
 
-    rpm_version_list = `#{version_query} 2> /dev/null`
-    if $?.exitstatus != 0
-      fail("Could not extract version and release from #{rpm_spec_files[0]}." +
-        " To debug, execute:\n   #{version_query}")
-    end
-    @version, @release = rpm_version_list.split("\n")[0].split
-
-    changelog_query = "rpm -q --changelog --specfile #{rpm_spec_files[0]}"
-    raw_changelog = `#{changelog_query} 2> /dev/null`
-    if $?.exitstatus != 0
-      fail("Could not extract changelog from #{rpm_spec_files[0]}." +
-        " To debug, execute:\n   #{changelog_query}")
-    end
+    raw_changelog = rpm_info.changelog
     @changelog = parse_changelog(raw_changelog, latest_version_only, verbose)
   end
 

@@ -1,14 +1,14 @@
-Name:           testpackage
-Version:        1
+Name:           simp
+Version:        6.2.0
 Release:        0
-Summary:        dummy test package
+Summary:        dummy simp package for tests
 BuildArch:      noarch
 
 License:        Apache-2.0
 URL:            http://foo.bar
 
 %description
-A dummy package used to test Simp::RPM methods
+A fake simp package
 
 %prep
 exit 0

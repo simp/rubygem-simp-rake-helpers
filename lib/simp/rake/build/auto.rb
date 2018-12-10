@@ -167,11 +167,6 @@ module Simp::Rake::Build
           begin
             # For subtask mangling
             $simp6_build_dir = @distro_build_dir
-            $simp6_build_metadata = {
-              :distro  => distro,
-              :version => version,
-              :arch    => arch
-            }
 
             output_dir = args[:output_dir].sub(/^$/, File.expand_path( 'SIMP_ISO', @distro_build_dir ))
 

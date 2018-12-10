@@ -1,0 +1,20 @@
+dev                                        Development key directory created
+dev2                                       Another development key directory
+pupmod-simp-beakertest-0.0.1-0.noarch.rpm  no signature
+pupmod-simp-beakertest-0.0.1-0.rpm         Copy of pupmod-simp-beakertest-0.0.1-0.noarch.rpm
+                                           missing arch in its name
+pupmod-simp-beakertest-0.0.2-0.noarch.rpm  signed with 'dev' key
+pupmod-simp-beakertest-0.0.3-0.noarch.rpm  no signature
+pupmod-simp-testpackage_lua                Partial project to test Simp::Rpm::SpecFileInfo with
+                                           a SIMP LUA spec file.  Contains a copy of the
+                                           simp6.spec RPM spec file.
+testpackage.spec                           A simple RPM spec file
+testpackage-macros.spec                    An RPM spec file containing 'dist', 'el6', 'el7',
+                                           and 'rhel' macros found in SIMP asset spec files
+testpackage-multi.spec                     An RPM spec file containing sub-packages
+asset-multi-macros                         Asset-type project containing an RPM spec file with
+                                           sub-packages and 'dist', 'el6', 'el7', and 'rhel'
+                                           RPM macros. Used to verify can build an RPM for
+                                           target OS that is different from the builder OS.
+pupmod-simp-testpackage                    Puppet-module-type project containing metadata.json
+                                           and CHANGELOG files, but no RPM spec file.

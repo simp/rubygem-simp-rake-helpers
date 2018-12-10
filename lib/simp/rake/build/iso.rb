@@ -1,5 +1,8 @@
 require 'simp/rake'
 require 'simp/rake/build/constants'
+require 'simp/rpm/packageinfo'
+require 'simp/rpm/utils'
+require 'simp/utils'
 
 module Simp; end
 module Simp::Rake; end
@@ -55,14 +58,14 @@ module Simp::Rake::Build
                   # to wait a long time for the code to complete.
                   pkgname = File.basename(path).split('-').first
                   File.open(path,'r').each_line do |line|
-                    if encode_line(line) =~ /C\000(\S+\000)?(#{Regexp.escape(pkgname)}\S*)\000/
+                    if Simp::Utils::encode_line(line) =~ /C\000(\S+\000)?(#{Regexp.escape(pkgname)}\S*)\000/
                       pkg = $2.split(/\000/).first
                       break
                     end
                   end
                 else
                   # Proper way to obtain the RPM's package name, but WAY too slow
-                  pkg = %x{rpm -qp --qf "%{NAME}" #{path} 2>/dev/null}.chomp
+                  pkg = Simp::Rpm::PackageInfo.new(path).basename
                 end
 
                 unless exclude_pkgs.include?(pkg)
@@ -178,7 +181,7 @@ module Simp::Rake::Build
 
               mkrepo = baseosver.split('.').first == '5' ? 'createrepo -s sha -p' : 'createrepo -p'
 
-              @simp_dvd_dirs.each do |clean_dir|
+              ["SIMP","ks","Config"].each do |clean_dir|
                 if File.directory?("#{dir}/#{clean_dir}")
                   rm_rf("#{dir}/#{clean_dir}", :verbose => verbose)
                 elsif File.file?("#{dir}/#{clean_dir}")
@@ -248,7 +251,8 @@ module Simp::Rake::Build
                 end
 
                 yum_dep_rpms.each do |rpm|
-                  rpm_arch = rpm.split('.')[-2]
+
+                  rpm_arch = Simp::Rpm::Utils::get_rpm_arch(rpm)
 
                   unless File.directory?(rpm_arch)
                     mkdir(rpm_arch)

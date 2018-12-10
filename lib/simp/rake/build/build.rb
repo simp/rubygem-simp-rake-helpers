@@ -2,6 +2,8 @@ require 'bundler'
 require 'simp/yum'
 require 'simp/rake'
 require 'simp/rake/build/constants'
+require 'simp/rpm/packageinfo'
+require 'simp/utils'
 
 module Simp; end
 module Simp::Rake; end
@@ -32,7 +34,7 @@ module Simp::Rake::Build
         desc <<-EOM
         Run bundle at every level of the project.
 
-        This taks runs 'bundle' at each level of the Git subproject tree as well as the top level.
+        This task runs 'bundle' at each level of the Git subproject tree as well as the top level.
 
         The intent is to ensure that the entire development space is up to date when starting work.
 
@@ -229,7 +231,7 @@ module Simp::Rake::Build
 
             Dir.chdir(target_dir) do
               Dir.glob('packages/*.rpm').each do |pkg|
-                downloaded_packages[Simp::RPM.get_info(pkg)[:basename]] = { :rpm_name => File.basename(pkg) }
+                downloaded_packages[Simp::Rpm::PackageInfo.new(pkg, @rpm_verbose).basename] = { :rpm_name => File.basename(pkg) }
               end
             end
 
@@ -363,7 +365,7 @@ module Simp::Rake::Build
                   end
                 end
 
-                fh.puts(clean_yaml(sorted_packages.to_yaml))
+                fh.puts(Simp::Utils::clean_yaml(sorted_packages.to_yaml))
               end
 
               if unknown_package_hash.empty?
@@ -379,7 +381,7 @@ module Simp::Rake::Build
                     end
                   end
 
-                  fh.puts(clean_yaml(sorted_packages.to_yaml))
+                  fh.puts(Simp::Utils::clean_yaml(sorted_packages.to_yaml))
                 end
               end
 
@@ -416,11 +418,11 @@ module Simp::Rake::Build
               new_pkg = new_pkg_source.split('/').last
 
               Dir.chdir('packages') do
-                new_pkg_info = Simp::RPM.new(new_pkg)
+                new_pkg_info = Simp::Rpm::PackageInfo.new(new_pkg, @rpm_verbose)
 
                 # Find any old packages and move them into the 'obsolete' directory.
                 Dir.glob("#{new_pkg_info.basename}*.rpm").each do |old_pkg|
-                  old_pkg_info = Simp::RPM.new(old_pkg)
+                  old_pkg_info = Simp::Rpm::PackageInfo.new(old_pkg, @rpm_verbose)
                   # Don't obsolete yourself!
                   next unless new_pkg_info.basename == old_pkg_info.basename
 

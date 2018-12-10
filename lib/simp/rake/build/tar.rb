@@ -1,6 +1,8 @@
 #!/usr/bin/rake -T
 
 require 'simp/rake/build/constants'
+require 'simp/rpm/packageinfo'
+require 'simp/utils'
 
 module Simp; end
 module Simp::Rake; end
@@ -33,7 +35,7 @@ module Simp::Rake::Build
           simp_rpm = Dir.glob("#{@build_dir}/SIMP/RPMS/*/simp-[0-9]*.rpm").max_by {|f| File.mtime(f)}
           fail("Could not find simp main RPM in output directory!") unless simp_rpm
 
-          simp_version = Simp::RPM.new(simp_rpm).full_version
+          simp_version = Simp::Rpm::PackageInfo.new(simp_rpm, @rpm_verbose).full_version
 
           # For picking up the correct RPM template
           ENV['SIMP_BUILD_version'] ||= simp_version
@@ -104,7 +106,7 @@ module Simp::Rake::Build
 
           Parallel.map(
             target_dists,
-            :in_processes => get_cpu_limit,
+            :in_processes => @cpu_limit,
             :process => t.name
           ) do |dist|
             if $tarball_tgt
@@ -120,7 +122,7 @@ module Simp::Rake::Build
 
             mkdir_p(destdir)
 
-            Simp::RPM.copy_wo_vcs(@dvd_src,".",base_dir)
+            Simp::Utils.copy_wo_vcs(@dvd_src,".",base_dir)
 
             # Copy in the GPG Public Keys
             mkdir_p("#{destdir}/GPGKEYS")

@@ -1,5 +1,6 @@
 #!/usr/bin/rake -T
 
+require 'simp/utils'
 require 'yaml'
 
 class R10KHelper
@@ -206,7 +207,7 @@ module Simp::Rake::Build
 
           r10k_issues = Parallel.map(
             Array(r10k_helper.modules),
-            :in_processes => get_cpu_limit,
+            :in_processes => @cpu_limit,
             :progress => 'Submodule Checkout'
           ) do |mod|
             issues = []

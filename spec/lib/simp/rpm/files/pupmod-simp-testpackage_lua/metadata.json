@@ -1,0 +1,27 @@
+{
+  "name":    "simp-testpackage_lua",
+  "version": "0.0.2",
+  "author":  "SIMP Team",
+  "summary": "garbage module for testing",
+  "license": "Apache-2.0",
+  "source":  "https://github.com/simp/pupmod-simp-testpackage_lua",
+  "project_page": "https://github.com/simp/pupmod-simp-testpackage_lua",
+  "issues_url":   "https://simp-project.atlassian.net",
+  "tags": [ "simp", "beaker", "garbage" ],
+  "operatingsystem_support": [
+    {
+      "operatingsystem": "CentOS",
+      "operatingsystemrelease": [
+        "6",
+        "7"
+      ]
+    },
+    {
+      "operatingsystem": "RedHat",
+      "operatingsystemrelease": [
+        "6",
+        "7"
+      ]
+    }
+  ]
+}

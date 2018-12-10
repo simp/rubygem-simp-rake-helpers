@@ -1,5 +1,6 @@
+require 'date'
+require 'fileutils'
 require 'securerandom'
-require 'rake'
 
 module Simp
   # Ensure that a valid GPG signing key exists in a local directory
@@ -53,10 +54,10 @@ module Simp
   class LocalGpgSigningKey
     include FileUtils
 
-    # `SIMP::RPM.sign_keys` will look for a 'gengpgkey' file to
+    # `Simp::Rpm::Signer` will look for a 'gengpgkey' file to
     #   non-interactively sign packages.
     #
-    #   @see SIMP::RPM.sign_keys
+    #   @see Simp::Rpm::Signer
     GPG_GENKEY_PARAMS_FILENAME = 'gengpgkey'.freeze
 
     # @param dir  [String] path to gpg-agent / key directory
@@ -121,7 +122,10 @@ module Simp
       chmod(0o700, @dir, :verbose => @verbose)
     end
 
-    # Ensure that the gpg-agent is running with a dev key
+    # Ensure a development key is available
+    #
+    # Will generate a development key using a transient gpg-agent,
+    # if no unexpired development key already exists
     def ensure_key
       ensure_gpg_directory
 
@@ -212,8 +216,8 @@ module Simp
       puts "Generating new GPG key#{@verbose ? " under '#{@dir}'" : ''}..."
       gpg_cmd = %(GPG_AGENT_INFO=#{gpg_agent_info_str} gpg --homedir="#{@dir}")
       pipe    = @verbose ? '| tee' : '>'
-      sh %(#{gpg_cmd} --batch --gen-key #{GPG_GENKEY_PARAMS_FILENAME})
-      sh %(#{gpg_cmd} --armor --export #{@key_email} #{pipe} "#{@key_file}")
+      system(%(#{gpg_cmd} --batch --gen-key #{GPG_GENKEY_PARAMS_FILENAME}))
+      system(%(#{gpg_cmd} --armor --export #{@key_email} #{pipe} "#{@key_file}"))
     end
 
     # Return a data structure from a gpg-agent env-file formatted string.

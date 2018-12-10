@@ -260,13 +260,13 @@ describe Simp::ComponentInfo do
    it 'fails when version is missing from asset RPM spec file' do
      component_dir = File.join(files_dir, 'asset_missing_version')
      expect{ Simp::ComponentInfo.new(component_dir) }.to raise_error(
-       /Could not extract version and release from /)
+       Simp::Rpm::QueryError)
    end
 
    it 'fails when release is missing from asset RPM spec file' do
      component_dir = File.join(files_dir, 'asset_missing_release')
      expect{ Simp::ComponentInfo.new(component_dir) }.to raise_error(
-       /Could not extract version and release from /)
+       Simp::Rpm::QueryError)
    end
 
    # This has to be a case in which version and release can be read

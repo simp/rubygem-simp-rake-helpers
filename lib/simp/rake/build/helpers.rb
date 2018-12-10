@@ -11,16 +11,18 @@ class Simp::Rake::Build::Helpers
       next if rake_file == __FILE__
       require rake_file
     end
+
+    # Create the objects that define rake tasks used in building
+    # packages (RPMs, release tarball, ISO) from simp-core
     Simp::Rake::Build::Auto.new( dir )
     Simp::Rake::Build::Build.new( dir )
-    Simp::Rake::Build::Code.new( dir )
     Simp::Rake::Build::Deps.new( dir )
     Simp::Rake::Build::Iso.new( dir )
     Simp::Rake::Build::Pkg.new( dir )
-    Simp::Rake::Build::Spec.new( dir )
     Simp::Rake::Build::Tar.new( dir )
-    Simp::Rake::Build::Upload.new( dir )
-    Simp::Rake::Build::Unpack.new( dir )
+
+    # FIXME Move content of single rake task to a library function
+    Simp::Rake::Build::Unpack.new
     Simp::Rake::Build::Clean.new( dir )
   end
 end

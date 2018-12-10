@@ -32,8 +32,6 @@ end
 
 # Rake tasks for SIMP Puppet modules
 class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
-  # See https://fedoraproject.org/wiki/Packaging:Guidelines?rd=Packaging/Guidelines#Changelogs
-  CHANGELOG_ENTRY_REGEX = /^\*\s+((?:Mon|Tue|Wed|Thu|Fri|Sat|Sun) (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{1,2} \d{4})\s+(.+<.+>)(?:\s+|\s*-\s*)?(\d+\.\d+\.\d+)/
 
   def initialize( base_dir = Dir.pwd )
     @base_dir = base_dir
@@ -80,7 +78,7 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
     Simp::Rake::Fixtures.new( @base_dir )
 
     Simp::Rake::Pkg.new( @base_dir ) do | t |
-      t.clean_list << "#{t.base_dir}/spec/fixtures/hieradata/hiera.yaml"
+      t.clean_list << "#{@base_dir}/spec/fixtures/hieradata/hiera.yaml"
       t.clean_list << @temp_fixtures_path
     end
 
@@ -106,50 +104,6 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
       _file = file_path || File.join(@base_dir, 'metadata.json')
       fail "ERROR: file not found: '#{_file}'" unless File.exists? _file
       @metadata ||= JSON.parse( File.read(_file) )
-    end
-
-
-    # Generate an appropriate annotated tag entry from the modules' CHANGELOG
-    #
-    # @note this currently does not support the valid RPM `%changelog` format
-    #       that places the version number on the next line:
-    #
-    #       * Fri Mar 02 2012 Maintenance
-    #       4.0.0-2
-    #       - Improved test stubs.
-    #
-    def changelog_annotation( quiet = false, file = nil )
-      result         = ""
-      changelog_file = file || File.join(@base_dir, 'CHANGELOG')
-      module_version = metadata['version']
-      changelogs      = {}
-
-      _entry = {} # current log entry's metadata (empty unless valid entry)
-      File.read(changelog_file).each_line do |line|
-        if line =~ /^\*/
-          if CHANGELOG_ENTRY_REGEX.match(line).nil?
-             warn %Q[WARNING: invalid changelogs entry: "#{line}"] unless quiet
-             _entry = {}
-          else
-            _entry = {
-              :date    => $1,
-              :user    => $2,
-              :release => $3,
-            }
-            changelogs[_entry[:release]] ||= []
-            changelogs[_entry[:release]] << line
-            next
-          end
-        end
-
-        # Don't add anything to the annotation unless reach the next valid entry
-        changelogs[_entry[:release]] << "  #{line}" if _entry.fetch(:release, false)
-      end
-
-      fail "Did not find any changelogs entries for version #{module_version}" if changelogs[module_version].nil?
-
-      result += "\nRelease of #{module_version}\n\n"
-      result += changelogs[module_version].join
     end
 
     def custom_fixtures_hook(opts = {
@@ -260,134 +214,6 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
       end
 
       return custom_fixtures_path
-    end
-
-    desc <<-EOM
-      Generate an appropriate annotated tag entry from a CHANGELOG.
-
-      ARGS:
-        * :quiet => Set to 'true' if you want to suppress warning messages
-
-      NOTES:
-        * The entries are extracted from a match with the version from the
-          module's metadata.json
-        * If no match is found, the task will fail
-        * Changelog entries must follow the format:
-          * Wed Jul 05 2017 UserName <username@simp.com> - 1.2.3-4
-            - The entry must start with *. Any line beginning with * will be
-              interpreted as an entry.
-            - The dates must be RPM compatible, in chronological order
-            - The user email must be contained in < >
-            - The entry must be terminated by the release
-        * Any entry that does not follow the prescribed format will not be
-          annotated properly
-    EOM
-    # TODO: Hook in a query of the auto-generated specfile:
-    #   `rpm -q --specfile dist/tmp/*.spec --changelog`
-    # That will give Travis a way of warning us if the changelog
-    # will prevent the rpm from building.
-    task :changelog_annotation, [:quiet] do |t,args|
-      quiet = true if args[:quiet].to_s == 'true'
-      puts changelog_annotation( quiet )
-    end
-
-    desc <<-EOM
-    Compare to latest tag.
-      ARGS:
-        * :tags_source => Set to the remote from which the tags for this
-                      project can be fetched, e.g. 'upstream' for a
-                      forked project. Defaults to 'origin'.
-        * :ignore_owner => Execute comparison even if the project owner
-                      is not 'simp'.
-        * :verbose => Set to 'true' if you want to see detailed messages
-
-      NOTES:
-      Compares mission-impacting (significant) files with the latest
-      tag and identifies the relevant files that have changed.
-
-      Does nothing if the project owner, as specified in the
-      metadata.json file, is not 'simp'.
-
-      When mission-impacting files have changed, fails if
-      (1) Latest version cannot be extracted from the top-most
-          CHANGELOG entry.
-      (2) The latest version in the CHANGELOG (minus the release
-          qualifier) does not match the version in the metadata.json
-          file.
-      (3) A version bump is required but not recorded in both the
-          CHANGELOG and metadata.json files.
-      (4) The latest version is < latest tag.
-
-      Changes to the following files/directories are not considered
-      significant:
-      - Any hidden file/directory (entry that begins with a '.')
-      - Gemfile
-      - Gemfile.lock
-      - Rakefile
-      - spec directory
-      - doc directory
-    EOM
-    task :compare_latest_tag, [:tags_source, :ignore_owner, :verbose] do |t,args|
-      require 'json'
-
-      tags_source = args[:tags_source].nil? ? 'origin' : args[:tags_source]
-      ignore_owner = true if args[:ignore_owner].to_s == 'true'
-      verbose = true if args[:verbose].to_s == 'true'
-
-      module_version = metadata['version']
-      owner =  metadata['name'].split('-')[0]
-
-      if (owner == 'simp') or ignore_owner
-        # determine last tag
-        `git fetch -t #{tags_source} 2>/dev/null`
-        tags = `git tag -l`.split("\n")
-        puts "Available tags from #{tags_source} = #{tags}" if verbose
-        tags.delete_if { |tag| tag.include?('-') or (tag =~ /^v/) }
-
-        if tags.empty?
-          puts "No tags exist from #{tags_source}"
-        else
-          last_tag = (tags.sort { |a,b| Gem::Version.new(a) <=> Gem::Version.new(b) })[-1]
-
-          # determine mission-impacting files that have changed
-          files_changed = `git diff tags/#{last_tag} --name-only`.strip.split("\n")
-          files_changed.delete_if do |file|
-            file[0] ==  '.' or file =~ /^Gemfile/ or file == 'Rakefile' or file =~/^spec\// or file =~/^doc/
-          end
-
-          if files_changed.empty?
-            puts "  No new tag required: No significant files have changed since '#{last_tag}' tag"
-          else
-            unless ignore_owner
-              # determine latest version from CHANGELOG, which will present
-              # for all SIMP Puppet modules
-              line = IO.readlines('CHANGELOG')[0]
-              match = line.match(/^\*\s+((?:Mon|Tue|Wed|Thu|Fri|Sat|Sun) (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{2} \d{4})\s+(.+<.+>)(?:\s+|\s*-\s*)?(\d+\.\d+\.\d+)/)
-              unless match
-                fail("ERROR: Invalid CHANGELOG entry. Unable to extract version from '#{line}'")
-              end
-
-              changelog_version = match[3]
-              unless module_version == changelog_version
-                fail("ERROR: Version mismatch.  module version=#{module_version}  changelog version=#{changelog_version}")
-              end
-            end
-
-            curr_module_version = Gem::Version.new(module_version)
-            last_tag_version = Gem::Version.new(last_tag)
-
-            if curr_module_version < last_tag_version
-              fail("ERROR: Version regression. '#{module_version}' < last tag '#{last_tag}'")
-            elsif curr_module_version == last_tag_version
-              fail("ERROR: Version update beyond last tag '#{last_tag}' is required for #{files_changed.count} changed files:\n  * #{files_changed.join("\n  * ")}")
-            else
-              puts "NOTICE: New tag of version '#{module_version}' is required for #{files_changed.count} changed files:\n  * #{files_changed.join("\n  * ")}"
-            end
-          end
-        end
-      else
-        puts "  Not evaluating module owned by '#{owner}'"
-      end
     end
 
     desc "Run syntax, lint, and spec tests."

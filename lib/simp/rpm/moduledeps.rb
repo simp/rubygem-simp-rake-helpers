@@ -1,10 +1,8 @@
-class SIMPRpmDepException < StandardError; end
-class SIMPRpmDepVersionException < StandardError; end
+require 'simp/rpm/errors'
 
 module Simp; end
-module Simp::Rake; end
-module Simp::Rake::Build; end
-module Simp::Rake::Build::RpmDeps
+module Simp::Rpm; end
+module Simp::Rpm::ModuleDeps
 
   # returns array of RPM spec file 'Requires' lines derived
   # from a 'metadata.json' dependency version specification.
@@ -12,7 +10,7 @@ module Simp::Rake::Build::RpmDeps
   # +pkg+:: dependency package name
   # +dep_version+:: dependency version string from a 'metadata.json'
   #
-  # raises SIMPRpmDepVersionException if the dependency version
+  # raises Simp::Rpm::ModuleDepVersionError if the dependency version
   #   string cannot be parsed
   def self.get_version_requires(pkg, dep_version)
     requires = []
@@ -34,7 +32,7 @@ module Simp::Rake::Build::RpmDeps
         requires << "Requires: #{pkg} #{$1} #{$2}"
         requires << "Requires: #{pkg} #{$3} #{$4}" if $3
       else
-        raise SIMPRpmDepVersionException.new
+        raise Simp::Rpm::ModuleDepVersionError.new
       end
     end
     requires
@@ -81,7 +79,7 @@ module Simp::Rake::Build::RpmDeps
   # returns array of strings, each of which is a 'Requires' line
   # for use in an RPM spec file
   #
-  # raises SIMPRpmDepException if any 'metadata.json' dependency
+  # raises Simp::Rpm::ModuleDepError if any 'metadata.json' dependency
   #   version string from module_metadata cannot be parsed or a
   #   dependency specified in module_rpm_meta is not found in
   #   module_metadata
@@ -105,17 +103,17 @@ module Simp::Rake::Build::RpmDeps
 
       if dep_info.empty?
         err_msg = "Could not find #{short_names.first} dependency"
-        raise SIMPRpmDepException.new(err_msg)
+        raise Simp::Rpm::ModuleDepError.new(err_msg)
       else
         dep_version = dep_info.first['version_requirement']
       end
 
       begin
         rpm_metadata_content << get_version_requires(pkg, dep_version)
-      rescue SIMPRpmDepVersionException
+      rescue Simp::Rpm::ModuleDepVersionError
         err_msg = "Unable to parse #{short_names.first} dependency" +
           " version '#{dep_version}'"
-        raise SIMPRpmDepException.new(err_msg)
+        raise Simp::Rpm::ModuleDepError.new(err_msg)
       end
     end
     rpm_metadata_content.flatten
@@ -150,7 +148,7 @@ module Simp::Rake::Build::RpmDeps
   # returns array of strings, each of which is a 'Requires' line for
   # use in an RPM spec file
   #
-  # raises SIMPRpmDepException if any 'metadata.json' dependency
+  # raises Simp::Rpm::ModuleDepError if any 'metadata.json' dependency
   #   version string from module_metadata cannot be parsed
   #
   # +module_metadata+:: Hash containing the contents of the
@@ -166,10 +164,10 @@ module Simp::Rake::Build::RpmDeps
 
         begin
           rpm_metadata_content << get_version_requires(pkg, dep_version)
-        rescue SIMPRpmDepVersionException
+        rescue Simp::Rpm::ModuleDepVersionError
           err_msg = "Unable to parse #{dep['name']} dependency" +
             " version '#{dep_version}'"
-          raise SIMPRpmDepException.new(err_msg)
+          raise Simp::Rpm::ModuleDepError.new(err_msg)
         end
       end
     end
@@ -205,7 +203,7 @@ module Simp::Rake::Build::RpmDeps
   # Otherwise, the generated 'requires' file will contain
   # "Requires" lines for each dependency specified module_metadata.
   #
-  # raises SIMPRpmDepException if any 'metadata.json' dependency
+  # raises Simp::Rpm::ModuleDepError if any 'metadata.json' dependency
   #   version string from module_metadata cannot be parsed or a
   #   dependency specified in module_rpm_meta is not found in
   #   module_metadata
@@ -281,7 +279,7 @@ module Simp::Rake::Build::RpmDeps
   #   qualifier from the 'dependencies.yaml'; only created if release
   #   qualifier if specified in the 'dependencies.yaml'
   #
-  # raises SIMPRpmDepException if any 'metadata.json' dependency
+  # raises Simp::Rpm::ModuleDepError if any 'metadata.json' dependency
   #   version string from module_metadata cannot be parsed or a
   #   dependency specified in module_rpm_meta is not found in
   #   module_metadata
@@ -298,7 +296,7 @@ module Simp::Rake::Build::RpmDeps
 
     begin
       generate_rpm_requires_file(dir, module_metadata, module_rpm_meta)
-    rescue SIMPRpmDepException => e
+    rescue Simp::Rpm::ModuleDepError => e
       fail "#{e.message} in #{metadata_json_file}"
     end
 
