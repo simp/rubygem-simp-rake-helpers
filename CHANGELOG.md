@@ -1,3 +1,6 @@
+### 5.8.0 / 2019-02-04
+* Bump upper bound on puppet to < 7
+
 ### 5.7.1 / 2018-12-10
 * Fix long standing logic issues that were causing download failures
 
