@@ -46,7 +46,7 @@ HOSTS:
       - 'runuser build_user -l -c "curl -sSL https://raw.githubusercontent.com/rvm/rvm/stable/binscripts/rvm-installer -o rvm-installer && curl -sSL https://raw.githubusercontent.com/rvm/rvm/stable/binscripts/rvm-installer.asc -o rvm-installer.asc && gpg2 --verify rvm-installer.asc rvm-installer && bash rvm-installer"'
       - 'runuser build_user -l -c "rvm install 2.4"'
       - 'runuser build_user -l -c "rvm use --default 2.4"'
-      - 'runuser build_user -l -c "rvm all do gem install bundler "~> 1.16""'
+      - 'runuser build_user -l -c "rvm all do gem install bundler \"~> 1.16\""'
     mount_folders:
       folder1:
         host_path: ./
@@ -104,7 +104,7 @@ HOSTS:
       - 'runuser build_user -l -c "curl -sSL https://raw.githubusercontent.com/rvm/rvm/stable/binscripts/rvm-installer -o rvm-installer && curl -sSL https://raw.githubusercontent.com/rvm/rvm/stable/binscripts/rvm-installer.asc -o rvm-installer.asc && gpg2 --verify rvm-installer.asc rvm-installer && bash rvm-installer"'
       - 'runuser build_user -l -c "rvm install 2.4"'
       - 'runuser build_user -l -c "rvm use --default 2.4"'
-      - 'runuser build_user -l -c "rvm all do gem install bundler "~> 1.16""'
+      - 'runuser build_user -l -c "rvm all do gem install bundler \"~> 1.16\""'
       - 'yum install -y rpm-sign'
     mount_folders:
       folder1:
