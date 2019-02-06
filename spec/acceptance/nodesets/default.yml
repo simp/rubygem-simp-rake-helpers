@@ -39,6 +39,12 @@ HOSTS:
     docker_image_commands:
       - 'yum install -y epel-release'
       - 'ln -sf /bin/true /usr/bin/systemctl'
+      # Work around regression in beaker-docker
+      # https://github.com/puppetlabs/beaker-docker/pull/15/files
+      - 'yum install -y sudo openssh-server openssh-clients'
+      - "sed -ri 's/^#?PermitRootLogin .*/PermitRootLogin yes/' /etc/ssh/sshd_config"
+      - "sed -ri 's/^#?PasswordAuthentication .*/PasswordAuthentication yes/' /etc/ssh/sshd_config"
+      - "sed -ri 's/^#?UseDNS .*/UseDNS no/' /etc/ssh/sshd_config"
       - "echo 'Defaults:build_user !requiretty' >> /etc/sudoers"
       - "echo 'build_user ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers"
       - 'useradd -b /home -m -c "Build User" -s /bin/bash -U build_user'
