@@ -95,26 +95,27 @@ module Simp::Rake::Build
           * :key_name     => Key name to sign packages [Default: 'dev']
 
         ENV vars:
-          - SIMP_BUILD_isos           => Path to the base OS ISO images
-          - SIMP_BUILD_distro         => Distribution to build
-                                         See '#{File.join(@distro_build_dir, 'build_metadata.yaml')}'}
-          - SIMP_BUILD_prompt         => 'no' disables asking questions.
-                                         Will default to a full build and *will* erase existing artifacts.
-          - SIMP_BUILD_staging_dir    => Path to stage big build assets
-                                         [Default: './SIMP_ISO_STAGING']
-          - SIMP_BUILD_rm_staging_dir => 'no' do not forcibly remove the staging dir before starting
-          - SIMP_BUILD_overlay        => 'no' uses an existing DVD overlay if found
-          - SIMP_BUILD_force_dirty    => 'yes' tries to checks out subrepos even if dirty
-          - SIMP_BUILD_docs           => 'yes' builds & includes documentation
-          - SIMP_BUILD_checkout       => 'no' will skip the git repo checkouts
-          - SIMP_BUILD_bundle         => 'no' skips running bundle in each subrepo
-          - SIMP_BUILD_unpack         => 'no' skips the unpack section
-          - SIMP_BUILD_unpack_merge   => 'no' prevents auto-merging the unpacked DVD
-          - SIMP_BUILD_prune          => 'no' passes :prune=>false to iso:build
-          - SIMP_BUILD_iso_name       => Renames the output ISO filename [Default: false]
-          - SIMP_BUILD_iso_tag        => Appended to the output ISO's filename [Default: false]
-          - SIMP_BUILD_verbose        => 'yes' enables verbose reporting. [Default: 'no']
-          - SIMP_BUILD_signing_key    => The name of the GPG key to use to sign packages. [Default: 'dev']
+          - SIMP_BUILD_isos            => Path to the base OS ISO images
+          - SIMP_BUILD_distro          => Distribution to build
+                                          See '#{File.join(@distro_build_dir, 'build_metadata.yaml')}'}
+          - SIMP_BUILD_prompt          => 'no' disables asking questions.
+                                          Will default to a full build and *will* erase existing artifacts.
+          - SIMP_BUILD_staging_dir     => Path to stage big build assets
+                                          [Default: './SIMP_ISO_STAGING']
+          - SIMP_BUILD_rm_staging_dir  => 'no' do not forcibly remove the staging dir before starting
+          - SIMP_BUILD_overlay         => 'no' uses an existing DVD overlay if found
+          - SIMP_BUILD_force_dirty     => 'yes' tries to checks out subrepos even if dirty
+          - SIMP_BUILD_docs            => 'yes' builds & includes documentation
+          - SIMP_BUILD_checkout        => 'no' will skip the git repo checkouts
+          - SIMP_BUILD_bundle          => 'no' skips running bundle in each subrepo
+          - SIMP_BUILD_unpack          => 'no' skips the unpack section
+          - SIMP_BUILD_unpack_merge    => 'no' prevents auto-merging the unpacked DVD
+          - SIMP_BUILD_prune           => 'no' passes :prune=>false to iso:build
+          - SIMP_BUILD_iso_name        => Renames the output ISO filename [Default: false]
+          - SIMP_BUILD_iso_tag         => Appended to the output ISO's filename [Default: false]
+          - SIMP_BUILD_update_packages => Automatically update any necessary packages in the packages.yaml file [Default: false]
+          - SIMP_BUILD_verbose         => 'yes' enables verbose reporting. [Default: 'no']
+          - SIMP_BUILD_signing_key     => The name of the GPG key to use to sign packages. [Default: 'dev']
         EOM
 
         task :auto, [:iso_paths,

@@ -301,7 +301,22 @@ module Simp::Rake::Build
                   # Do we have a valid external source?
                   package_source = known_package_hash.find{|k,h| h[:rpm_name] == package_to_download}.last[:source]
                   if package_source && (package_source =~ %r(^[a-z]+://))
-                    download_rpm(package_to_download, yum_conf, package_source)
+                    begin
+                      download_rpm(package_to_download, yum_conf, package_source)
+                    rescue => e
+                      if ['yes','true'].include?(ENV['SIMP_BUILD_update_packages'])
+                        pkg_shortname = known_package_hash.find {|k,v| v[:rpm_name] == package_to_download }
+
+                        if pkg_shortname
+                          pkg_shortname = pkg_shortname.first
+                          download_rpm(pkg_shortname, yum_conf)
+                        else
+                          raise(e)
+                        end
+                      else
+                        raise(e)
+                      end
+                    end
                   else
                     # If you get here, then you'll need to have an internal mirror of the
                     # repositories in question. This covers things like private RPMs as

@@ -1,4 +1,6 @@
-### 5.8.0 / 2019-02-04
+### 5.8.0 / 2019-02-11
+* Add SIMP_BUILD_update_packages to allow users to update the packages.yaml
+* file at build time if desired.
 * Bump upper bound on puppet to < 7
 
 ### 5.7.1 / 2018-12-10
