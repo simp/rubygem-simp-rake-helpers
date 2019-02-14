@@ -324,6 +324,7 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
       - Gemfile
       - Gemfile.lock
       - Rakefile
+      - rakelib directory
       - spec directory
       - doc directory
     EOM
@@ -352,7 +353,7 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
           # determine mission-impacting files that have changed
           files_changed = `git diff tags/#{last_tag} --name-only`.strip.split("\n")
           files_changed.delete_if do |file|
-            file[0] ==  '.' or file =~ /^Gemfile/ or file == 'Rakefile' or file =~/^spec\// or file =~/^doc/
+            file[0] ==  '.' or file =~ /^Gemfile/ or file == 'Rakefile' or file =~/^spec\// or file =~/^doc/ or file =~/^rakelib/
           end
 
           if files_changed.empty?

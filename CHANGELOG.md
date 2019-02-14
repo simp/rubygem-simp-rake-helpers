@@ -1,3 +1,8 @@
+### 5.8.1 / 2019-02-14
+* Add rakelib/ to the list of non-mission files/directories
+  to exclude when comparing with the latest tag in
+  pkg:compare_latest_tag and compare_latest_tag
+
 ### 5.8.0 / 2019-02-11
 * Add SIMP_BUILD_update_packages to allow users to update the packages.yaml
 * file at build time if desired.

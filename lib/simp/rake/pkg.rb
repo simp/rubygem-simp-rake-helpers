@@ -545,6 +545,7 @@ module Simp::Rake
           - Gemfile
           - Gemfile.lock
           - Rakefile
+          - rakelib directory
           - spec directory
           - doc directory
         EOM
