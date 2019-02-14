@@ -353,7 +353,7 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
           # determine mission-impacting files that have changed
           files_changed = `git diff tags/#{last_tag} --name-only`.strip.split("\n")
           files_changed.delete_if do |file|
-            file[0] ==  '.' or file =~ /^Gemfile/ or file == 'Rakefile' or file =~/^spec\// or file =~/^doc\// or file =~/^rakelib\//
+            file[0] ==  '.' || file =~ /^Gemfile/ || file == 'Rakefile' || file =~/^spec\// || file =~/^doc\// || file =~/^rakelib\//
           end
 
           if files_changed.empty?
