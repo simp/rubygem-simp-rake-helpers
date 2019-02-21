@@ -1,12 +1,10 @@
-### 5.8.1 / 2019-02-14
-* Add rakelib/ to the list of non-mission files/directories
-  to exclude when comparing with the latest tag in
-  pkg:compare_latest_tag and compare_latest_tag
-
-### 5.8.0 / 2019-02-11
+### 5.8.0 / 2019-02-14
 * Add SIMP_BUILD_update_packages to allow users to update the packages.yaml
 * file at build time if desired.
 * Bump upper bound on puppet to < 7
+* Add rakelib/ to the list of non-mission files/directories
+  to exclude when comparing with the latest tag in
+  pkg:compare_latest_tag and compare_latest_tag
 
 ### 5.7.1 / 2018-12-10
 * Fix long standing logic issues that were causing download failures
