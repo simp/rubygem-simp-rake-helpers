@@ -9,6 +9,7 @@ gem_sources.each { |gem_source| source gem_source }
 
 gemspec
 
+gem 'ruby-progressbar'
 gem 'simp-build-helpers'
 gem 'simp-beaker-helpers'
 gem 'beaker-puppet_install_helper'
