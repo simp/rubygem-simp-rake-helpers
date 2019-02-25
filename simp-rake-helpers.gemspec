@@ -37,8 +37,9 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'pager',                   '~> 1.0'
 
   # for development
-  s.add_development_dependency 'pry',         '~> 0.0'
-  s.add_development_dependency 'pry-doc',     '~> 0.0'
+  s.add_development_dependency 'pry',              '~> 0.0'
+  s.add_development_dependency 'pry-doc',          '~> 0.0'
+  s.add_development_dependency 'ruby-progressbar', '~> 1.0'
 
   s.files = Dir[
                 'Rakefile',
