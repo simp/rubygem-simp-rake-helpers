@@ -1,3 +1,6 @@
+### 5.8.1 / 2019-04-01
+* Update the upperbound of r10k dependencies
+
 ### 5.8.0 / 2019-02-14
 * Add SIMP_BUILD_update_packages to allow users to update the packages.yaml
 * file at build time if desired.
