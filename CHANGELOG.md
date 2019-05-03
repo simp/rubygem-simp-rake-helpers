@@ -1,3 +1,7 @@
+### 5.8.2 / 2019-05-02
+* Update the list of packages to check for before building
+  the tar file.
+
 ### 5.8.1 / 2019-04-01
 * Update the upperbound of r10k runtime dependency
 

@@ -51,7 +51,9 @@ module Simp::Rake::Build
               'rubygem-simp-cli',
               'simp',
               'simp-gpgkeys',
-              'simp-rsync',
+              'simp-rsync-skeleton',
+              'simp-environment-skeleton',
+              'simp-environment-selinux-policy',
               'simp-utils'
             ]
           }
@@ -69,11 +71,6 @@ module Simp::Rake::Build
                   if Dir.glob("#{pkg}-[0-9]*.rpm").empty?
                     failures << "  * #{pkg}"
                   end
-                end
-
-                # Special case for the switch from 'simp-bootstrap' to 'simp-environment'
-                if Dir.glob('simp-bootstrap-[0-9]*.rpm').empty? && Dir.glob('simp-environment-[0-9]*.rpm').empty?
-                  failures << '  * simp-bootstrap and simp-environment'
                 end
               end
             end
