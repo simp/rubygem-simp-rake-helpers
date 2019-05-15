@@ -62,7 +62,7 @@ module Simp::Rake::Build
           else
             required_rpms['noarch'] << 'simp-rsync-skeleton'
             required_rpms['noarch'] << 'simp-environment-skeleton'
-            required_rpms['noarch'] << 'simp-environment-sselinux-policy'
+            required_rpms['noarch'] << 'simp-environment-selinux-policy'
           end
 
           rpm_dir = File.join(@build_dir,'SIMP','RPMS')

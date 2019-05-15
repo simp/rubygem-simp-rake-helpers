@@ -120,3 +120,6 @@ HOSTS:
 CONFIG:
   log_level: verbose
   type:      aio
+<% if ENV['BEAKER_PUPPET_COLLECTION'] -%>
+  puppet_collection: <%= ENV['BEAKER_PUPPET_COLLECTION'] %>
+<% end -%>
