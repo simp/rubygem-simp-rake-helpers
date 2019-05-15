@@ -92,8 +92,8 @@ describe 'rake pkg:rpm + component upgrade scenarios' do
 
     comment 'ensure the Puppet AIO is installed'
 #FIXME Should install Puppet 5
-    ENV['PUPPET_INSTALL_TYPE'] ||= 'agent'
-    ENV['PUPPET_INSTALL_VERSION'] ||= '1.10.6'
+    #ENV['PUPPET_INSTALL_TYPE'] ||= 'agent'
+    #ENV['PUPPET_INSTALL_VERSION'] ||= '1.10.6'
     run_puppet_install_helper_on(hosts)
 
     comment 'configure puppet agent to look like a Puppet server for simp_rpm_helper'
