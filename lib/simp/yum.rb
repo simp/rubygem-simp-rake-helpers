@@ -140,11 +140,17 @@ module Simp
     end
 
     def get_sources(rpm)
-      sources = %x(#{@@yumdownloader} --urls #{File.basename(rpm,'.rpm')} 2>/dev/null).split("\n").grep(%r(\.rpm$))
+      Dir.mktmpdir do |dir|
+        output = %x(#{@@yumdownloader} --urls #{File.basename(rpm,'.rpm')} 2>/dev/null).lines
+        sources = output.grep(%r(\.rpm$))
 
-      raise(Error, "No sources found for '#{rpm}'") if sources.empty?
+        unless (output.grep(/Error/).empty? || sources.empty?)
+          err_msg = "\n-- YUMDOWNLOADER ERROR --\n" + output.join("\n")
+          raise(Error, "No sources found for '#{rpm}'" + err_msg)
+        end
 
-      return sources
+        return sources
+      end
     end
 
     def get_source(rpm, arch=nil)
@@ -163,6 +169,10 @@ module Simp
     end
 
     def download(rpm, opts={:target_dir => nil})
+      rpm.strip!
+
+      downloaded_rpm_name = nil
+
       target_dir = Dir.pwd
 
       if opts[:target_dir]
@@ -176,9 +186,9 @@ module Simp
             # In case someone passed a path
             rpm_name = rpm.split(File::SEPARATOR).last
 
-            #FIXME Should really report stderr output so user can
-            # diagnose the problem
-            %x(#{@@yumdownloader} #{File.basename(rpm_name, '.rpm')} 2>/dev/null)
+            err_msg = %x(#{@@yumdownloader} #{File.basename(rpm_name, '.rpm')} 2>/dev/null)
+
+            downloaded_rpm_name = rpm_name
           else
             # If passed a URL, curl it and fall back to yumdownloader
             rpm_name = rpm.split('/').last
@@ -190,12 +200,25 @@ module Simp
               # Fall back on yumdownloader
               FileUtils.rm_f(rpm_name)
 
-              %x(#{@@yumdownloader} #{File.basename(rpm_name, '.rpm')} 2> /dev/null)
+              err_msg = %x(#{@@yumdownloader} #{File.basename(rpm_name, '.rpm')} 2>/dev/null)
             end
+
+            # We might get a filename that doesn't make sense so we need to
+            # move the file appropriately
+            rpm_info = Simp::RPM.new(rpm_name)
+
+            unless File.exist?(rpm_info.rpm_name)
+              FileUtils.mv(rpm_name, rpm_info.rpm_name)
+            end
+
+            downloaded_rpm_name = rpm_info.rpm_name
           end
 
           rpms = Dir.glob('*.rpm')
-          raise(Error, "Could not find any remote RPMs for #{rpm}") if rpms.empty?
+
+          err_msg = ''
+          err_msg = "\n-- ERROR MESSAGE --\n" + err_msg if err_msg
+          raise(Error, "Could not find any remote RPMs for #{rpm}" + err_msg) if rpms.empty?
 
           # Copy over all of the RPMs
           rpms.each do |new_rpm|
@@ -204,6 +227,8 @@ module Simp
           end
         end
       end
+
+      return downloaded_rpm_name
     end
   end
 end
