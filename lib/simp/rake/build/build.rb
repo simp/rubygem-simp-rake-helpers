@@ -157,15 +157,16 @@ module Simp::Rake::Build
             source = yum_helper.get_source(rpm) unless source
 
             Dir.chdir('packages') do
-              full_pkg = source.split('/').last
-              unless File.exist?(full_pkg)
-                puts("Downloading: #{full_pkg}")
-                yum_helper.download(source)
+              unless File.exist?(rpm)
+                puts("Downloading: #{rpm}")
+                downloaded_rpm = yum_helper.download(source)
+
+                raise(SIMPBuildException,"#{rpm} could not be downloaded") unless downloaded_rpm
 
                 begin
-                  validate_rpm(full_pkg)
+                  validate_rpm(downloaded_rpm)
                 rescue SIMPBuildException
-                  rm(full_pkg) if File.exist?(full_pkg)
+                  rm(rpm) if File.exist?(rpm)
                   raise(SIMPBuildException,"#{rpm} could not be downloaded")
                 end
               end

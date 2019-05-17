@@ -1,3 +1,6 @@
+### 5.8.3 / 2019-05-15
+* Fix the package check to handle building different versions of SIMP
+
 ### 5.8.2 / 2019-05-02
 * Update the list of packages to check for before building
   the tar file.

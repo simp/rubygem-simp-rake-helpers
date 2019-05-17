@@ -51,12 +51,19 @@ module Simp::Rake::Build
               'rubygem-simp-cli',
               'simp',
               'simp-gpgkeys',
-              'simp-rsync-skeleton',
-              'simp-environment-skeleton',
-              'simp-environment-selinux-policy',
               'simp-utils'
             ]
           }
+
+          simp_version = get_simp_version
+
+          if Gem::Version.new(simp_version) < Gem::Version.new('6.4.0')
+            required_rpms['noarch'] << 'simp-rsync'
+          else
+            required_rpms['noarch'] << 'simp-rsync-skeleton'
+            required_rpms['noarch'] << 'simp-environment-skeleton'
+            required_rpms['noarch'] << 'simp-environment-selinux-policy'
+          end
 
           rpm_dir = File.join(@build_dir,'SIMP','RPMS')
           fail("Could not find directory '#{rpm_dir}'") unless File.directory?(rpm_dir)
