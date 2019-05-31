@@ -24,7 +24,7 @@ Gem::Specification.new do |s|
   # ensure the gem is built out of versioned files
 
   s.add_runtime_dependency 'simp-beaker-helpers',     '~> 1.11'
-  s.add_runtime_dependency 'bundler',                 '~> 1.14'
+  s.add_runtime_dependency 'bundler',                 '>= 1.14', '< 3.0'
   s.add_runtime_dependency 'rake',                    '>= 10.0', '< 13.0'
   s.add_runtime_dependency 'puppet',                  '>= 3.0', '< 7.0'
   s.add_runtime_dependency 'puppet-lint',             '>= 1.0', '< 3.0'
