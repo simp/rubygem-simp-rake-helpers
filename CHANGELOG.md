@@ -1,3 +1,6 @@
+### 5.9.0 /2019-05-31
+* Increase the upper bound of the Bundler dependency to < 3.0
+
 ### 5.8.3 / 2019-05-15
 * Fix the package check to handle building different versions of SIMP
 
