@@ -616,14 +616,26 @@ protect=1
           rescue Simp::YUM::Error
           end
 
+          errmsg = []
+
           Parallel.map(
             # Allow for shell globs
             Array(@build_dirs.values).flatten.sort,
             :in_processes => 1
           ) do |dir|
-            fail("Could not find directory #{dir}") unless Dir.exist?(dir)
+            if Dir.exist?(dir)
+              begin
+                require_rebuild?(dir, yum_helper, { :verbose => true, :check_git => true, :prefix => '' })
+              rescue => e
+                errmsg << "Error: require_rebuild?(): Status check failed on '#{dir}' => #{e}"
+              end
+            else
+              errmsg << "Error: Cound not find specified build directory '#{dir}'"
+            end
+          end
 
-            require_rebuild?(dir, yum_helper, { :verbose => true, :check_git => true, :prefix => '' })
+          unless errmsg.empty?
+            fail(errmsg.join("\n"))
           end
         end
 

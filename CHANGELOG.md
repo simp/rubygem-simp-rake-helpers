@@ -1,3 +1,6 @@
+### 5.10.1 / 2019-12-03
+* Don't fail when processing items in pkg:check_published
+
 ### 5.10.0 /2019-08-30
 * Add initial linting tasks for CI configuration (simp:ci_lint and
   simp:gitlab_ci_lint).  The only checks currently being done are
@@ -16,7 +19,7 @@ Fixed 2 bugs in the SIMP Puppet module generated RPM spec files
   RPM macro was not evaluated at run time.
 * The %preun and $postun scriptlet comments were incorrect.
 
-### 5.9.0 /2019-05-31
+### 5.9.0 / 2019-05-31
 * Increase the upper bound of the Bundler dependency to < 3.0
 
 ### 5.8.3 / 2019-05-15
