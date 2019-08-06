@@ -47,13 +47,13 @@ EOM
 
     comment '...default posttrans scriptlet calls simp_rpm_helper with correct arguments'
     expected = <<EOM
-if [ -e %{_localstatedir}/lib/rpm-state/simp-adapter/rpm_status1.testpackage ] ; then
-  rm %{_localstatedir}/lib/rpm-state/simp-adapter/rpm_status1.testpackage
+if [ -e /var/lib/rpm-state/simp-adapter/rpm_status1.testpackage ] ; then
+  rm /var/lib/rpm-state/simp-adapter/rpm_status1.testpackage
   if [ -x /usr/local/sbin/simp_rpm_helper ] ; then
     /usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='posttrans' --rpm_status=1
   fi
-elif [ -e %{_localstatedir}/lib/rpm-state/simp-adapter/rpm_status2.testpackage ] ; then
-  rm %{_localstatedir}/lib/rpm-state/simp-adapter/rpm_status2.testpackage
+elif [ -e /var/lib/rpm-state/simp-adapter/rpm_status2.testpackage ] ; then
+  rm /var/lib/rpm-state/simp-adapter/rpm_status2.testpackage
   if [ -x /usr/local/sbin/simp_rpm_helper ] ; then
     /usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='posttrans' --rpm_status=2
   fi

@@ -485,22 +485,37 @@ mkdir -p %{buildroot}/%{prefix}
   -- This function should be called last
   --
   function declare_default_scriptlets(custom_content_table, declared_scriptlets_table)
-    local marker_dir = '%{_localstatedir}/lib/rpm-state/simp-adapter'
+    local marker_dir = rpm.expand('%{_localstatedir}/lib/rpm-state/simp-adapter')
     local marker_file = marker_dir..'/rpm_status$1.'..module_name
+
+    local pre_comment = (
+      '# when $1 = 1, this is an install\n'..
+      '# when $1 = 2, this is an upgrade\n'
+    )
+
+    local preun_comment = (
+      '# when $1 = 1, this is the uninstall of the previous version during an upgrade\n'..
+      '# when $1 = 0, this is the uninstall of the only version during an erase\n'
+    )
+
+    local postun_comment = (
+      '# when $1 = 1, this is the uninstall of the previous version during an upgrade\n'..
+      '# when $1 = 0, this is the uninstall of the only version during an erase\n'
+    )
 
 
     local DEFAULT_SCRIPTLETS = {
-      ['pre']    = {upgrade = 2, custom='mkdir -p '..marker_dir..'\ntouch '..marker_file..'\n'},
-      ['preun']  = {upgrade = 0, custom=''},
-      ['postun'] = {upgrade = 0, custom=''}
+      ['pre']    = {comment = pre_comment, custom='mkdir -p '..marker_dir..'\ntouch '..marker_file..'\n'},
+      ['preun']  = {comment = preun_comment, custom=''},
+      ['postun'] = {comment = postun_comment, custom=''}
     }
+
     local rpm_dir = rpm.expand('%{prefix}/' .. module_name)
 
     for name,data in pairs(DEFAULT_SCRIPTLETS) do
       local content = ('%'..name.."\n"..
         '# (default scriptlet for SIMP 6.x)\n'..
-        '# when $1 = 1, this is an install\n'..
-        '# when $1 = '.. data.upgrade ..', this is an upgrade\n'..
+        data.comment ..
         data.custom ..
         'if [ -x /usr/local/sbin/simp_rpm_helper ] ; then\n'..
         '  /usr/local/sbin/simp_rpm_helper --rpm_dir='..

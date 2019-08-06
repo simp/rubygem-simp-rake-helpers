@@ -100,6 +100,12 @@ describe 'rake pkg:rpm + component upgrade scenarios' do
               '/opt/puppetlabs/bin/puppet config --section master set confdir /opt/test/puppet/code'
 
 
+    # TODO This mock simp-adapter has old functionality that corresponds to
+    #      SIMP < 6.4.0 (i.e, a version that rsync's modules to a directory).
+    #      Once SIMP 6.4.0 is released, we may want to update it to match that
+    #      of the newer simp-adapter (i.e., the version that creates and updates
+    #      local Git repositories). The tests that assume the copy behavior will
+    #      have to be updated as well.
     comment 'build and install mock RPMs'
     mock_pkg_dir = '/home/build_user/host_files/spec/acceptance/files/mock_packages'
     on hosts, %Q[#{run_cmd} "cd #{mock_pkg_dir}; rm -rf pkg"]
@@ -142,6 +148,16 @@ describe 'rake pkg:rpm + component upgrade scenarios' do
           it 'should remove copied files on an erase' do
             on host, 'rpm -e pupmod-simp-testpackage'
             on host, 'ls /opt/test/puppet/code/testpackage', acceptable_exit_codes: [2]
+          end
+        end
+
+        context 'RPM transaction state directory' do
+          it 'should use /var/lib/rpm-state/simp-adapter for RPM state' do
+            on host, 'test -d /var/lib/rpm-state/simp-adapter'
+          end
+
+          it 'should not use /%{_localstatedir}/lib/rpm-state/simp-adapter for RPM state' do
+            on host, "test ! -d '/%{_localstatedir}/lib/rpm-state/simp-adapter'"
           end
         end
       end
