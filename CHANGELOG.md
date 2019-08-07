@@ -1,3 +1,11 @@
+### 5.9.1 /2019-08-06
+Fixed 2 bugs in the SIMP Puppet module generated RPM spec files
+* When SIMP Puppet module RPMs were installed, they created the wrong
+  state directory, '/%{_localstatedir}/lib/rpm-state/simp-adapter'.
+  This incorrect directory was created because the ``_localstatedir``
+  RPM macro was not evaluated at run time.
+* The %preun and $postun scriptlet comments were incorrect.
+
 ### 5.9.0 /2019-05-31
 * Increase the upper bound of the Bundler dependency to < 3.0
 
