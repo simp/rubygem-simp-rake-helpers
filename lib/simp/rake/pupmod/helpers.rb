@@ -86,6 +86,8 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
 
     Simp::Rake::Beaker.new( @base_dir )
 
+    Simp::Rake::Ci.new( @base_dir )
+
     desc "Run acceptance tests"
     RSpec::Core::RakeTask.new(:acceptance) do |t|
       t.pattern = 'spec/acceptance'

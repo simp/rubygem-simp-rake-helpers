@@ -1,3 +1,6 @@
+### 5.10.0 /2019-08-29
+* Add initial linting task for GitLab ci configuation
+
 ### 5.9.1 /2019-08-06
 Fixed 2 bugs in the SIMP Puppet module generated RPM spec files
 * When SIMP Puppet module RPMs were installed, they created the wrong
