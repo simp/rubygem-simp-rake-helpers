@@ -2,6 +2,7 @@ require 'puppetlabs_spec_helper/rake_tasks'
 require 'puppet/version'
 require 'puppet-syntax/tasks/puppet-syntax'
 require 'puppet-lint/tasks/puppet-lint'
+require 'simp/rake/ci'
 require 'simp/rake/pkg'
 require 'simp/rake/beaker'
 require 'parallel_tests/cli'
@@ -85,6 +86,8 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
     end
 
     Simp::Rake::Beaker.new( @base_dir )
+
+    Simp::Rake::Ci.new( @base_dir )
 
     desc "Run acceptance tests"
     RSpec::Core::RakeTask.new(:acceptance) do |t|
