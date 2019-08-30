@@ -163,14 +163,14 @@ pup5.5.10:
   <<: *pup_5_5_10
   <<: *acceptance_base
   script:
-    # ERROR:  missing suite and nodeset
+    # ERROR: missing suite and nodeset
     - 'bundle exec rake beaker:suites'
 
 pup5.5.10-fips:
   <<: *pup_5_5_10
   <<: *acceptance_base
   script:
-    # ERROR:  missing nodeset
+    # ERROR: missing nodeset
     - 'BEAKER_fips=yes bundle exec rake beaker:suites[default]'
 
 pup5.5.10-oel:

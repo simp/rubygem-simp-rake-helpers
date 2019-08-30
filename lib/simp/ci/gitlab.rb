@@ -3,10 +3,11 @@ module Simp::Ci; end
 
 # Class that provides GitLab-CI-related methods
 class Simp::Ci::Gitlab
+
   # incorrectly configured GitLab job
   class JobError < StandardError ; end
 
-  # @param component_dir The root directory of the component project.
+  # @param component_dir Root directory of the component project
   def initialize(component_dir)
     @component_dir = component_dir
     @acceptance_dir = File.join(@component_dir, 'spec', 'acceptance')
@@ -17,6 +18,7 @@ class Simp::Ci::Gitlab
     @component = File.basename(component_dir)
   end
 
+  # @return true when config is the hash for an acceptance test job
   def acceptance_job?(config)
     config.is_a?(Hash) &&
     config.has_key?('script') &&
@@ -44,16 +46,20 @@ class Simp::Ci::Gitlab
     tests_found
   end
 
-  # @return path to a suite's nodeset YAML file when the nodeset
-  # exists or nil otherwise
+  # @return path to a suite's nodeset YAML file if it exists or nil otherwise
+  #
+  # If the suite has no 'nodesets' directory, it will search for the
+  # nodeset YAML in the global nodeset directory.
+  #
   def find_nodeset_yaml(suite, nodeset)
-    suite_dir = File.join(@suites_dir, suite)
-    nodeset_yml = File.join(suite_dir, 'nodesets', "#{nodeset}.yml")
-    unless File.exist?(nodeset_yml)
+    nodeset_yml = nil
+    suite_nodesets_dir = File.join(@suites_dir, suite, 'nodesets')
+    if Dir.exist?(suite_nodesets_dir)
+      nodeset_yml = File.join(suite_nodesets_dir, "#{nodeset}.yml")
+      nodeset_yml = nil unless File.exist?(nodeset_yml)
+    else
       nodeset_yml = File.join(@acceptance_dir, 'nodesets', "#{nodeset}.yml")
-      unless File.exist?(nodeset_yml)
-        nodeset_yml = nil
-      end
+      nodeset_yml = nil unless File.exist?(nodeset_yml)
     end
     nodeset_yml
   end
@@ -63,10 +69,9 @@ class Simp::Ci::Gitlab
   # Verify each acceptance test job specifies both a valid suite and
   # a valid nodeset
   #
-  # This task will fail under the following conditions
+  # Verification will fail under the following conditions
   # (1) an acceptance test job is missing the suite or nodeset
   # (2) an acceptance test job contains an invalid suite or nodeset
-  #
   #
   def validate_acceptance_test_jobs
     gitlab_config_file = File.join(@component_dir, '.gitlab-ci.yml')
