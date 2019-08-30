@@ -19,7 +19,7 @@ module Simp::Rake
         desc 'Validate GitLab CI configuration'
         task :gitlab_ci_lint do
           # only validation so far is acceptance test job config
-          Simp::Ci::Gitlab.new(@base_dir).validate_acceptance_tests
+          Simp::Ci::Gitlab.new(@base_dir).validate_acceptance_test_jobs
         end
 
       end
