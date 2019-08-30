@@ -78,13 +78,13 @@ describe Simp::Ci::Gitlab do
         to_not raise_error
     end
 
-=begin
     it 'fails when an acceptance job is missing suite and nodeset' do
       proj_dir = File.join(files_dir, 'job_missing_suite_and_nodeset')
       expect{ Simp::Ci::Gitlab.new(proj_dir).validate_acceptance_test_jobs }.
-        to raise_error(Simp::Ci::Gitlab::JobError)
+        to raise_error(Simp::Ci::Gitlab::JobError, /missing suite and nodeset/)
     end
 
+=begin
     it 'fails when an acceptance job is missing nodeset' do
       proj_dir = File.join(files_dir, 'job_missing_nodeset')
       expect{ Simp::Ci::Gitlab.new(proj_dir).validate_acceptance_test_jobs }.

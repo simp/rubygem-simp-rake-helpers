@@ -50,7 +50,6 @@ class Simp::Ci::Gitlab
   #
   def validate_acceptance_test_jobs
     gitlab_config_file = File.join(@component_dir, '.gitlab-ci.yml')
-    has_tests = acceptance_tests?
     unless File.exist?(gitlab_config_file)
       if acceptance_tests?
         puts "WARNING:  #{@component} has acceptance tests but no .gitlab-ci.yml"
