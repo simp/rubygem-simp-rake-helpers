@@ -163,6 +163,5 @@ pup5.5.10:
   <<: *pup_5_5_10
   <<: *acceptance_base
   script:
-    # ERROR: invalid nodeset
-    - 'bundle exec rake beaker:suites[default,oops_nodeset]'
-
+    # ERROR: missing nodeset
+    - 'bundle exec rake beaker:suites[default]'

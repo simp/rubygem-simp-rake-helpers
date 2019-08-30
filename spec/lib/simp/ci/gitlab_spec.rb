@@ -78,37 +78,43 @@ describe Simp::Ci::Gitlab do
         to_not raise_error
     end
 
+    it 'succeeds when acceptance tests for multiple suites/nodesets are correctly specified' do
+      proj_dir = File.join(files_dir, 'multiple_valid_jobs')
+      expect{ Simp::Ci::Gitlab.new(proj_dir).validate_acceptance_test_jobs }.
+        to_not raise_error
+    end
+
     it 'fails when an acceptance job is missing suite and nodeset' do
       proj_dir = File.join(files_dir, 'job_missing_suite_and_nodeset')
       expect{ Simp::Ci::Gitlab.new(proj_dir).validate_acceptance_test_jobs }.
         to raise_error(Simp::Ci::Gitlab::JobError, /missing suite and nodeset/)
     end
 
-=begin
     it 'fails when an acceptance job is missing nodeset' do
       proj_dir = File.join(files_dir, 'job_missing_nodeset')
       expect{ Simp::Ci::Gitlab.new(proj_dir).validate_acceptance_test_jobs }.
-        to raise_error(Simp::Ci::Gitlab::JobError)
+        to raise_error(Simp::Ci::Gitlab::JobError, /missing nodeset/)
     end
 
     it 'fails when an acceptance job has invalid suite' do
       proj_dir = File.join(files_dir, 'job_invalid_suite')
       expect{ Simp::Ci::Gitlab.new(proj_dir).validate_acceptance_test_jobs }.
-        to raise_error(Simp::Ci::Gitlab::JobError)
+        to raise_error(Simp::Ci::Gitlab::JobError, /uses invalid suite 'oops_suite'/)
     end
 
     it 'fails when an acceptance job has invalid nodeset' do
       proj_dir = File.join(files_dir, 'job_invalid_nodeset')
       expect{ Simp::Ci::Gitlab.new(proj_dir).validate_acceptance_test_jobs }.
-        to raise_error(Simp::Ci::Gitlab::JobError)
+        to raise_error(Simp::Ci::Gitlab::JobError, /uses invalid nodeset 'oops_nodeset'/)
     end
 
     it 'fails when an acceptance job has nodeset with a broken link' do
       proj_dir = File.join(files_dir, 'job_broken_link_nodeset')
       expect{ Simp::Ci::Gitlab.new(proj_dir).validate_acceptance_test_jobs }.
-        to raise_error(Simp::Ci::Gitlab::JobError)
+        to raise_error(Simp::Ci::Gitlab::JobError, /uses invalid nodeset 'nodeset_broken_link'/)
     end
 
+=begin
     it 'reports all job failures' do
       proj_dir = File.join(files_dir, 'multiple_invalid_jobs')
       expect{ Simp::Ci::Gitlab.new(proj_dir).validate_acceptance_test_jobs }.

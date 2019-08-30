@@ -52,6 +52,7 @@ class Simp::Ci::Gitlab
     gitlab_config_file = File.join(@component_dir, '.gitlab-ci.yml')
     unless File.exist?(gitlab_config_file)
       if acceptance_tests?
+        # can't assume this is a failure, so just warn
         puts "WARNING:  #{@component} has acceptance tests but no .gitlab-ci.yml"
       end
       return
@@ -75,7 +76,10 @@ class Simp::Ci::Gitlab
           suite_dir = File.join(@suites_dir, suite)
           unless Dir.exist?(suite_dir)
             failures << "#{@component} job '#{key}' uses invalid suite '#{suite}': '#{line}'"
+            next
           end
+
+          #TODO check for suites that have no tests?
 
           if nodeset.nil?
             failures << "#{@component} job '#{key}' missing nodeset: '#{line}'"
