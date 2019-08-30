@@ -10,10 +10,12 @@ describe Simp::Ci::Gitlab do
       expect( Simp::Ci::Gitlab.new(proj_dir).acceptance_tests? ).to be true
     end
 
-=begin
     it 'returns true when acceptance test with implied global nodesets exists' do
+      proj_dir = File.join(files_dir, 'valid_job_global_nodeset')
+      expect( Simp::Ci::Gitlab.new(proj_dir).acceptance_tests? ).to be true
     end
 
+=begin
     it 'returns false when acceptance test dir does not exists' do
     end
 
@@ -51,20 +53,23 @@ describe Simp::Ci::Gitlab do
     it 'succeeds when acceptance test with nodeset link is correctly specified' do
       proj_dir = File.join(files_dir, 'valid_job_nodeset_link')
       expect{ Simp::Ci::Gitlab.new(proj_dir).validate_acceptance_test_jobs }.
-        to_not raise_error(Simp::Ci::Gitlab::JobError)
+        to_not raise_error
     end
 
     it 'succeeds when acceptance test with nodeset dir link is correctly specified' do
       proj_dir = File.join(files_dir, 'valid_job_nodeset_dir_link')
       expect{ Simp::Ci::Gitlab.new(proj_dir).validate_acceptance_test_jobs }.
-        to_not raise_error(Simp::Ci::Gitlab::JobError)
+        to_not raise_error
     end
+=end
 
     it 'succeeds when acceptance test with implied global nodeset is correctly specified' do
       proj_dir = File.join(files_dir, 'valid_job_global_nodeset')
       expect{ Simp::Ci::Gitlab.new(proj_dir).validate_acceptance_test_jobs }.
+        to_not raise_error
     end
 
+=begin
     it 'fails when an acceptance job is missing suite and nodeset' do
       proj_dir = File.join(files_dir, 'job_missing_suite_and_nodeset')
       expect{ Simp::Ci::Gitlab.new(proj_dir).validate_acceptance_test_jobs }.
