@@ -1,6 +1,6 @@
 ### 5.10.0 /2019-08-30
 * Add initial linting tasks for CI configuation (simp:ci_lint and
-  simp_gitlab_ci_lint).  The only checks currently being done are
+  simp:gitlab_ci_lint).  The only checks currently being done are
   that each acceptance test GitLab job fully specifies the suite and
   nodeset to be used and that the suite and nodeset exists.
 
