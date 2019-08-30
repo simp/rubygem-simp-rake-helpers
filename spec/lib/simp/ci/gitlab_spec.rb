@@ -15,10 +15,12 @@ describe Simp::Ci::Gitlab do
       expect( Simp::Ci::Gitlab.new(proj_dir).acceptance_tests? ).to be true
     end
 
-=begin
     it 'returns false when acceptance test dir does not exists' do
+      proj_dir = File.join(files_dir, 'no_acceptance_tests')
+      expect( Simp::Ci::Gitlab.new(proj_dir).acceptance_tests? ).to be false
     end
 
+=begin
     it 'returns false when only global nodesets exists' do
     end
 
@@ -33,15 +35,15 @@ describe Simp::Ci::Gitlab do
     it 'succeeds when no .gitlab-ci.yml file exists' do
       proj_dir = File.join(files_dir, 'no_gitlab_config')
       expect{ Simp::Ci::Gitlab.new(proj_dir).validate_acceptance_test_jobs }.
-        to_not raise_error(Simp::Ci::Gitlab::JobError)
-    end
-
-    it 'succeeds when no acceptance tests are specified in the .gitlab-ci.yml file' do
-      proj_dir = File.join(files_dir, 'no_acceptance_jobs')
-      expect{ Simp::Ci::Gitlab.new(proj_dir).validate_acceptance_test_jobs }.
-        to_not raise_error(Simp::Ci::Gitlab::JobError)
+        to_not raise_error
     end
 =end
+
+    it 'succeeds when no acceptance tests are specified in the .gitlab-ci.yml file' do
+      proj_dir = File.join(files_dir, 'no_acceptance_tests')
+      expect{ Simp::Ci::Gitlab.new(proj_dir).validate_acceptance_test_jobs }.
+        to_not raise_error
+    end
 
     it 'succeeds when acceptance test with suite-specific nodeset is correctly specified' do
       proj_dir = File.join(files_dir, 'valid_job_suite_nodeset')
