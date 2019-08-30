@@ -1,5 +1,8 @@
-### 5.10.0 /2019-08-29
-* Add initial linting task for GitLab ci configuation
+### 5.10.0 /2019-08-30
+* Add initial linting tasks for CI configuation (simp:ci_lint and
+  simp_gitlab_ci_lint).  The only checks currently being done are
+  that each acceptance test GitLab job fully specifies the suite and
+  nodeset to be used and that the suite and nodeset exists.
 
 ### 5.9.1 /2019-08-06
 Fixed 2 bugs in the SIMP Puppet module generated RPM spec files
