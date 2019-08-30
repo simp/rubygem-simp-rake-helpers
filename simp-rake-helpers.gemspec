@@ -54,4 +54,7 @@ Gem::Specification.new do |s|
                 '.rspec',
                 '.travis.yml',
                ] & `git ls-files -z .`.split("\0")
+
+   # reject broken links used in testing
+  s.files.reject! { |file| file.include?('spec/') && !File.exist?(file) }
 end
