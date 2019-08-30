@@ -50,6 +50,7 @@ class Simp::Ci::Gitlab
   #
   def validate_acceptance_test_jobs
     gitlab_config_file = File.join(@component_dir, '.gitlab-ci.yml')
+    has_tests = acceptance_tests?
     unless File.exist?(gitlab_config_file)
       if acceptance_tests?
         puts "WARNING:  #{@component} has acceptance tests but no .gitlab-ci.yml"
@@ -81,8 +82,12 @@ class Simp::Ci::Gitlab
             failures << "#{@component} job '#{key}' missing nodeset: '#{line}'"
           else
             nodeset_yml = File.join(suite_dir, 'nodesets', "#{nodeset}.yml")
+#puts "checking for #{nodeset_yml}"
+#puts `ls -l #{nodeset_yml}`
+#puts "File.exist? = #{File.exist?(nodeset_yml)}"
             unless File.exist?(nodeset_yml)
               nodeset_yml = File.join(@acceptance_dir, 'nodesets', "#{nodeset}.yml")
+#puts "checking for #{nodeset_yml}"
               unless File.exist?(nodeset_yml)
                 nodeset_yml = nil
               end

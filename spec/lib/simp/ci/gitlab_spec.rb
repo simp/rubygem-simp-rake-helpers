@@ -20,24 +20,33 @@ describe Simp::Ci::Gitlab do
       expect( Simp::Ci::Gitlab.new(proj_dir).acceptance_tests? ).to be false
     end
 
-=begin
     it 'returns false when only global nodesets exists' do
+      proj_dir = File.join(files_dir, 'global_nodesets_only')
+      expect( Simp::Ci::Gitlab.new(proj_dir).acceptance_tests? ).to be false
     end
 
     it 'returns false when only acceptance test suite skeleton exists' do
+      proj_dir = File.join(files_dir, 'suite_skeleton_only')
+      expect( Simp::Ci::Gitlab.new(proj_dir).acceptance_tests? ).to be false
     end
-=end
 
   end
 
   describe '#validate_acceptance_test_jobs' do
-=begin
-    it 'succeeds when no .gitlab-ci.yml file exists' do
-      proj_dir = File.join(files_dir, 'no_gitlab_config')
+    it 'succeeds when no .gitlab-ci.yml file exists and no tests exist' do
+      proj_dir = File.join(files_dir, 'no_gitlab_config_without_tests')
       expect{ Simp::Ci::Gitlab.new(proj_dir).validate_acceptance_test_jobs }.
         to_not raise_error
     end
-=end
+
+    it 'succeeds but warns when no .gitlab-ci.yml file exists but tests exist' do
+      proj_dir = File.join(files_dir, 'no_gitlab_config_with_tests')
+      validator = Simp::Ci::Gitlab.new(proj_dir)
+      expect{ validator.validate_acceptance_test_jobs }.
+        to_not raise_error
+      expect{ validator.validate_acceptance_test_jobs }.
+        to output(/has acceptance tests but no \.gitlab\-ci\.yml/).to_stdout
+    end
 
     it 'succeeds when no acceptance tests are specified in the .gitlab-ci.yml file' do
       proj_dir = File.join(files_dir, 'no_acceptance_tests')
@@ -51,7 +60,6 @@ describe Simp::Ci::Gitlab do
         to_not raise_error
     end
 
-=begin
     it 'succeeds when acceptance test with nodeset link is correctly specified' do
       proj_dir = File.join(files_dir, 'valid_job_nodeset_link')
       expect{ Simp::Ci::Gitlab.new(proj_dir).validate_acceptance_test_jobs }.
@@ -63,7 +71,6 @@ describe Simp::Ci::Gitlab do
       expect{ Simp::Ci::Gitlab.new(proj_dir).validate_acceptance_test_jobs }.
         to_not raise_error
     end
-=end
 
     it 'succeeds when acceptance test with implied global nodeset is correctly specified' do
       proj_dir = File.join(files_dir, 'valid_job_global_nodeset')
