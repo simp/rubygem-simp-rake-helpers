@@ -17,6 +17,12 @@ class Simp::Ci::Gitlab
     @component = File.basename(component_dir)
   end
 
+  def acceptance_job?(config)
+    config.is_a?(Hash) &&
+    config.has_key?('script') &&
+    (config.has_key?('stage') && (config['stage'] == 'acceptance'))
+  end
+
   # @return whether the project has any suite-based acceptance tests
   #
   def acceptance_tests?
@@ -36,6 +42,20 @@ class Simp::Ci::Gitlab
       end
     end
     tests_found
+  end
+
+  # @return path to a suite's nodeset YAML file when the nodeset
+  # exists or nil otherwise
+  def find_nodeset_yaml(suite, nodeset)
+    suite_dir = File.join(@suites_dir, suite)
+    nodeset_yml = File.join(suite_dir, 'nodesets', "#{nodeset}.yml")
+    unless File.exist?(nodeset_yml)
+      nodeset_yml = File.join(@acceptance_dir, 'nodesets', "#{nodeset}.yml")
+      unless File.exist?(nodeset_yml)
+        nodeset_yml = nil
+      end
+    end
+    nodeset_yml
   end
 
   # Validate GitLab acceptance test job specifications
@@ -60,45 +80,22 @@ class Simp::Ci::Gitlab
 
     failures = []
     gitlab_yaml = YAML.load(File.read(gitlab_config_file))
-    gitlab_yaml.each do |key,value|
-      next unless (value.is_a?(Hash) && value.has_key?('script'))
-      next unless (value.has_key?('stage') && (value['stage'] == 'acceptance'))
+    gitlab_yaml.each do |key, value|
+      next unless acceptance_job?(value)
 
       value['script'].each do |line|
         next unless line.include? 'beaker:suites'
-#puts "Processing #{line}"
         if line.include?('[')
           match = line.match(/beaker:suites\[([\w\-_]*)(,([\w\-_]*))?\]/)
           suite = match[1]
           nodeset = match[3]
-#puts "suite = #{suite}, nodeset = #{nodeset}"
 
-          suite_dir = File.join(@suites_dir, suite)
-          unless Dir.exist?(suite_dir)
+          if ! valid_suite?(suite)
             failures << "#{@component} job '#{key}' uses invalid suite '#{suite}': '#{line}'"
-            next
-          end
-
-          #TODO check for suites that have no tests?
-
-          if nodeset.nil?
+          elsif nodeset.nil?
             failures << "#{@component} job '#{key}' missing nodeset: '#{line}'"
-          else
-            nodeset_yml = File.join(suite_dir, 'nodesets', "#{nodeset}.yml")
-#puts "checking for #{nodeset_yml}"
-#puts `ls -l #{nodeset_yml}`
-#puts "File.exist? = #{File.exist?(nodeset_yml)}"
-            unless File.exist?(nodeset_yml)
-              nodeset_yml = File.join(@acceptance_dir, 'nodesets', "#{nodeset}.yml")
-#puts "checking for #{nodeset_yml}"
-              unless File.exist?(nodeset_yml)
-                nodeset_yml = nil
-              end
-            end
-
-            unless nodeset_yml
-              failures << "#{@component} job '#{key}' uses invalid nodeset '#{nodeset}': '#{line}'"
-            end
+          elsif ! find_nodeset_yaml(suite, nodeset)
+            failures << "#{@component} job '#{key}' uses invalid nodeset '#{nodeset}': '#{line}'"
           end
         else
           failures <<  "#{@component} job '#{key}' missing suite and nodeset: '#{line}'"
@@ -111,6 +108,12 @@ class Simp::Ci::Gitlab
       msg = "Invalid GitLab acceptance test config:#{separator}#{failures.join(separator)}"
       raise JobError.new(msg)
     end
+  end
+
+  def valid_suite?(suite)
+    suite_dir = File.join(@suites_dir, suite)
+    #TODO check for suites that have no tests?
+    return Dir.exist?(suite_dir)
   end
 
 end

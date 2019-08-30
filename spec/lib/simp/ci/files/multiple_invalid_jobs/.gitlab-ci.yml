@@ -163,19 +163,22 @@ pup5.5.10:
   <<: *pup_5_5_10
   <<: *acceptance_base
   script:
-    - 'bundle exec rake beaker:suites[default,default]'
+    # ERROR:  missing suite and nodeset
+    - 'bundle exec rake beaker:suites'
 
 pup5.5.10-fips:
   <<: *pup_5_5_10
   <<: *acceptance_base
   script:
-    - 'BEAKER_fips=yes bundle exec rake beaker:suites[default,default]'
+    # ERROR:  missing nodeset
+    - 'BEAKER_fips=yes bundle exec rake beaker:suites[default]'
 
 pup5.5.10-oel:
   <<: *pup_5_5_10
   <<: *acceptance_base
   script:
-    - 'bundle exec rake beaker:suites[default,oel]'
+    # ERROR: non-existent nodeset
+    - 'bundle exec rake beaker:suites[default,oel-x86_64]'
 
 pup5.5.10-oel-fips:
   <<: *pup_5_5_10
@@ -202,6 +205,14 @@ pup5.5.10-feature_2-fips:
   <<: *acceptance_base
   script:
     - 'BEAKER_fips=yes bundle exec rake beaker:suites[feature_2,default]'
+
+pup5.5.10-feature_3-oel:
+  <<: *pup_5_5_10
+  <<: *acceptance_base
+  <<: *only_with_SIMP_FULL_MATRIX
+  script:
+    # ERROR: non-existent suite
+    - 'bundle exec rake beaker:suites[feature_3,oel]'
 
 pup6:
   <<: *pup_6

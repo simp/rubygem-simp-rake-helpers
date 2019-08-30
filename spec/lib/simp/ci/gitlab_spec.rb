@@ -114,13 +114,18 @@ describe Simp::Ci::Gitlab do
         to raise_error(Simp::Ci::Gitlab::JobError, /uses invalid nodeset 'nodeset_broken_link'/)
     end
 
-=begin
     it 'reports all job failures' do
       proj_dir = File.join(files_dir, 'multiple_invalid_jobs')
+      expected_failures = <<-EOF
+Invalid GitLab acceptance test config:
+   multiple_invalid_jobs job 'pup5.5.10' missing suite and nodeset: 'bundle exec rake beaker:suites'
+   multiple_invalid_jobs job 'pup5.5.10-fips' missing nodeset: 'BEAKER_fips=yes bundle exec rake beaker:suites[default]'
+   multiple_invalid_jobs job 'pup5.5.10-oel' uses invalid nodeset 'oel-x86_64': 'bundle exec rake beaker:suites[default,oel-x86_64]'
+   multiple_invalid_jobs job 'pup5.5.10-feature_3-oel' uses invalid suite 'feature_3': 'bundle exec rake beaker:suites[feature_3,oel]'
+      EOF
       expect{ Simp::Ci::Gitlab.new(proj_dir).validate_acceptance_test_jobs }.
-        to raise_error(Simp::Ci::Gitlab::JobError)
+        to raise_error(Simp::Ci::Gitlab::JobError, /#{Regexp.escape(expected_failures.strip)}/)
     end
-=end
   end
 
 end
