@@ -65,10 +65,12 @@ class Simp::Ci::Gitlab
 
       value['script'].each do |line|
         next unless line.include? 'beaker:suites'
+#puts "Processing #{line}"
         if line.include?('[')
           match = line.match(/beaker:suites\[([\w\-_]*)(,([\w\-_]*))?\]/)
           suite = match[1]
           nodeset = match[3]
+#puts "suite = #{suite}, nodeset = #{nodeset}"
 
           suite_dir = File.join(@suites_dir, suite)
           unless Dir.exist?(suite_dir)
@@ -78,7 +80,7 @@ class Simp::Ci::Gitlab
           if nodeset.nil?
             failures << "#{@component} job '#{key}' missing nodeset: '#{line}'"
           else
-            nodeset_yml = File.join(suite_dir, "#{nodeset}.yml")
+            nodeset_yml = File.join(suite_dir, 'nodesets', "#{nodeset}.yml")
             unless File.exist?(nodeset_yml)
               nodeset_yml = File.join(@acceptance_dir, 'nodesets', "#{nodeset}.yml")
               unless File.exist?(nodeset_yml)

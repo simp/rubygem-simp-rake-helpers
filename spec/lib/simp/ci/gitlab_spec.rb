@@ -2,12 +2,12 @@ require 'simp/ci/gitlab'
 require 'spec_helper'
 
 describe Simp::Ci::Gitlab do
-  let(:files_dir) { File.join(File.dirname(__FILE__), files) }
+  let(:files_dir) { File.join(File.dirname(__FILE__), 'files') }
 
   describe '#acceptance_tests?' do
     it 'returns true when acceptance test with suite-specific nodesets exists' do
-      proj_dir = File.join(files_dir, 'no_gitlab_config')
-      expect( Simp::Ci::Gitlab.new(proj_dir).validate_acceptance_test_jobs ).to be true
+      proj_dir = File.join(files_dir, 'valid_job_suite_nodeset')
+      expect( Simp::Ci::Gitlab.new(proj_dir).acceptance_tests? ).to be true
     end
 
 =begin
@@ -44,7 +44,7 @@ describe Simp::Ci::Gitlab do
     it 'succeeds when acceptance test with suite-specific nodeset is correctly specified' do
       proj_dir = File.join(files_dir, 'valid_job_suite_nodeset')
       expect{ Simp::Ci::Gitlab.new(proj_dir).validate_acceptance_test_jobs }.
-        to_not raise_error(Simp::Ci::Gitlab::JobError)
+        to_not raise_error
     end
 
 =begin
