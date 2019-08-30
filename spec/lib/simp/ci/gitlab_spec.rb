@@ -110,8 +110,8 @@ describe Simp::Ci::Gitlab do
 
     it 'fails when an acceptance job has nodeset with a broken link' do
       proj_dir = File.join(files_dir, 'job_broken_link_nodeset')
-      # When the gem is created, the broken link file can't be included. So, in case someone
-      # is running this test on files packaged in the gem, skip it!
+      # When the gem is created, the broken link nodeset YAML can't be included. So,
+      # in case someone is running this test on files packaged in the gem, skip it!
       broken_link = File.join(proj_dir, 'spec', 'acceptance', 'nodesets', 'nodeset_broken_link.yml')
       unless File.symlink?(broken_link)
         skip 'nodeset YAML with broken link not present'
