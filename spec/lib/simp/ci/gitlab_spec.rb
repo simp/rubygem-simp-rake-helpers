@@ -84,6 +84,12 @@ describe Simp::Ci::Gitlab do
         to_not raise_error
     end
 
+    it 'fails when .gitlab-ci.yml is malformed' do
+      proj_dir = File.join(files_dir, 'malformed_gitlab_config')
+      expect{ Simp::Ci::Gitlab.new(proj_dir).validate_acceptance_test_jobs }.
+        to raise_error(RuntimeError, /ERROR: Malformed YAML: \(#{proj_dir}\/\.gitlab-ci\.yml\):/)
+    end
+
     it 'fails when an acceptance job is missing suite and nodeset' do
       proj_dir = File.join(files_dir, 'job_missing_suite_and_nodeset')
       expect{ Simp::Ci::Gitlab.new(proj_dir).validate_acceptance_test_jobs }.

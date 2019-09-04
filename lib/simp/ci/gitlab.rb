@@ -83,7 +83,13 @@ class Simp::Ci::Gitlab
     end
 
     failures = []
-    gitlab_yaml = YAML.load(File.read(gitlab_config_file))
+    begin
+      gitlab_yaml = YAML.load_file(gitlab_config_file)
+    rescue Psych::SyntaxError => e
+      msg = "ERROR: Malformed YAML: #{e.message}"
+      raise(msg)
+    end
+
     gitlab_yaml.each do |key, value|
       next unless acceptance_job?(value)
 
