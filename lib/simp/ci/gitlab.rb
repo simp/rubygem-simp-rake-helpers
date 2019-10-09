@@ -3,13 +3,23 @@ module Simp::Ci; end
 
 # Class that provides GitLab-CI-related methods
 class Simp::Ci::Gitlab
+  require 'yaml'
+  require 'json'
+
+  # base class for errors
+  class Error < StandardError ; end
 
   # incorrectly configured GitLab job
-  class JobError < StandardError ; end
+  class JobError < Error ; end
+
+  # incorrectly configured gitlab-ci.yml
+  class LintError < Error ; end
 
   # @param component_dir Root directory of the component project
   def initialize(component_dir)
     @component_dir = component_dir
+    @gitlab_config_file = File.join(@component_dir, '.gitlab-ci.yml')
+    @gitlab_yaml = nil
     @acceptance_dir = File.join(@component_dir, 'spec', 'acceptance')
     @suites_dir = File.join(@acceptance_dir, 'suites')
 
@@ -63,33 +73,38 @@ class Simp::Ci::Gitlab
     nodeset_yml
   end
 
+  # Loads .gitlab-ci.yml
+  # @return Hash of GitLab configuration
+  # @raise Simp::Ci::Gitlab::LintError if YAML is malformed
+  def load_gitlab_yaml
+    return @gitlab_yaml if @gitlab_yaml
+
+    begin
+      @gitlab_yaml = YAML.load_file(@gitlab_config_file)
+    rescue Psych::SyntaxError => e
+      msg = "ERROR: Malformed YAML: #{e.message}"
+      raise LintError.new(msg)
+    end
+
+    @gitlab_yaml
+  end
+
   # Validate GitLab acceptance test job specifications
   #
   # Verify each acceptance test job specifies both a valid suite and
   # a valid nodeset
   #
-  # Verification will fail under the following conditions
-  # (1) an acceptance test job is missing the suite or nodeset
-  # (2) an acceptance test job contains an invalid suite or nodeset
+  # @raise Simp::Ci::Gitlab::JobError if validation fails.
+  #   Validation will fail under the following conditions
+  #   (1) an acceptance test job is missing the suite or nodeset
+  #   (2) an acceptance test job contains an invalid suite or nodeset
   #
   def validate_acceptance_test_jobs
-    gitlab_config_file = File.join(@component_dir, '.gitlab-ci.yml')
-    unless File.exist?(gitlab_config_file)
-      if acceptance_tests?
-        # can't assume this is a failure, so just warn
-        puts "WARNING:  #{@component} has acceptance tests but no .gitlab-ci.yml"
-      end
-      return
-    end
+    return unless File.exist?(@gitlab_config_file)
 
     failures = []
-    begin
-      gitlab_yaml = YAML.load_file(gitlab_config_file)
-    rescue Psych::SyntaxError => e
-      msg = "ERROR: Malformed YAML: #{e.message}"
-      raise(msg)
-    end
 
+    gitlab_yaml = load_gitlab_yaml
     gitlab_yaml.each do |key, value|
       next unless acceptance_job?(value)
 
@@ -119,6 +134,88 @@ class Simp::Ci::Gitlab
       raise JobError.new(msg)
     end
   end
+
+  # Validate gitlab configuration
+  #
+  # Validation performed
+  # - Verifies configuration file is valid YAML
+  # --Verifies configuration file passes GitLab lint check, when connectivity
+  #   to GitLab is available
+  # - Verifies acceptance test job configuration has valid suites and nodesets
+  # @raise Simp::Ci::Gitlab::Error upon any validation failure
+  #
+  def validate_config
+    if File.exist?(@gitlab_config_file)
+      validate_yaml
+      validate_acceptance_test_jobs
+    elsif acceptance_tests?
+      # can't assume this is a failure, so just warn
+      puts "WARNING:  #{@component} has acceptance tests but no .gitlab-ci.yml"
+    end
+  end
+
+  # Verifies gitlab-ci.yml is valid YAML and, when possible, passes GitLab
+  # lint checks
+  # @raise Simp::Ci::Gitlab::LintError upon any failure
+  def validate_yaml
+    return unless File.exist?(@gitlab_config_file)
+
+    # first check for malformed yaml
+    gitlab_yaml = load_gitlab_yaml
+
+    # apply GitLab lint check
+    begin
+      gitlab_config_json = gitlab_yaml.to_json
+    rescue Exception => e
+      # really should never get here....
+      puts "WARNING: Could not lint check #{@component}'s GitLab configuration: query could not be formed"
+      return
+    end
+
+    curl ||= %x(which curl).strip
+    if curl.empty?
+      puts "WARNING: Could not lint check #{@component}'s GitLab configuration: Could not find 'curl'"
+      return
+    end
+
+    query = [
+      curl,
+      '--silent',
+      '--header "Content-Type: application/json"',
+      'https://gitlab.com/api/v4/ci/lint',
+      '--data', "'{\"content\":#{gitlab_config_json.dump}}'"
+    ]
+    result = `#{query.join(' ')}`
+
+    status = :unknown
+    errors = nil
+    begin
+      result_hash = JSON.load(result)
+      # if stdout is empty, result_hash will be nil
+      unless result_hash.nil?
+        if result_hash.has_key?('status')
+          if result_hash['status'] == 'valid'
+            status = :valid
+          else
+            status = :invalid
+            errors = result_hash['errors']
+          end
+        end
+      end
+
+    rescue
+      # stdout does not contain JSON...don't know what happened!
+    end
+
+    if status == :unknown
+      puts "WARNING: Unable to lint check #{@component}'s GitLab configuration"
+    elsif status == :invalid
+      separator = "\n   "
+      msg = "ERROR: Invalid GitLab config:#{separator}#{errors.join(separator)}"
+      raise LintError.new(msg)
+    end
+  end
+
 
   def valid_suite?(suite)
     suite_dir = File.join(@suites_dir, suite)

@@ -18,8 +18,11 @@ module Simp::Rake
 
         desc 'Validate GitLab CI configuration'
         task :gitlab_ci_lint do
-          # only validation so far is acceptance test job config
-          Simp::Ci::Gitlab.new(@base_dir).validate_acceptance_test_jobs
+          # only validation so far is as follows:
+          # - config file is valid YAML
+          # - config file passes GitLab lint check, when GitLab available
+          # - acceptance test job config has valid suites and nodesets
+          Simp::Ci::Gitlab.new(@base_dir).validate_config
         end
 
       end

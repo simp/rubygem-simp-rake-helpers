@@ -32,20 +32,129 @@ describe Simp::Ci::Gitlab do
 
   end
 
-  describe '#validate_acceptance_test_jobs' do
+  describe '#validate_config' do
     it 'succeeds when no .gitlab-ci.yml file exists and no tests exist' do
       proj_dir = File.join(files_dir, 'no_gitlab_config_without_tests')
-      expect{ Simp::Ci::Gitlab.new(proj_dir).validate_acceptance_test_jobs }.
+      expect{ Simp::Ci::Gitlab.new(proj_dir).validate_config }.
         to_not raise_error
     end
 
     it 'succeeds but warns when no .gitlab-ci.yml file exists but tests exist' do
       proj_dir = File.join(files_dir, 'no_gitlab_config_with_tests')
-      validator = Simp::Ci::Gitlab.new(proj_dir)
-      expect{ validator.validate_acceptance_test_jobs }.
-        to_not raise_error
-      expect{ validator.validate_acceptance_test_jobs }.
+      expect{ Simp::Ci::Gitlab.new(proj_dir).validate_config }.
         to output(/has acceptance tests but no \.gitlab\-ci\.yml/).to_stdout
+    end
+
+    it 'fails when .gitlab-ci.yml is malformed' do
+      proj_dir = File.join(files_dir, 'malformed_gitlab_config')
+      expect{ Simp::Ci::Gitlab.new(proj_dir).validate_config }.
+        to raise_error(Simp::Ci::Gitlab::LintError,
+        /ERROR: Malformed YAML: \(#{proj_dir}\/\.gitlab-ci\.yml\):/)
+    end
+
+    it 'succeeds when .gitlab-ci.yml is valid YAML and passes GitLab lint' do
+      proj_dir = File.join(files_dir, 'valid_job_suite_nodeset')
+      validator = Simp::Ci::Gitlab.new(proj_dir)
+
+      validator.stubs(:`).with('which curl').returns('/usr/bin/curl')
+      gitlab_response = '{"status":"valid","errors":[]}'
+      validator.stubs(:`).with(Not(equals('which curl'))).returns(gitlab_response)
+
+      expect{ validator.validate_config }.
+        to_not raise_error
+    end
+
+    it 'fails when .gitlab-ci.yml is valid YAML and fails GitLab lint' do
+      proj_dir = File.join(files_dir, 'valid_job_suite_nodeset')
+      validator = Simp::Ci::Gitlab.new(proj_dir)
+
+      validator.stubs(:`).with('which curl').returns('/usr/bin/curl')
+      gitlab_response = '{"status":"invalid","errors":["root config contains unknown keys: pup5.5-unit"]}'
+      validator.stubs(:`).with(Not(equals('which curl'))).returns(gitlab_response)
+
+      expect{ validator.validate_config }.
+        to raise_error(Simp::Ci::Gitlab::LintError,
+        /ERROR: Invalid GitLab config:.*root config contains unknown keys/m)
+    end
+
+  end
+
+  describe '#validate_yaml' do
+    it 'succeeds when no .gitlab-ci.yml file exists' do
+      proj_dir = File.join(files_dir, 'no_gitlab_config_without_tests')
+      expect{ Simp::Ci::Gitlab.new(proj_dir).validate_yaml }.
+        to_not raise_error
+    end
+
+    it 'fails when .gitlab-ci.yml is malformed' do
+      proj_dir = File.join(files_dir, 'malformed_gitlab_config')
+      expect{ Simp::Ci::Gitlab.new(proj_dir).validate_yaml }.
+        to raise_error(Simp::Ci::Gitlab::LintError,
+        /ERROR: Malformed YAML: \(#{proj_dir}\/\.gitlab-ci\.yml\):/)
+    end
+
+    it 'succeeds but warns when curl is not found' do
+      proj_dir = File.join(files_dir, 'valid_job_suite_nodeset')
+      validator = Simp::Ci::Gitlab.new(proj_dir)
+
+      validator.stubs(:`).returns('')
+
+      expect{ validator.validate_yaml }.
+        to output(/Could not find 'curl'/).to_stdout
+    end
+
+    it 'succeeds but warns when connection to GitLab fails' do
+      proj_dir = File.join(files_dir, 'valid_job_suite_nodeset')
+      validator = Simp::Ci::Gitlab.new(proj_dir)
+
+      validator.stubs(:`).with('which curl').returns('/usr/bin/curl')
+      validator.stubs(:`).with(Not(equals('which curl'))).returns('{}')
+
+      expect{ validator.validate_yaml }.
+        to output(/Unable to lint check/).to_stdout
+    end
+
+    it 'succeeds when config passes GitLab lint check' do
+      proj_dir = File.join(files_dir, 'valid_job_suite_nodeset')
+      validator = Simp::Ci::Gitlab.new(proj_dir)
+
+      validator.stubs(:`).with('which curl').returns('/usr/bin/curl')
+      gitlab_response = '{"status":"valid","errors":[]}'
+      validator.stubs(:`).with(Not(equals('which curl'))).returns(gitlab_response)
+
+      expect{ validator.validate_yaml }.
+        to_not raise_error
+    end
+
+    it 'fails when config fails GitLab lint check' do
+      # mocking lint API call to GitLab, so doesn't matter if we are using
+      # a project dir with valid config
+      proj_dir = File.join(files_dir, 'valid_job_suite_nodeset')
+      validator = Simp::Ci::Gitlab.new(proj_dir)
+
+      validator.stubs(:`).with('which curl').returns('/usr/bin/curl')
+      gitlab_response = '{"status":"invalid","errors":["root config contains unknown keys: pup5.5-unit"]}'
+      validator.stubs(:`).with(Not(equals('which curl'))).returns(gitlab_response)
+
+      expect{ validator.validate_yaml }.
+        to raise_error(Simp::Ci::Gitlab::LintError,
+        /ERROR: Invalid GitLab config:.*root config contains unknown keys/m)
+    end
+
+  end
+
+  describe '#validate_acceptance_test_jobs' do
+    it 'succeeds when no .gitlab-ci.yml file exists' do
+      proj_dir = File.join(files_dir, 'no_gitlab_config_without_tests')
+      expect{ Simp::Ci::Gitlab.new(proj_dir).validate_acceptance_test_jobs }.
+        to_not raise_error
+    end
+
+    it 'fails when .gitlab-ci.yml is malformed' do
+      proj_dir = File.join(files_dir, 'malformed_gitlab_config')
+      expect{ Simp::Ci::Gitlab.new(proj_dir).validate_acceptance_test_jobs }.
+        to raise_error(Simp::Ci::Gitlab::LintError,
+        /ERROR: Malformed YAML: \(#{proj_dir}\/\.gitlab-ci\.yml\):/)
     end
 
     it 'succeeds when no acceptance tests are specified in the .gitlab-ci.yml file' do
@@ -82,12 +191,6 @@ describe Simp::Ci::Gitlab do
       proj_dir = File.join(files_dir, 'multiple_valid_jobs')
       expect{ Simp::Ci::Gitlab.new(proj_dir).validate_acceptance_test_jobs }.
         to_not raise_error
-    end
-
-    it 'fails when .gitlab-ci.yml is malformed' do
-      proj_dir = File.join(files_dir, 'malformed_gitlab_config')
-      expect{ Simp::Ci::Gitlab.new(proj_dir).validate_acceptance_test_jobs }.
-        to raise_error(RuntimeError, /ERROR: Malformed YAML: \(#{proj_dir}\/\.gitlab-ci\.yml\):/)
     end
 
     it 'fails when an acceptance job is missing suite and nodeset' do
