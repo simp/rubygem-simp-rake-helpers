@@ -1,5 +1,7 @@
 ### 5.10.1 / 2019-12-03
-* Don't fail when processing items in pkg:check_published
+* Don't fail upon first error encountered, when processing items in
+  pkg:check_published.  Attempt as many checks as possible and then
+  report all failures.
 
 ### 5.10.0 /2019-08-30
 * Add initial linting tasks for CI configuration (simp:ci_lint and
