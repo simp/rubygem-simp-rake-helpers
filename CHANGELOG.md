@@ -1,3 +1,7 @@
+### 5.10.2 / 2020-02-10
+* Allow v3 of simp-rspec-puppet-facts
+* Fix '~> 0' notation
+
 ### 5.10.1 / 2019-12-03
 * Don't fail upon first error encountered, when processing items in
   pkg:check_published.  Attempt as many checks as possible and then

@@ -30,7 +30,7 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'puppet-lint',             '>= 1.0', '< 3.0'
   s.add_runtime_dependency 'puppetlabs_spec_helper',  '~> 2.0'
   s.add_runtime_dependency 'parallel',                '~> 1.0'
-  s.add_runtime_dependency 'simp-rspec-puppet-facts', '~> 2.0'
+  s.add_runtime_dependency 'simp-rspec-puppet-facts', '>= 2.4.1', '< 4.0'
   s.add_runtime_dependency 'puppet-blacksmith',       '~> 3.3'
   s.add_runtime_dependency 'parallel_tests',          '> 2.4', '< 2.25'
   s.add_runtime_dependency 'r10k',                    '>= 2.2', '< 4.0'
@@ -38,8 +38,8 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'ruby-progressbar',        '~> 1.0'
 
   # for development
-  s.add_development_dependency 'pry',     '~> 0.0'
-  s.add_development_dependency 'pry-doc', '~> 0.0'
+  s.add_development_dependency 'pry',     '>= 0'
+  s.add_development_dependency 'pry-doc', '>= 0'
 
   s.files = Dir[
                 'Rakefile',
