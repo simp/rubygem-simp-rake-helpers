@@ -103,6 +103,13 @@ module Simp::Rake::Build::RpmDeps
         short_names.include?(dep['name'])
       }
 
+      if dep_info.empty? && module_metadata['simp'] &&
+        module_metadata['simp']['optional_dependencies']
+        dep_info = module_metadata['simp']['optional_dependencies'].select{ |dep|
+          short_names.include?(dep['name'])
+        }
+      end
+
       if dep_info.empty?
         err_msg = "Could not find #{short_names.first} dependency"
         raise SIMPRpmDepException.new(err_msg)
@@ -145,7 +152,7 @@ module Simp::Rake::Build::RpmDeps
   end
 
   # Generate 'Requires' lines from each dependency specified in the
-  # module_metadata hash
+  # module_metadata hash, including SIMP optional dependencies
   #
   # returns array of strings, each of which is a 'Requires' line for
   # use in an RPM spec file
@@ -157,20 +164,29 @@ module Simp::Rake::Build::RpmDeps
   #   module's 'metadata.json' file
   def self.generate_module_rpm_requires(module_metadata)
     rpm_metadata_content = []
-    # metadata.json should always contain dependencies list, even
-    # if it is empty, but we'll safely handle that error case here
-    if module_metadata['dependencies']
-      module_metadata['dependencies'].each do |dep|
-        pkg = "pupmod-#{dep['name'].gsub('/', '-')}"
-        dep_version = dep['version_requirement']
 
-        begin
-          rpm_metadata_content << get_version_requires(pkg, dep_version)
-        rescue SIMPRpmDepVersionException
-          err_msg = "Unable to parse #{dep['name']} dependency" +
-            " version '#{dep_version}'"
-          raise SIMPRpmDepException.new(err_msg)
-        end
+    deps = []
+    if module_metadata['dependencies']
+      deps += module_metadata['dependencies']
+    end
+
+    if module_metadata['simp'] &&
+      module_metadata['simp']['optional_dependencies']
+
+      deps += module_metadata['simp']['optional_dependencies']
+    end
+
+    deps.sort! { |x,y| x['name'] <=> y['name'] }
+    deps.each do |dep|
+      pkg = "pupmod-#{dep['name'].gsub('/', '-')}"
+      dep_version = dep['version_requirement']
+
+      begin
+        rpm_metadata_content << get_version_requires(pkg, dep_version)
+      rescue SIMPRpmDepVersionException
+        err_msg = "Unable to parse #{dep['name']} dependency" +
+          " version '#{dep_version}'"
+        raise SIMPRpmDepException.new(err_msg)
       end
     end
 
@@ -202,8 +218,9 @@ module Simp::Rake::Build::RpmDeps
   # * 'Requires' line(s) for any external dependencies specified
   #   in the module_rpm_meta hash.
   #
-  # Otherwise, the generated 'requires' file will contain
-  # "Requires" lines for each dependency specified module_metadata.
+  # Otherwise, the generated 'requires' file will contain "Requires"
+  # lines for each dependency and each SIMP optional dependency
+  # specified in module_metadata.
   #
   # raises SIMPRpmDepException if any 'metadata.json' dependency
   #   version string from module_metadata cannot be parsed or a

@@ -40,6 +40,14 @@ describe 'Simp::Rake::Build::RpmDeps#get_version_requires' do
   end
 end
 
+# In the tests below, a 'managed' component is one with an entry in the
+# simp-core/build/rpm/dependencies.yaml. It is a module, whose RPM
+# dependencies, obsoletes, and/or release qualifier need to be managed.
+#
+# An 'unmanaged' component is a module that has no special packaging needs.
+# It has no obsoletes, can use the default release qualifier of 0, and needs
+# no adjustments to the dependencies it advertises in its metadata.json file.
+#
 describe 'Simp::Rake::Build::RpmDeps#generate_rpm_meta_files' do
   let(:files_dir) { File.join(File.dirname(__FILE__), 'files') }
   let(:rpm_metadata) {
@@ -143,10 +151,10 @@ EOM
       expected = <<EOM
 Requires: pupmod-puppetlabs-inifile >= 1.6.0
 Requires: pupmod-puppetlabs-inifile < 2.0.0
-Requires: pupmod-puppetlabs-puppetdb >= 5.1.2
-Requires: pupmod-puppetlabs-puppetdb < 6.0.0
 Requires: pupmod-puppetlabs-postgresql >= 4.8.0
 Requires: pupmod-puppetlabs-postgresql < 5.0.0
+Requires: pupmod-puppetlabs-puppetdb >= 5.1.2
+Requires: pupmod-puppetlabs-puppetdb < 6.0.0
 Requires: pupmod-puppetlabs-stdlib >= 4.13.1
 Requires: pupmod-puppetlabs-stdlib < 5.0.0
 EOM

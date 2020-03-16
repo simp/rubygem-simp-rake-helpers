@@ -24,16 +24,20 @@
     {
       "name": "foo4/bar4",
       "version_requirement": ">= 4.0.0 < 5.0.0"
-    },
-    {
-      "name": "foo5/bar5",
-      "version_requirement": "5.x"
-    },
-    {
-      "name": "foo6/bar6",
-      "version_requirement": "6.4.x"
     }
   ],
+  "simp": {
+    "optional_dependencies": [
+      {
+        "name": "foo5/bar5",
+        "version_requirement": "5.x"
+      },
+      {
+        "name": "foo6/bar6",
+        "version_requirement": "6.4.x"
+      }
+    ]
+  },
   "operatingsystem_support": [
     {
       "operatingsystem": "RedHat",

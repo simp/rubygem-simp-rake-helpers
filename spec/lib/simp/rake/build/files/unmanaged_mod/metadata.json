@@ -13,18 +13,22 @@
       "version_requirement": ">= 1.6.0 < 2.0.0"
     },
     {
-      "name": "puppetlabs/puppetdb",
-      "version_requirement": ">= 5.1.2 < 6.0.0"
-    },
-    {
-      "name": "puppetlabs/postgresql",
-      "version_requirement": ">= 4.8.0 < 5.0.0"
-    },
-    {
       "name": "puppetlabs/stdlib",
       "version_requirement": ">= 4.13.1 < 5.0.0"
     }
   ],
+  "simp": {
+    "optional_dependencies": [
+      {
+        "name": "puppetlabs/puppetdb",
+        "version_requirement": ">= 5.1.2 < 6.0.0"
+      },
+      {
+        "name": "puppetlabs/postgresql",
+        "version_requirement": ">= 4.8.0 < 5.0.0"
+      }
+    ]
+  },
   "requirements": [
     {
       "name": "puppet",
