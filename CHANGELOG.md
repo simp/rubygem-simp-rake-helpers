@@ -1,3 +1,6 @@
+### 5.11.0 / 2020-03-16
+* Add SIMP optional dependencies to RPM requires list
+
 ### 5.10.2 / 2020-02-10
 * Allow v3 of simp-rspec-puppet-facts
 * Fix '~> 0' notation
