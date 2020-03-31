@@ -20,6 +20,9 @@ describe Simp::RPM do
     @d_rpm_file    = File.join( dir, 'testpackage-1-0.el7.noarch.rpm' )
     @d_rpm_obj     = Simp::RPM.new( @d_rpm_file )
 
+    @rc0_spec_file = File.join( dir, 'testpackage-rc0.spec' )
+    @rc0_spec_obj  = Simp::RPM.new( @rc0_spec_file )
+
 #FIXME
 #    @signed_rpm_file = File.join( dir, 'testpackage-1-0.noarch.rpm' )
 #    @signed_rpm_obj  = Simp::RPM.new( @signed_rpm_file )
@@ -85,6 +88,7 @@ describe Simp::RPM do
         expect( @m_spec_obj.version ).to eq '1'
         expect( @m_spec_obj.version('testpackage') ).to eq '1'
         expect( @m_spec_obj.version('testpackage-doc') ).to eq '1.0.1'
+        expect( @rc0_spec_obj.version ).to eq '1.0.0'
       end
 
       it 'fails when invalid package specified' do
@@ -103,6 +107,7 @@ describe Simp::RPM do
         expect( @m_spec_obj.release ).to eq '0'
         expect( @m_spec_obj.release('testpackage') ).to eq '0'
         expect( @m_spec_obj.release('testpackage-doc') ).to eq '2'
+        expect( @rc0_spec_obj.release ).to eq 'rc0'
       end
 
       it 'fails when invalid package specified' do
