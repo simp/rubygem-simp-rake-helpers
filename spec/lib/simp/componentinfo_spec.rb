@@ -7,14 +7,11 @@ describe Simp::ComponentInfo do
   }
 
   context 'with valid module input' do
-    it 'loads version and changelog info' do
-      component_dir = File.join(files_dir, 'module')
-      info = Simp::ComponentInfo.new(component_dir)
-      expect( info.component_dir ).to eq component_dir
-      expect( info.type ).to eq :module
-      expect( info.version ).to eq '3.8.0'
-      expect( info.release ).to be nil
-      expected_changelog = [
+    let(:component_dir){ File.join(files_dir, 'module') }
+    let(:info){ Simp::ComponentInfo.new(component_dir) }
+    let(:expected_release) { nil }
+    let(:expected_changelog) do
+      [
         {
           :date => 'Wed Nov 15 2017',
           :version => '3.8.0',
@@ -56,37 +53,28 @@ describe Simp::ComponentInfo do
           ]
         }
       ]
-      expect(info.changelog).to eq expected_changelog
     end
 
-    it 'loads version and latest changelog info' do
-      component_dir = File.join(files_dir, 'module')
-      info = Simp::ComponentInfo.new(component_dir, true)
-      expect( info.component_dir ).to eq component_dir
-      expect( info.type ).to eq :module
-      expect( info.version ).to eq '3.8.0'
-      expect( info.release ).to be nil
-      expected_changelog = [
-        {
-          :date => 'Wed Nov 15 2017',
-          :version => '3.8.0',
-          :release => '0',
-          :content => [
-            '* Wed Nov 15 2017 Mary Jones <mary.jones@simp.com> - 3.8.0-0',
-            '- Disable deprecation warnings by default'
-          ]
-        },
-        {
-          :date => 'Mon Nov 06 2017',
-          :version => '3.8.0',
-          :release => '0',
-          :content => [
-            '* Mon Nov 06 2017 Tom Smith <tom.smith@simp.com> - 3.8.0-0',
-            '- Fixes split failure when "findmnt" does not exist on Linux'
-          ]
-        }
-      ]
-      expect(info.changelog).to eq expected_changelog
+    shared_examples 'an instance with expected module data' do
+      it { expect( info.component_dir ).to eq component_dir }
+      it { expect( info.type ).to eq :module }
+      it { expect( info.version ).to eq '3.8.0' }
+      it { expect( info.release ).to eq expected_release }
+      it { expect(info.changelog).to eq expected_changelog }
+    end
+
+    it_behaves_like 'an instance with expected module data'
+
+    context 'with loads version and latest-version-only changelog info' do
+      let(:info){Simp::ComponentInfo.new(component_dir, true)}
+      let(:expected_changelog){ super()[0..1] }
+      it_behaves_like 'an instance with expected module data'
+    end
+
+    context 'with a module version containing a prerelease suffix (3.8.0-rc0)' do
+      let(:component_dir){ File.join(files_dir, 'module_with_prerelease_dash_in_version') }
+      let(:expected_release){ 'rc0' }
+      it_behaves_like 'an instance with expected module data'
     end
   end
 

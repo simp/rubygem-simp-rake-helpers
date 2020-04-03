@@ -196,14 +196,28 @@ end
 
 -- Get the Module Version
 
-local version_match = metadata:match('"version":%s+"(.-)"%s*,')
+--  Note on '-rc0' style Release versions in metadata.json:
+--    Some Puppet orgs (like voxpupuli) append '-rc0' to the module version
+--    to denote prerelease status and act as a safety check (because the Forge
+--    only accepts release in SemVer \d+\.\d+\.\d+ release format)
+--
+--    This code will remove a '-rc0' style prerelease string from the RPM
+--     Version, and use it as the default RPM Release (instead of '-0')
 
+local version_match = metadata:match('"version":%s+"(.-)"%s*,'):gsub('-.*','')
 if version_match then
   package_version = version_match
 else
   error("Could not find valid package version in 'metadata.json'", 0)
 end
 
+-- Get the Module Release (if present)
+
+local release_match = metadata:match('"version":%s+"[%d.]+-([^"]+)"')
+
+if release_match then
+  package_release = release_match
+end
 }
 
 %{lua:

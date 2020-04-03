@@ -99,9 +99,12 @@ class Simp::ComponentInfo
     require 'json'
     metadata_file = File.join(@component_dir, 'metadata.json')
     metadata = JSON.parse(File.read(metadata_file))
-    @version = metadata['version']
-    @release = nil
-    fail("ERROR: Version missing from #{metadata_file}") if @version.nil?
+    fail("ERROR: Version missing from #{metadata_file}") if metadata['version'].nil?
+
+    @version = metadata['version'].split('-').first
+    rel_bits = metadata['version'].split('-')[1..-1]
+    @release = rel_bits.empty? ? nil : rel_bits.join('-')
+
 
     changelog_file = File.join(component_dir, 'CHANGELOG')
     unless File.exists?(changelog_file)
