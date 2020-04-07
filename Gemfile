@@ -12,6 +12,7 @@ gemspec
 gem 'simp-build-helpers'
 gem 'simp-beaker-helpers'
 gem 'beaker-puppet_install_helper'
+gem 'rake', '>= 12.3.3'
 
 if puppetversion
   gem 'puppet', puppetversion
