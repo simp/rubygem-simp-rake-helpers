@@ -29,7 +29,9 @@
 .setup_bundler_env: &setup_bundler_env
   before_script:
     - '(find .vendor | wc -l) || :'
-    - gem install bundler --no-rdoc --no-ri
+    - ruby --version
+    - gem --version
+    - gem install bundler --no-document
     - rm -f Gemfile.lock
     - rm -rf pkg/
     - bundle install --no-binstubs --jobs $(nproc) --path=.vendor "${FLAGS[@]}"
@@ -130,7 +132,7 @@ pup6.latest-unit:
 acceptance:
   stage: acceptance
   tags:
-    - beaker
+    - docker
   <<: *cache_bundler_r2_4
   <<: *setup_bundler_env
   variables:
@@ -141,7 +143,7 @@ acceptance:
 fips-acceptance:
   stage: acceptance
   tags:
-    - beaker
+    - docker
   <<: *cache_bundler_r2_4
   <<: *setup_bundler_env
   variables:
