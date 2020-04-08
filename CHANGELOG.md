@@ -1,3 +1,6 @@
+### 5.11.1 / 2020-04-07
+* Puppet module RPM logic handles `-rc0` suffix in `metadata.json`
+
 ### 5.11.0 / 2020-03-16
 * Add SIMP optional dependencies to RPM requires list
 
