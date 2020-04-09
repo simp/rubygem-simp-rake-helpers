@@ -16,7 +16,8 @@ describe 'Simp::Rake::Build::RpmDeps#get_version_requires' do
       "5.x"              => ['Requires: pupmod-foo-bar >= 5.0.0',
                              'Requires: pupmod-foo-bar < 6.0.0'],
       "6.4.x"            => ['Requires: pupmod-foo-bar >= 6.4.0',
-                             'Requires: pupmod-foo-bar < 7.0.0']
+                             'Requires: pupmod-foo-bar < 7.0.0'],
+      nil                => ['Requires: pupmod-foo-bar']
     }.each do |input, output|
       it do
         expect(Simp::Rake::Build::RpmDeps::get_version_requires(pkg, input)).to eq output

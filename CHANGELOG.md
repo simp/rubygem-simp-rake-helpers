@@ -1,3 +1,6 @@
+### 5.11.2 / 2020-04-08
+* Version information should not be required on dependencies in metadata.json
+
 ### 5.11.1 / 2020-04-07
 * Puppet module RPM logic handles `-rc0` suffix in `metadata.json`
 

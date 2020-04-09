@@ -15,28 +15,29 @@ module Simp::Rake::Build::RpmDeps
   # raises SIMPRpmDepVersionException if the dependency version
   #   string cannot be parsed
   def self.get_version_requires(pkg, dep_version)
+    return ["Requires: #{pkg}"] if dep_version.nil?
+    return ["Requires: #{pkg} = #{$1}"] if dep_version =~ /^\s*(\d+\.\d+\.\d+)\s*$/
+
     requires = []
-    if dep_version =~ /^\s*(\d+\.\d+\.\d+)\s*$/
-      requires << "Requires: #{pkg} = #{$1}"
-    else
-      if dep_version.include?('x')
-        dep_parts = dep_version.split('.')
 
-        if dep_parts.count == 3
-          dep_version = ">= #{dep_parts[0]}.#{dep_parts[1]}.0 < #{dep_parts[0].to_i + 1}.0.0"
-        else
-          dep_version = ">= #{dep_parts[0]}.0.0 < #{dep_parts[0].to_i + 1}.0.0"
-        end
-      end
+    if dep_version.include?('x')
+      dep_parts = dep_version.split('.')
 
-      # metadata.json is a LOT more forgiving than the RPM spec file
-      if dep_version =~ /^\s*(?:(?:([<>]=?)\s*(\d+\.\d+\.\d+))\s*(?:(<)\s*(\d+\.\d+\.\d+))?)\s*$/
-        requires << "Requires: #{pkg} #{$1} #{$2}"
-        requires << "Requires: #{pkg} #{$3} #{$4}" if $3
+      if dep_parts.count == 3
+        dep_version = ">= #{dep_parts[0]}.#{dep_parts[1]}.0 < #{dep_parts[0].to_i + 1}.0.0"
       else
-        raise SIMPRpmDepVersionException.new
+        dep_version = ">= #{dep_parts[0]}.0.0 < #{dep_parts[0].to_i + 1}.0.0"
       end
     end
+
+    # metadata.json is a LOT more forgiving than the RPM spec file
+    if dep_version =~ /^\s*(?:(?:([<>]=?)\s*(\d+\.\d+\.\d+))\s*(?:(<)\s*(\d+\.\d+\.\d+))?)\s*$/
+      requires << "Requires: #{pkg} #{$1} #{$2}"
+      requires << "Requires: #{pkg} #{$3} #{$4}" if $3
+    else
+      raise SIMPRpmDepVersionException.new
+    end
+
     requires
   end
 
