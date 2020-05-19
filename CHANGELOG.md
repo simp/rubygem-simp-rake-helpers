@@ -1,3 +1,6 @@
+### 5.11.3 / 2020-05-19
+* Fix automatically added dependencies for SIMP 6.4+
+
 ### 5.11.2 / 2020-04-08
 * Version information should not be required on dependencies in metadata.json
 
