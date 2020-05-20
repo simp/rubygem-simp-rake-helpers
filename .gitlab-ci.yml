@@ -10,7 +10,6 @@
 ---
 .cache_bundler_r2_4: &cache_bundler_r2_4
   cache:
-    untracked: true
     # An attempt at caching between runs (ala Travis CI)
     key: "${CI_PROJECT_NAMESPACE}__bundler_r2_4"
     paths:
@@ -19,7 +18,6 @@
 
 .cache_bundler_r2_5: &cache_bundler_r2_5
   cache:
-    untracked: true
     # An attempt at caching between runs (ala Travis CI)
     key: "${CI_PROJECT_NAMESPACE}__bundler_r2_5"
     paths:
