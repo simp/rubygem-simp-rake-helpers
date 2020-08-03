@@ -1,3 +1,6 @@
+### 5.11.4 / 2020-08-03
+* Permit *.md files in `rake pkg:compare_latest_tag`
+
 ### 5.11.3 / 2020-05-19
 * Fix automatically added dependencies for SIMP 6.4+
 
