@@ -69,6 +69,7 @@ module Simp::Rake::Build
               :in_processes => get_cpu_limit,
               :progress => t.name
             ) do |dir|
+              next unless File.directory?(dir)
               Dir.chdir(dir) do
                 begin
                   rake_flags = Rake.application.options.trace ? '--trace' : ''
@@ -98,6 +99,7 @@ module Simp::Rake::Build
               :in_processes => get_cpu_limit,
               :progress => t.name
             ) do |dir|
+              next unless File.directory?(dir)
               Dir.chdir(dir) do
                 rake_flags = Rake.application.options.trace ? '--trace' : ''
                 sh %{rake clobber #{rake_flags}}
