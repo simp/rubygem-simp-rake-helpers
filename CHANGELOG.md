@@ -1,3 +1,7 @@
+### 5.11.5 / 2020-10-08
+* Switch between 'with_unbundled_env' and 'with_clean_env' based on which one
+  Bundler supports.
+
 ### 5.11.4 / 2020-08-03
 * Permit *.md files in `rake pkg:compare_latest_tag`
 
