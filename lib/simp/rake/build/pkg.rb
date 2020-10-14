@@ -869,9 +869,18 @@ protect=1
                       $stderr.puts("First 'rake pkg:rpm' attempt for #{dir} failed, running bundle and trying again.")
                     end
 
-                    clean_env_method = Bundler.respond_to?(:with_unbundled_env) ? :with_unbundled_env : :with_clean_env
+                    if Bundler.respond_to?(:with_unbundled_env)
+                      # Bundler 2.1+
+                      clean_env_method = :with_unbundled_env
+                      bundle_install_cmd = %{bundle config set with 'development' && bundle install}
+                    else
+                      # Old Bundler
+                      clean_env_method = :with_clean_env
+                      bundle_install_cmd = %{bundle install --with development}
+                    end
+
                     ::Bundler.send(clean_env_method) do
-                      %x{bundle install --with development}
+                      %x{#{bundle_install_cmd}}
                       output = %x{#{cmd} 2>&1}
 
                       unless $?.success?
