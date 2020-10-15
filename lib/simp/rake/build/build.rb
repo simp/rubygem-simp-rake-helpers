@@ -76,7 +76,8 @@ module Simp::Rake::Build
               #
               # Clean env will give bundler the environment present before
               # Bundler is activated.
-              ::Bundler.with_clean_env do
+              clean_env_method = Bundler.respond_to?(:with_unbundled_env) ? :with_unbundled_env : :with_clean_env
+              ::Bundler.send(clean_env_method) do
                 out = %x(bundle #{args[:action]} 2>&1)
                 status = $?.success?
                 puts out if verbose
