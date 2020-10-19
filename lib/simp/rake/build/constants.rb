@@ -3,6 +3,10 @@ require 'rake/tasklib'
 module Simp::Rake; end
 module Simp::Rake::Build; end
 module Simp::Rake::Build::Constants
+  def distro_build_dir(build_dir, build_distro, build_version, build_arch)
+    File.join(build_dir, 'distributions', build_distro, build_version, build_arch)
+  end
+
   def init_member_vars( base_dir )
     return if @member_vars_initialized
 
@@ -36,7 +40,7 @@ module Simp::Rake::Build::Constants
     @simp_dvd_dirs     = ["SIMP","ks","Config"]
     @member_vars_initialized = true
 
-    @distro_build_dir = File.join(@build_dir, 'distributions', @build_distro, @build_version, @build_arch)
+    @distro_build_dir  = distro_build_dir(@build_dir, @build_distro, @build_version, @build_arch)
     @dvd_src           = File.join(@distro_build_dir, 'DVD')
     @dvd_dir           = File.join(@distro_build_dir, 'DVD_Overlay')
 
