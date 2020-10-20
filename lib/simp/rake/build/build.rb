@@ -95,6 +95,7 @@ module Simp::Rake::Build
         namespace :yum do
           task :prep do
             if $simp6
+              # `$simp6_build_dir` is set by the build:auto task
               @build_dir = $simp6_build_dir
 
               unless @build_dir
@@ -470,10 +471,10 @@ module Simp::Rake::Build
           ##############################################################################
 
           desc <<-EOM
-          Create a workspace for a new distribution.
+          Create a new yum directory tree for a new distribution.
 
-          Creates a YUM scaffold under
-          #{@build_dir}/yum_data/SIMP{:simp_version}_{:os}{:os_version}_{:arch}.
+          Creates a YUM directory tree under
+          {dist_build_dir}/yum_data/SIMP{:simp_version}_{:os}{:os_version}_{:arch}.
 
           * :os           - The Operating System that you wish to use.
                             Supported OSs: #{@target_dists}.join(', ')
@@ -483,31 +484,45 @@ module Simp::Rake::Build
                             Default: Auto
 
           * :arch         - The architecture that you support. Default: x86_64
+
+          Set ENV['SIMP_BUILD_yum_dir'] to override the path of {dist_build_dir}
+
+          Will not overwrite existing directories or package.yaml files
           EOM
-          task :scaffold,[:os,:os_version,:simp_version,:arch] => [:prep] do |t,args|
+          task :scaffold,[:os,:os_version,:simp_version,:arch] do |t,args|
             # @simp_version is set in the main Rakefile
             args.with_defaults(:simp_version => @simp_version.split('-').first)
             args.with_defaults(:arch => @build_arch)
 
-            target_dir = get_target_dir(args)
+            major_os_ver = args[:os_version].split('.').first
+            build_dir = distro_build_dir(
+              File.join(@base_dir,'build'), args[:os], major_os_ver, args[:arch]
+            )
+            build_dir = ENV['SIMP_BUILD_yum_dir'] if File.directory?(ENV['SIMP_BUILD_yum_dir'].to_s)
+            ENV['SIMP_BUILD_yum_dir'] ||= build_dir  # <-- for hacky :prep task
 
-            unless File.exist?(target_dir)
-              mkdir_p(target_dir)
-              puts("Created #{target_dir}")
-            end
+            target_dir = File.join(build_dir,'yum_data')
 
-            # Put together the rest of the scaffold directories
-            Dir.chdir(@build_base_dir) do
-              if $simp6
-                mkdir('../my_repos') unless File.exist?('../my_repos')
-              else
-                mkdir('my_repos') unless File.exist?('my_repos')
-              end
-            end
+            # Create directories
+            my_repos = $simp6 ? '../my_repos' : 'my_repos'
+            [
+              target_dir,
+              File.join(target_dir,'repos'),
+              File.join(target_dir,'packages'),
+              File.expand_path(my_repos,target_dir)
+            ].each { |dir| mkdir_p(dir, verbose: false) }
 
-            Dir.chdir(target_dir) do
-              mkdir('repos') unless File.exist?('repos')
-              mkdir('packages') unless File.exist?('packages')
+            # Create example packages.yaml
+            packages_yaml_path = File.join(target_dir, 'packages.yaml')
+            unless File.exists? packages_yaml_path
+              pkg = 'example-package-name'
+              pkg_file = "#{pkg}-1.0.0-1.el#{major_os_ver}.#{args[:arch]}.rpm"
+              yum_url = "https://yum.server/#{args[:os]}/#{major_os_ver}/#{args[:arch]}"
+              pkg_url = "#{yum_url}/#{pkg_file}"
+              yaml = { pkg => { rpm_name: pkg_file, source: pkg_url } }.to_yaml
+              File.open(packages_yaml_path,'w'){|f| f.puts yaml.gsub(/^/,'# ') }
+              puts "Created #{target_dir}"
+              puts "Created example file at #{packages_yaml_path}"
             end
           end
 
@@ -526,7 +541,7 @@ module Simp::Rake::Build
 
           * :arch         - The architecture that you support. Default: x86_64
           EOM
-          task :sync,[:os,:os_version,:simp_version,:arch] => [:prep, :scaffold] do |t,args|
+          task :sync,[:os,:os_version,:simp_version,:arch] => [:scaffold, :prep] do |t,args|
             # @simp_version is set in the main Rakefile
             args.with_defaults(:simp_version => @simp_version.split('-').first)
             args.with_defaults(:arch => @build_arch)
@@ -551,7 +566,7 @@ module Simp::Rake::Build
 
           * :arch         - The architecture that you support. Default: x86_64
           EOM
-          task :diff,[:os,:os_version,:simp_version,:arch] => [:prep, :scaffold] do |t,args|
+          task :diff,[:os,:os_version,:simp_version,:arch] => [:scaffold, :prep] do |t,args|
             args.with_defaults(:simp_version => @simp_version.split('-').first)
             args.with_defaults(:arch => @build_arch)
 
@@ -617,7 +632,7 @@ module Simp::Rake::Build
 
           * :arch         - The architecture that you support. Default: x86_64
           EOM
-          task :fetch,[:pkg,:os,:os_version,:simp_version,:arch] => [:prep, :scaffold] do |t,args|
+          task :fetch,[:pkg,:os,:os_version,:simp_version,:arch] => [:scaffold, :prep] do |t,args|
             args.with_defaults(:simp_version => @simp_version.split('-').first)
             args.with_defaults(:arch => @build_arch)
 
