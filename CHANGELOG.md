@@ -1,4 +1,6 @@
-### 5.11.5 / 2020-10-08
+### 5.11.5 / 2020-12-02
+* Add support for Puppet 7
+* Work around issues with querying RPM spec file changelogs using RPM version 5.15.0+
 * Switch between 'with_unbundled_env' and 'with_clean_env' based on which one
   Bundler supports.
 
