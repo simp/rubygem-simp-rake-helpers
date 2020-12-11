@@ -237,7 +237,7 @@ describe Simp::RPM do
         ENV['SIMP_RPM_dist'] = @pre_env
       end
       it 'returns dist' do
-        Simp::RPM.stubs(:system_dist).returns('.testdist')
+        allow(Simp::RPM).to receive(:system_dist).and_return('.testdist')
         rpm_obj    = Simp::RPM.new( @rpm_file )
         d_rpm_obj  = Simp::RPM.new( @d_rpm_file )
         spec_obj   = Simp::RPM.new( @spec_file )

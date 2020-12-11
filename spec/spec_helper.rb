@@ -10,5 +10,5 @@ RSpec.configure do |config|
   config.filter_run :focus
 
   config.mock_framework = :rspec
-#  config.mock_with :mocha
+  #config.mock_with :rspec
 end
