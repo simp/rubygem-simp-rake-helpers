@@ -97,7 +97,7 @@ variables:
 
 .acceptance_base: &acceptance_base
   stage: 'acceptance'
-  tags: ['docker']
+  tags: ['beaker']
   <<: *setup_bundler_env
 
 
@@ -135,6 +135,7 @@ acceptance:
   <<: *pup_6_18
   script:
     - 'bundle exec rake acceptance'
+  allow_failure: true  # FIXME: add docker to GLCI beaker runners
 
 fips-acceptance:
   <<: *acceptance_base
