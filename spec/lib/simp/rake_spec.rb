@@ -8,7 +8,8 @@ describe Simp::Rake do
 
   describe ".get_cpu_limit" do
     it "detects number of CPUs" do
-      expect( get_cpu_limit ).to be > 0
+      expect(Parallel).to receive(:processor_count).and_return(3)
+      expect( get_cpu_limit ).to eq 2
     end
   end
 
