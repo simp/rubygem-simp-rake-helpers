@@ -87,6 +87,7 @@ variables:
     - 'command -v rpmbuild || if command -v apt-get; then apt-get update; apt-get install -y rpm; fi ||:'
     - 'command -v rpmbuild || if command -v yum; then yum install -y rpm-build; fi ||:'
     - 'command -v rpmbuild || { >&2 echo "FATAL: Cannot find executable: ''rpmbuild''";  exit 1 ;}'
+    - "rpm -q --queryformat '%{NAME} %{VERSION} %{RELEASE} %{ARCH}\\n' -D 'dist ' --specfile /builds/simp/rubygem-simp-rake-helpers/spec/lib/simp/files/simp_build/src/assets/simp/build/simp.spec"
     - bundle exec rake spec
 
 .acceptance_base: &acceptance_base
