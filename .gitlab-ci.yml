@@ -6,7 +6,6 @@
 ---
 stages:
   - validation
-  - unit
   - acceptance
   - deploy
 
@@ -71,6 +70,13 @@ variables:
     BEAKER_PUPPET_COLLECTION: 'puppet6'
     MATRIX_RUBY_VERSION: '2.5'
 
+.pup_6_18: &pup_6
+  image: 'ruby:2.5'
+  variables:
+    PUPPET_VERSION: '~> 6.18'
+    BEAKER_PUPPET_COLLECTION: 'puppet6'
+    MATRIX_RUBY_VERSION: '2.5'
+
 .validation_checks: &validation_checks
   stage: validation
   tags: ['docker']
@@ -80,15 +86,14 @@ variables:
     - bundle exec rake pkg:gem
 
 .spec_tests: &spec_tests
-  stage: unit
+  stage: validation
   tags: ['docker']
   <<: *setup_bundler_env
   script:
     - 'command -v rpmbuild || if command -v apt-get; then apt-get update; apt-get install -y rpm; fi ||:'
     - 'command -v rpmbuild || if command -v yum; then yum install -y rpm-build; fi ||:'
     - 'command -v rpmbuild || { >&2 echo "FATAL: Cannot find executable: ''rpmbuild''";  exit 1 ;}'
-    - "rpm -q --queryformat '%{NAME} %{VERSION} %{RELEASE} %{ARCH}\\n' -D 'dist ' --specfile /builds/simp/rubygem-simp-rake-helpers/spec/lib/simp/files/simp_build/src/assets/simp/build/simp.spec"
-    - bundle exec rake spec
+    - 'bundle exec rake spec'
 
 .acceptance_base: &acceptance_base
   stage: 'acceptance'
@@ -116,11 +121,11 @@ pup6.18-unit:
   <<: *spec_tests
 
 pup6.latest-validation:
-  <<: *pup_6_18
+  <<: *pup_6
   <<: *validation_checks
 
 pup6.latest-unit:
-  <<: *pup_6_18
+  <<: *pup_6
   <<: *spec_tests
 
 # Acceptance tests
