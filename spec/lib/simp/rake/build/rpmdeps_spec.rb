@@ -32,8 +32,7 @@ describe 'Simp::Rake::Build::RpmDeps#get_version_requires' do
       }.to raise_error(SIMPRpmDepVersionException)
     end
 
-    # FIXME regex doesn't catch this
-    pending do
+    it( nil, :pending => "FIXME regex doesn't catch this" )  do
       expect{
         Simp::Rake::Build::RpmDeps::get_version_requires(pkg, '<= 3.0.0')
       }.to raise_error(SIMPRpmDepVersionException)

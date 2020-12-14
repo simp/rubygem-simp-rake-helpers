@@ -35,8 +35,7 @@ describe Simp::Ci::Gitlab do
   describe '#validate_config' do
     it 'succeeds when no .gitlab-ci.yml file exists and no tests exist' do
       proj_dir = File.join(files_dir, 'no_gitlab_config_without_tests')
-      expect{ Simp::Ci::Gitlab.new(proj_dir).validate_config }.
-        to_not raise_error
+      expect{ Simp::Ci::Gitlab.new(proj_dir).validate_config }.to_not raise_error
     end
 
     it 'succeeds but warns when no .gitlab-ci.yml file exists but tests exist' do
@@ -56,9 +55,9 @@ describe Simp::Ci::Gitlab do
       proj_dir = File.join(files_dir, 'valid_job_suite_nodeset')
       validator = Simp::Ci::Gitlab.new(proj_dir)
 
-      validator.stubs(:`).with('which curl').returns('/usr/bin/curl')
+      expect(validator).to receive(:`).with('which curl').and_return('/usr/bin/curl')
       gitlab_response = '{"status":"valid","errors":[]}'
-      validator.stubs(:`).with(Not(equals('which curl'))).returns(gitlab_response)
+      expect(validator).to receive(:`).with(/(?!which curl).*/).and_return(gitlab_response)
 
       expect{ validator.validate_config }.
         to_not raise_error
@@ -68,9 +67,9 @@ describe Simp::Ci::Gitlab do
       proj_dir = File.join(files_dir, 'valid_job_suite_nodeset')
       validator = Simp::Ci::Gitlab.new(proj_dir)
 
-      validator.stubs(:`).with('which curl').returns('/usr/bin/curl')
+      expect(validator).to receive(:`).with('which curl').and_return('/usr/bin/curl')
       gitlab_response = '{"status":"invalid","errors":["root config contains unknown keys: pup5.5-unit"]}'
-      validator.stubs(:`).with(Not(equals('which curl'))).returns(gitlab_response)
+      expect(validator).to receive(:`).with(/(?!which curl).*/).and_return(gitlab_response)
 
       expect{ validator.validate_config }.
         to raise_error(Simp::Ci::Gitlab::LintError,
@@ -97,7 +96,7 @@ describe Simp::Ci::Gitlab do
       proj_dir = File.join(files_dir, 'valid_job_suite_nodeset')
       validator = Simp::Ci::Gitlab.new(proj_dir)
 
-      validator.stubs(:`).returns('')
+      expect(validator).to receive(:`).and_return('')
 
       expect{ validator.validate_yaml }.
         to output(/Could not find 'curl'/).to_stdout
@@ -107,8 +106,8 @@ describe Simp::Ci::Gitlab do
       proj_dir = File.join(files_dir, 'valid_job_suite_nodeset')
       validator = Simp::Ci::Gitlab.new(proj_dir)
 
-      validator.stubs(:`).with('which curl').returns('/usr/bin/curl')
-      validator.stubs(:`).with(Not(equals('which curl'))).returns('{}')
+      expect(validator).to receive(:`).with('which curl').and_return('/usr/bin/curl')
+      expect(validator).to receive(:`).with(/(?!which curl).*/).and_return('{}')
 
       expect{ validator.validate_yaml }.
         to output(/Unable to lint check/).to_stdout
@@ -118,9 +117,9 @@ describe Simp::Ci::Gitlab do
       proj_dir = File.join(files_dir, 'valid_job_suite_nodeset')
       validator = Simp::Ci::Gitlab.new(proj_dir)
 
-      validator.stubs(:`).with('which curl').returns('/usr/bin/curl')
+      expect(validator).to receive(:`).with('which curl').and_return('/usr/bin/curl')
       gitlab_response = '{"status":"valid","errors":[]}'
-      validator.stubs(:`).with(Not(equals('which curl'))).returns(gitlab_response)
+      expect(validator).to receive(:`).with(/(?!which curl).*/).and_return(gitlab_response)
 
       expect{ validator.validate_yaml }.
         to_not raise_error
@@ -132,9 +131,9 @@ describe Simp::Ci::Gitlab do
       proj_dir = File.join(files_dir, 'valid_job_suite_nodeset')
       validator = Simp::Ci::Gitlab.new(proj_dir)
 
-      validator.stubs(:`).with('which curl').returns('/usr/bin/curl')
+      expect(validator).to receive(:`).with('which curl').and_return('/usr/bin/curl')
       gitlab_response = '{"status":"invalid","errors":["root config contains unknown keys: pup5.5-unit"]}'
-      validator.stubs(:`).with(Not(equals('which curl'))).returns(gitlab_response)
+      expect(validator).to receive(:`).with(/(?!which curl).*/).and_return(gitlab_response)
 
       expect{ validator.validate_yaml }.
         to raise_error(Simp::Ci::Gitlab::LintError,
