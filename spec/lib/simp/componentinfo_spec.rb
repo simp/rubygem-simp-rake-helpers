@@ -257,10 +257,16 @@ describe Simp::ComponentInfo do
        /Could not extract version and release from /)
    end
 
-   # This has to be a case in which version and release can be read
-   # from spec file but the changelog (which is optional) can't.  Could
-   # be mocked, but would like a real-world test case.
-   xit 'fails when changelog cannot be read from asset RPM spec file'
+   it 'fails when changelog cannot be read from asset RPM spec file' do
+     skip(
+       <<~SKIP.strip.split("\n").join(' ')
+         This has to be a case in which version and release can be read from
+         spec file but the changelog (which is optional) can't.
 
+         It *could* be mocked, but is probably not worth the LOE unless we
+         encounter a real-world test case."
+       SKIP
+     )
+   end
   end
 end
