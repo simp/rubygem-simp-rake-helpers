@@ -3,35 +3,16 @@ language: ruby
 cache: bundler
 sudo: false
 
-bundler_args: --without development system_tests
-
 notifications:
   email: false
 
-addons:
-  apt:
-    packages:
-      - rpm
-      # provides unbuffer
-      - expect-dev
-
-before_install:
-  - rm -f Gemfile.lock
-
 jobs:
   include:
-    - stage: spec
-      rvm: 2.5.1
-      script:
-        - bundle exec rake spec
-
-    - stage: acceptance
-      sudo: required
-      rvm: 2.5.1
-      services:
-        - docker
-      script:
-        - travis_wait 90 unbuffer bundle exec rake acceptance
+  ###  Testing on Travis CI is indefinitely disabled
+  ###
+  ###  See:
+  ###    * https://blog.travis-ci.com/2020-11-02-travis-ci-new-billing
+  ###    * https://simp-project.atlassian.net/browse/SIMP-8703
 
     - stage: deploy
       rvm: 2.5.1

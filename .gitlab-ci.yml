@@ -1,152 +1,145 @@
-# The testing matrix considers ruby/puppet versions supported by SIMP and PE:
-#
-# https://puppet.com/docs/pe/2017.3/overview/component_versions_in_recent_pe_releases.html
-# https://puppet.com/misc/puppet-enterprise-lifecycle
-# https://puppet.com/docs/pe/2017.3/overview/getting_support_for_pe.html#standard-releases-and-long-term-support-releases
-# ------------------------------------------------------------------------------
-#  release   pup    ruby      eol
-# PE 2018.1  5.5.10 2.4.5   2019-??  (LTS)
-# PE 2019    6.0.5  2.5.1   ????-??  (LTS)
+# The testing matrix considers ruby/puppet versions supported by SIMP:
+# --------------------------------------------------------------------
+# Release       Puppet   Ruby     EOL
+# SIMP 6.4      5.5      2.4.10   TBD
+# SIMP 6.5      6.18     2.5.7    TBD
 ---
-.cache_bundler_r2_4: &cache_bundler_r2_4
-  cache:
-    # An attempt at caching between runs (ala Travis CI)
-    key: "${CI_PROJECT_NAMESPACE}__bundler_r2_4"
-    paths:
-      - '.vendor'
-      - 'vendor'
+stages:
+  - validation
+  - acceptance
+  - deploy
 
-.cache_bundler_r2_5: &cache_bundler_r2_5
-  cache:
-    # An attempt at caching between runs (ala Travis CI)
-    key: "${CI_PROJECT_NAMESPACE}__bundler_r2_5"
-    paths:
-      - '.vendor'
-      - 'vendor'
+image: 'ruby:2.5'
 
+variables:
+  PUPPET_VERSION:    'UNDEFINED' # <- Matrixed jobs MUST override this (or fail)
+  BUNDLER_VERSION:   '1.17.1'
+
+  # Force dependencies into a path the gitlab-runner user can write to.
+  # (This avoids some failures on Runners with misconfigured ruby environments.)
+  GEM_HOME:          .vendor/gem_install
+  BUNDLE_CACHE_PATH: .vendor/bundle
+  BUNDLE_PATH:       .vendor/bundle
+  BUNDLE_BIN:        .vendor/gem_install/bin
+  BUNDLE_NO_PRUNE:   'true'
+
+
+# bundler dependencies and caching
+#
+# - Cache bundler gems between pipelines foreach Ruby version
+# - Try to use cached and local resources before downloading dependencies
+# --------------------------------------
 .setup_bundler_env: &setup_bundler_env
+  cache:
+    untracked: true
+    key: "${CI_PROJECT_NAMESPACE}_ruby-${MATRIX_RUBY_VERSION}_bundler"
+    paths:
+      - '.vendor'
   before_script:
-    - '(find .vendor | wc -l) || :'
-    - ruby --version
-    - gem --version
-    - gem install bundler --no-document
-    - rm -f Gemfile.lock
-    - rm -rf pkg/
-    - bundle install --no-binstubs --jobs $(nproc) --path=.vendor "${FLAGS[@]}"
+    - 'ruby -e "puts %(Environment Variables:\n  * #{ENV.keys.grep(/PUPPET|SIMP|BEAKER|MATRIX/).map{|v| %(#{v} = #{ENV[v]})}.join(%(\n  * ))})"'
+    - 'declare GEM_BUNDLER_VER=(-v "~> ${BUNDLER_VERSION:-1.16.0}")'
+    - 'declare GEM_INSTALL_CMD=(gem install --no-document)'
+    - 'declare BUNDLER_INSTALL_CMD=(bundle install --no-binstubs --jobs $(nproc) "${FLAGS[@]}")'
+    - 'mkdir -p ${GEM_HOME} ${BUNDLER_BIN}'
+    - 'gem list -ie "${GEM_BUNDLER_VER[@]}" --silent bundler || "${GEM_INSTALL_CMD[@]}" --local "${GEM_BUNDLER_VER[@]}" bundler || "${GEM_INSTALL_CMD[@]}" "${GEM_BUNDLER_VER[@]}" bundler'
+    - 'rm -rf pkg/ || :'
+    - 'bundle check || rm -f Gemfile.lock && ("${BUNDLER_INSTALL_CMD[@]}" --local || "${BUNDLER_INSTALL_CMD[@]}" || bundle pristine ||  "${BUNDLER_INSTALL_CMD[@]}") || { echo "PIPELINE: Bundler could not install everything (see log output above)" && exit 99 ; }'
+
+
+# To avoid running a prohibitive number of tests every commit,
+# don't set this env var in your gitlab instance
+.only_with_SIMP_FULL_MATRIX: &only_with_SIMP_FULL_MATRIX
+  only:
+    variables:
+      - $SIMP_FULL_MATRIX == "yes"
+
+# Puppet Versions
+#-----------------------------------------------------------------------
+
+.pup_5_5_20: &pup_5_5_20
+  image: 'ruby:2.4'
+  variables:
+    PUPPET_VERSION: '5.5.20'
+    BEAKER_PUPPET_COLLECTION: 'puppet5'
+    MATRIX_RUBY_VERSION: '2.4'
+
+.pup_6_18: &pup_6_18
+  image: 'ruby:2.5'
+  variables:
+    PUPPET_VERSION: '~> 6.18.0'
+    BEAKER_PUPPET_COLLECTION: 'puppet6'
+    MATRIX_RUBY_VERSION: '2.5'
+
+.pup_6_18: &pup_6
+  image: 'ruby:2.5'
+  variables:
+    PUPPET_VERSION: '~> 6.18'
+    BEAKER_PUPPET_COLLECTION: 'puppet6'
+    MATRIX_RUBY_VERSION: '2.5'
 
 .validation_checks: &validation_checks
+  stage: validation
+  tags: ['docker']
+  <<: *setup_bundler_env
   script:
     - bundle exec rake clean
     - bundle exec rake pkg:gem
 
 .spec_tests: &spec_tests
+  stage: validation
+  tags: ['docker']
+  <<: *setup_bundler_env
   script:
-    - bundle exec rake spec
-  # Currently, the spec tests require rpmbuild, which isn't available to might not be on the GitLab Runners
-  allow_failure: true
+    - 'command -v rpmbuild || if command -v apt-get; then apt-get update; apt-get install -y rpm; fi ||:'
+    - 'command -v rpmbuild || if command -v yum; then yum install -y rpm-build; fi ||:'
+    - 'command -v rpmbuild || { >&2 echo "FATAL: Cannot find executable: ''rpmbuild''";  exit 1 ;}'
+    - 'bundle exec rake spec'
 
-stages:
-  - validation
-  - unit
-  - acceptance
-  - deploy
+.acceptance_base: &acceptance_base
+  stage: 'acceptance'
+  tags: ['beaker']
+  <<: *setup_bundler_env
 
 
 # Puppet 5.5 for PE 2018.1 support
 # See: https://puppet.com/misc/puppet-enterprise-lifecycle
 # --------------------------------------
 pup5.5-validation:
-  stage: validation
-  tags:
-    - docker
-  image: ruby:2.4
-  variables:
-    PUPPET_VERSION: '~> 5.5.10'
-  <<: *cache_bundler_r2_4
-  <<: *setup_bundler_env
+  <<: *pup_5_5_20
   <<: *validation_checks
 
 pup5.5-unit:
-  stage: unit
-  tags:
-    - docker
-  image: ruby:2.4
-  variables:
-    PUPPET_VERSION: '~> 5.5.10'
-  <<: *cache_bundler_r2_4
-  <<: *setup_bundler_env
+  <<: *pup_5_5_20
   <<: *spec_tests
 
-# Keep an eye on the latest puppet 5
-# ----------------------------------
-pup5.latest-validation:
-  stage: validation
-  tags:
-    - docker
-  image: ruby:2.4
-  variables:
-    PUPPET_VERSION: '~> 5.0'
-  <<: *cache_bundler_r2_4
-  <<: *setup_bundler_env
+pup6.18-validation:
+  <<: *pup_6_18
   <<: *validation_checks
 
-pup5.latest-unit:
-  stage: unit
-  tags:
-    - docker
-  image: ruby:2.4
-  variables:
-    PUPPET_VERSION: '~> 5.0'
-  <<: *cache_bundler_r2_4
-  <<: *setup_bundler_env
+pup6.18-unit:
+  <<: *pup_6_18
   <<: *spec_tests
 
-# Keep an eye on puppet 6
-# -----------------------
 pup6.latest-validation:
-  stage: validation
-  tags:
-    - docker
-  image: ruby:2.5
-  variables:
-    PUPPET_VERSION: '~> 6.0'
-  <<: *cache_bundler_r2_5
-  <<: *setup_bundler_env
+  <<: *pup_6
   <<: *validation_checks
 
 pup6.latest-unit:
-  stage: unit
-  tags:
-    - docker
-  image: ruby:2.5
-  variables:
-    PUPPET_VERSION: '~> 6.0'
-  <<: *cache_bundler_r2_5
-  <<: *setup_bundler_env
+  <<: *pup_6
   <<: *spec_tests
 
 # Acceptance tests
 # ==============================================================================
 acceptance:
-  stage: acceptance
-  tags:
-    - docker
-  <<: *cache_bundler_r2_4
-  <<: *setup_bundler_env
-  variables:
-    PUPPET_VERSION: '5.5.10'
+  <<: *acceptance_base
+  <<: *pup_6_18
   script:
-    - bundle exec rake acceptance
+    - 'bundle exec rake acceptance'
+  allow_failure: true  # FIXME: add docker to GLCI beaker runners
 
 fips-acceptance:
-  stage: acceptance
-  tags:
-    - docker
-  <<: *cache_bundler_r2_4
-  <<: *setup_bundler_env
-  variables:
-    PUPPET_VERSION: '5.5.10'
-    BEAKER_fips: 'yes'
+  <<: *acceptance_base
+  <<: *pup_6_18
   script:
-    - bundle exec rake acceptance
+    - 'BEAKER_fips=yes bundle exec rake acceptance'
   allow_failure: true
