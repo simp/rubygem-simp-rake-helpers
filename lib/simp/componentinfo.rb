@@ -139,6 +139,23 @@ class Simp::ComponentInfo
     if $?.exitstatus != 0
       fail("Could not extract changelog from #{rpm_spec_files[0]}." +
         " To debug, execute:\n   #{changelog_query}")
+    elsif raw_changelog.strip.empty?
+      changelog_lines = []
+
+      in_changelog = false
+      File.read(rpm_spec_files[0]).lines.each do |line|
+        changelog_lines << line if in_changelog
+
+        if line.start_with?('%')
+          if line.start_with?('%changelog')
+            in_changelog = true
+          else
+            in_changelog = false
+          end
+        end
+      end
+
+      raw_changelog = changelog_lines.join
     end
     @changelog = parse_changelog(raw_changelog, latest_version_only, verbose)
   end

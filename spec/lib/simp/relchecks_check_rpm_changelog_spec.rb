@@ -1,6 +1,8 @@
 require 'simp/relchecks'
 require 'spec_helper'
 
+rpm_version = Simp::RPM.version
+
 describe 'Simp::RelChecks.check_rpm_changelog' do
   let(:files_dir) {
     File.join( File.dirname(__FILE__), 'files', File.basename(__FILE__, '.rb'))
@@ -31,19 +33,27 @@ describe 'Simp::RelChecks.check_rpm_changelog' do
 
   context 'with changelog errors' do
     it 'fails for a Puppet module' do
-      component_dir = File.join(files_dir, 'module_with_misordered_entries')
-      component_spec = File.join(templates_dir, 'simpdefault.spec')
+      if Gem::Version.new(rpm_version) > Gem::Version.new('4.15.0')
+        skip("RPM #{rpm_version} does not properly process changelog entries")
+      else
+        component_dir = File.join(files_dir, 'module_with_misordered_entries')
+        component_spec = File.join(templates_dir, 'simpdefault.spec')
 
-      expect{ Simp::RelChecks.check_rpm_changelog(component_dir, component_spec) }.
-        to raise_error(/ERROR: Invalid changelog for module_with_misordered_entries/)
+        expect{ Simp::RelChecks.check_rpm_changelog(component_dir, component_spec) }.
+          to raise_error(/ERROR: Invalid changelog for module_with_misordered_entries/)
+      end
     end
 
     it 'fails for a non-Puppet asset' do
-      component_dir = File.join(files_dir, 'asset_with_misordered_entries')
-      component_spec = File.join(component_dir, 'build', 'asset_with_misordered_entries.spec')
+      if Gem::Version.new(rpm_version) > Gem::Version.new('4.15.0')
+        skip("RPM #{rpm_version} does not properly process changelog entries")
+      else
+        component_dir = File.join(files_dir, 'asset_with_misordered_entries')
+        component_spec = File.join(component_dir, 'build', 'asset_with_misordered_entries.spec')
 
-      expect{ Simp::RelChecks.check_rpm_changelog(component_dir, component_spec) }.
-        to raise_error(/ERROR: Invalid changelog for asset_with_misordered_entries/)
+        expect{ Simp::RelChecks.check_rpm_changelog(component_dir, component_spec) }.
+          to raise_error(/ERROR: Invalid changelog for asset_with_misordered_entries/)
+      end
     end
   end
 end

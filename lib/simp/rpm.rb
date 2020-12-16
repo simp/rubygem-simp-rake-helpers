@@ -613,5 +613,10 @@ EOE
         end
       end
     end
+
+    # Returns the version of RPM installed on the system
+    def self.version
+      %x{rpm --version}.strip.split.last
+    end
   end
 end
