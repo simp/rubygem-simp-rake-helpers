@@ -69,7 +69,6 @@ module Simp::Rake::Build
               :in_processes => get_cpu_limit,
               :progress => t.name
             ) do |dir|
-              next unless File.directory?(dir)
               Dir.chdir(dir) do
                 begin
                   rake_flags = Rake.application.options.trace ? '--trace' : ''
@@ -99,7 +98,6 @@ module Simp::Rake::Build
               :in_processes => get_cpu_limit,
               :progress => t.name
             ) do |dir|
-              next unless File.directory?(dir)
               Dir.chdir(dir) do
                 rake_flags = Rake.application.options.trace ? '--trace' : ''
                 sh %{rake clobber #{rake_flags}}
@@ -667,9 +665,9 @@ protect=1
         #   can be pulled out into a library that is easily unit-testable
         def require_rebuild?(dir, yum_helper, opts={ :unique_namespace => generate_namespace, :fetch => false, :verbose => @verbose, :check_git => false, :prefix => '' })
           result = false
-
-
           rpm_metadata = File.exist?(@rpm_dependency_file) ? YAML.load(File.read(@rpm_dependency_file)) : {}
+          dir_relpath = Pathname.new(dir).relative_path_from(Pathname.new(Dir.pwd)).to_path
+          $stderr.puts "\n  require_rebuild? (#{dir_relpath}):" if @verbose
 
           Dir.chdir(dir) do
             if File.exist?('metadata.json')
@@ -689,10 +687,23 @@ protect=1
             else
               spec_file = Dir.glob(File.join('build', '*.spec'))
               fail("No spec file found in #{dir}/build") if spec_file.empty?
+              $stderr.puts "    Found spec file: #{File.expand_path(spec_file.first)}" if @verbose
               new_rpm_info = Simp::RPM.new(spec_file.first)
             end
 
+            if @verbose
+              $stderr.puts '    Details:'
+              $stderr.puts "        Puppetfile name: #{File.basename(dir)}"
+              $stderr.puts "        RPM name:        #{new_rpm_info.name}"
+              $stderr.puts "        Local directory: #{dir}"
+            end
+
             if opts[:check_git]
+              git_origin_url = nil
+              ['origin','upstream'].each do |r|
+                git_origin_url = %x(git config --get remote.#{r}.url).strip if git_origin_url.to_s.empty?
+              end
+              $stderr.puts "        Git origin URL:  #{git_origin_url}" if @verbose
               require_tag = false
 
               #FIXME The check below is insufficient. See logic in compare_latest_tag,
@@ -711,28 +722,59 @@ protect=1
 
               begin
                 rpm_version = Gem::Version.new(new_rpm_info.version)
+                rpm_release = new_rpm_info.release.match(/^(\d+)[.-_]?/) ? new_rpm_info.release.match(/^(\d+)[.-_]?/)[1] : nil
+                if @verbose
+                  $stderr.puts '        ' + [
+                    "RPM version-rel: #{ "#{rpm_version}-#{rpm_release}".ljust(10) }  ",
+                    "(semver: #{rpm_version}, relver: #{rpm_release})",
+                  ].join
+                end
               rescue ArgumentError
-                $stderr.puts ">>#{new_rpm_info.basename}: Could not determine RPM version"
+                $stderr.puts ">>#{new_rpm_info.basename}: Could not determine RPM version from '#{new_rpm_info.version}'"
               end
 
               begin
                 if latest_tag.empty?
                   require_tag = true
+                  $stderr.puts "        Latest Git tag semver:   (none)" if @verbose
                 else
-                  latest_tag_version = Gem::Version.new(latest_tag)
+                  # Gem::Version interprets an RPM-style release suffix like
+                  # `1.2.3-4` as `1.2.3.pre.4`, which is *less* than `1.2.3`.
+                  # So we compare SemVer first, then relver numbers if needed
+                  latest_tag_version = Gem::Version.new(latest_tag.sub(/-\d+$/,''))
+                  latest_tag_release = latest_tag.match(/-(\d+)$/) ? latest_tag.match(/-(\d+)$/)[1].to_i : nil
+                  if @verbose
+                    $stderr.puts '        ' + [
+                      "Latest Git tag:  #{latest_tag.ljust(10)}  ",
+                      "(semver: #{latest_tag_version}#{latest_tag_release ? ", relver: #{latest_tag_release}" : nil})",
+                    ].join
+                  end
                 end
               rescue ArgumentError
-                $stderr.puts ">>#{new_rpm_info.basename}: Invalid git tag version '#{latest_tag}' "
+                $stderr.puts ">>#{git_origin_url}: Invalid git tag version '#{latest_tag}' "
               end
 
               if rpm_version && latest_tag_version
-                if rpm_version > latest_tag_version
+                # undefined behavior, so far (this current logic skips it):
+                #   what to do if rpm_release is set and latest_tag_release is nil?
+                if latest_tag_release &&
+                   rpm_release &&
+                   (rpm_version == latest_tag_version) &&
+                   (rpm_release > latest_tag_release)
+                  require_tag = true
+                elsif rpm_version > latest_tag_version
                   require_tag = true
                 end
               end
 
               if opts[:verbose] && require_tag
-                $stderr.puts  "#{opts[:prefix]}Git Release Tag Required: #{new_rpm_info.basename} #{latest_tag} => #{new_rpm_info.version}"
+                $stderr.puts [
+                  "#{opts[:prefix]}Git Release Tag Required: ",
+                  "[#{git_origin_url || dir_relpath }] ",
+                  "tag: #{latest_tag} => ",
+                  "rpm: #{new_rpm_info.version}#{latest_tag_release ? "-#{rpm_release}" : nil} ",
+                  "[#{new_rpm_info.basename}]",
+                ].join
               end
             end
 
@@ -751,7 +793,6 @@ protect=1
                     if new_rpm_info.package_newer?(package, published_rpm)
                       if opts[:verbose]
                         $stderr.puts "#{opts[:prefix]}RPM Publish Required: #{published_rpm} => #{new_rpm_info.rpm_name(package)}"
-
                       end
                       result = true
                     else
@@ -783,7 +824,7 @@ protect=1
                     end
                   else
                     if opts[:verbose]
-                      $stderr.puts "#{opts[:prefix]}RPM Publish Required: #{new_rpm_info.rpm_name(package)}"
+                      $stderr.puts "#{opts[:prefix]}RPM Publish Required (new RPM): #{new_rpm_info.rpm_name(package)}"
                     end
                     result = true
                   end
@@ -881,6 +922,7 @@ protect=1
 
                     ::Bundler.send(clean_env_method) do
                       %x{#{bundle_install_cmd}}
+
                       output = %x{#{cmd} 2>&1}
 
                       unless $?.success?
