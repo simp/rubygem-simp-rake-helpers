@@ -78,6 +78,20 @@ module Simp
       @gpg_agent_script   = 'run_gpg_agent'
     end
 
+    # Return the version of GPG instealled on the system
+    #
+    # @return [Gem::Version]
+    def gpg_version
+      return @gpg_version if @gpg_version
+      @gpg_version = %x{gpg --version}.lines.first.split(/\s+/).last
+
+      unless @gpg_version.nil? || @gpg_version.empty?
+        @gpg_version = Gem::Version.new(@gpg_version)
+      end
+
+      @gpg_version
+    end
+
     # Returns a gpg-agent's env string, if it can be detected from the
     #   gpg-agent-info file
     #
@@ -138,33 +152,50 @@ module Simp
         write_gpg_agent_startup_script
 
         begin
-          # Start the GPG agent.
-          gpg_agent_output = %x(./#{@gpg_agent_script}).strip
+          if gpg_version < Gem::Version.new('2.1')
+            # Start the GPG agent.
+            gpg_agent_output = %x(./#{@gpg_agent_script}).strip
 
-          # Provide a local socket (needed by the `gpg` command when
-          local_socket     = File.join(Dir.pwd, 'S.gpg-agent')
+            # Provide a local socket (needed by the `gpg` command when
+            local_socket = File.join(Dir.pwd, 'S.gpg-agent')
 
-          # This condition was handled differently in previous logic.
-          #
-          #   a.) As the surrounding logic works now, it will _always_ be a new
-          #       agent by this point, because the directory is cleaned out
-          #   b.) The agent's information will be read from the env-file it
-          #        writes at startup
-          #   c.) The old command `gpg-agent --homedir=#{Dir.pwd} /get serverpid`
-          #       did not work on EL6 or EL7.
-          #
-          warn(empty_gpg_agent_message) if gpg_agent_output.empty?
+            # This condition was handled differently in previous logic.
+            #
+            #   a.) As the surrounding logic works now, it will _always_ be a new
+            #       agent by this point, because the directory is cleaned out
+            #   b.) The agent's information will be read from the env-file it
+            #        writes at startup
+            #   c.) The old command `gpg-agent --homedir=#{Dir.pwd} /get serverpid`
+            #       did not work on EL6 or EL7.
+            #
+            warn(empty_gpg_agent_message) if gpg_agent_output.empty?
 
-          agent_info = gpg_agent_info
+            agent_info = gpg_agent_info
 
-          # The socket is useful to get back info on the command line.
-          unless File.exist?(File.join(Dir.pwd, File.basename(agent_info[:socket])))
-            ln_s(agent_info[:socket], local_socket, :verbose => @verbose)
+            # The socket is useful to get back info on the command line.
+            unless File.exist?(File.join(Dir.pwd, File.basename(agent_info[:socket])))
+              ln_s(agent_info[:socket], local_socket, :verbose => @verbose)
+            end
+
+            generate_key(agent_info[:info])
+          else
+            # Start the GPG agent
+            %x{gpg-agent --homedir=#{Dir.pwd} >&/dev/null || gpg-agent --homedir=#{Dir.pwd} --daemon >&/dev/null}
+
+            agent_info = {}
+
+            # Provide a local socket (needed by the `gpg` command when
+            agent_info[:socket] = %x{echo 'GETINFO socket_name' | gpg-connect-agent --homedir=#{Dir.pwd}}.lines.first[1..-1].strip
+
+            # Get the pid
+            agent_info[:pid] = %x{echo 'GETINFO pid' | gpg-connect-agent --homedir=#{Dir.pwd}}.lines.first[1..-1].strip.to_i
+
+            generate_key(%{#{agent_info[:socket]}:#{agent_info[:pid]}:1})
           end
-          generate_key(agent_info[:info])
         ensure
           kill_agent(agent_info[:pid])
         end
+
         agent_info
       end
     end
@@ -211,9 +242,14 @@ module Simp
     def generate_key(gpg_agent_info_str)
       puts "Generating new GPG key#{@verbose ? " under '#{@dir}'" : ''}..."
       gpg_cmd = %(GPG_AGENT_INFO=#{gpg_agent_info_str} gpg --homedir="#{@dir}")
+
       pipe    = @verbose ? '| tee' : '>'
       sh %(#{gpg_cmd} --batch --gen-key #{GPG_GENKEY_PARAMS_FILENAME})
       sh %(#{gpg_cmd} --armor --export #{@key_email} #{pipe} "#{@key_file}")
+
+      if File.stat(@key_file).size == 0
+        fail "Error: Something went wrong generating #{@key_file}"
+      end
     end
 
     # Return a data structure from a gpg-agent env-file formatted string.
@@ -232,27 +268,32 @@ module Simp
     def write_genkey_parameter_file
       now               = Time.now.to_i.to_s
       expire_date       = Date.today + 14
-      passphrase        = SecureRandom.base64(500)
-      genkey_parameters = <<-GENKEY_PARAMETERS.gsub(%r{^ {8}}, '')
-        %echo Generating Development GPG Key
-        %echo
-        %echo This key will expire on #{expire_date}
-        %echo
-        Key-Type: RSA
-        Key-Length: 4096
-        Key-Usage: sign
-        Name-Real: SIMP Development
-        Name-Comment: Development key #{now}
-        Name-Email: #{@key_email}
-        Expire-Date: 2w
-        Passphrase: #{passphrase}
-        %pubring pubring.gpg
-        %secring secring.gpg
-        # The following creates the key, so we can print "Done!" afterwards
-        %commit
-        %echo New GPG Development Key Created
-      GENKEY_PARAMETERS
-      File.open(GPG_GENKEY_PARAMS_FILENAME, 'w') { |fh| fh.puts(genkey_parameters) }
+      passphrase        = SecureRandom.base64(100)
+      genkey_parameters = [
+        '%echo Generating Development GPG Key',
+        '%echo',
+        "%echo This key will expire on #{expire_date}",
+        '%echo',
+        'Key-Type: RSA',
+        'Key-Length: 4096',
+        'Key-Usage: sign',
+        'Name-Real: SIMP Development',
+        "Name-Comment: Development key #{now}",
+        "Name-Email: #{@key_email}",
+        'Expire-Date: 2w',
+        "Passphrase: #{passphrase}",
+      ]
+
+      if gpg_version < Gem::Version.new('2.1')
+        genkey_parameters << '%pubring pubring.gpg'
+        genkey_parameters << '%secring secring.gpg'
+      end
+
+      genkey_parameters << '# The following creates the key, so we can print "Done!" afterwards'
+      genkey_parameters << '%commit'
+      genkey_parameters << '%echo New GPG Development Key Created'
+
+      File.open(GPG_GENKEY_PARAMS_FILENAME, 'w') { |fh| fh.puts(genkey_parameters.join("\n")) }
     end
 
     # Write a local gpg-agent daemon script file
