@@ -13,6 +13,8 @@ gem 'simp-build-helpers'
 gem 'simp-beaker-helpers'
 gem 'beaker-puppet_install_helper'
 gem 'rake', '>= 12.3.3'
+gem 'beaker-docker', :git => 'https://github.com/trevor-vaughan/beaker-docker', :branch => 'support_rootless_podman'
+gem 'docker-api', :git => 'https://github.com/trevor-vaughan/docker-api', :branch => 'podman-compat'
 
 if puppetversion
   gem 'puppet', puppetversion

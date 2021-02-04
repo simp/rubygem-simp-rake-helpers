@@ -1,3 +1,6 @@
+### 5.11.6 / 2021-02-03
+* Fix GPG handling for GPG 2.1+
+
 ### 5.11.5 / 2020-12-02
 * Add support for Puppet 7
 * Work around issues with querying RPM spec file changelogs using RPM version 4.15.0+
