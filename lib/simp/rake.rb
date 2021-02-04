@@ -96,14 +96,21 @@ module Simp::Rake
     exec pager rescue exec "/bin/sh", "-c", pager
   end
 
-  # Originally snarfed from
-  # http://stackoverflow.com/questions/2108727/which-in-ruby-checking-if-program-exists-in-path-from-ruby
-  def which(cmd)
-    command = Facter::Core::Execution.which(cmd)
+  def which(cmd, fail=false)
+    @which_cache ||= {}
 
-    warn "Warning: Command #{cmd} not found on the system." unless command
+    if @which_cache.has_key?(cmd)
+      command = @which_cache[cmd]
+    else
+      command = Facter::Core::Execution.which(cmd)
+      @which_cache[cmd] = command
+    end
 
-    return command
+    msg = "Warning: Command #{cmd} not found on the system."
+
+    fail ? raise(msg) : warn(msg) unless command
+
+    command
   end
 
   def help
