@@ -5,36 +5,17 @@ HOSTS:
       - build_server
     platform: el-7-x86_64
     hypervisor: docker
-    image: centos:7
+    image: simpproject/simp_build_centos7
     docker_cmd: '/usr/sbin/sshd -D -E /var/log/sshd.log'
-    mount_folders:
-      folder1:
-        host_path: ./
-        container_path: /host_files
-    docker_preserve_image: true
-    ssh:
-      password: root
-      auth_methods:
-        - password
 
   el8-build-server:
     roles:
       - build_server
     platform: el-8-x86_64
     hypervisor: docker
-    image: centos:8
+    image: simpproject/simp_build_centos8
     docker_cmd: '["/sbin/init"]'
-    docker_cap_add:
-      - AUDIT_WRITE
-    mount_folders:
-      folder1:
-        host_path: ./
-        container_path: /host_files
     docker_preserve_image: true
-    ssh:
-      password: root
-      auth_methods:
-        - password
 
 CONFIG:
   log_level: verbose
@@ -44,3 +25,15 @@ CONFIG:
 <% else -%>
   puppet_collection: puppet6
 <% end -%>
+  ssh:
+    password: root
+    auth_methods:
+      - password
+  docker_cap_add:
+    - AUDIT_WRITE
+  docker_preserve_image: true
+  mount_folders:
+    host_files:
+      host_path: ./
+      container_path: /host_files
+      opts: 'z'
