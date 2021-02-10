@@ -83,6 +83,8 @@ module Simp
     # @return [Gem::Version]
     def gpg_version
       return @gpg_version if @gpg_version
+
+      which('gpg', true)
       @gpg_version = %x{gpg --version}.lines.first.split(/\s+/).last
 
       unless @gpg_version.nil? || @gpg_version.empty?
@@ -113,6 +115,8 @@ module Simp
     def dev_key_days_left
       ensure_gpg_directory
       days_left   = 0
+
+      which('gpg', true)
       current_key = %x(GPG_AGENT_INFO='' gpg --homedir=#{@dir} --list-keys #{@key_email} 2>/dev/null)
       unless current_key.empty?
         lasts_until = current_key.lines.first.strip.split("\s").last.delete(']')
@@ -179,6 +183,10 @@ module Simp
 
             generate_key(agent_info[:info])
           else
+            which('gpg', true)
+            which('gpg-agent', true)
+            which('gpg-connect-agent', true)
+
             # Start the GPG agent
             %x{gpg-agent --homedir=#{Dir.pwd} >&/dev/null || gpg-agent --homedir=#{Dir.pwd} --daemon >&/dev/null}
 
@@ -240,6 +248,8 @@ module Simp
     # @param gpg_agent_info_str [String] value to set the GPG_AGENT_INFO
     #   environment variable to use in order to use the correct `gpg-agent`.
     def generate_key(gpg_agent_info_str)
+      which('gpg', true)
+
       puts "Generating new GPG key#{@verbose ? " under '#{@dir}'" : ''}..."
       gpg_cmd = %(GPG_AGENT_INFO=#{gpg_agent_info_str} gpg --homedir="#{@dir}")
 
@@ -298,13 +308,16 @@ module Simp
 
     # Write a local gpg-agent daemon script file
     def write_gpg_agent_startup_script
+      which('gpg-agent', true)
+      pinentry_cmd = which('pinentry-curses', true)
+
       gpg_agent_script = <<-AGENT_SCRIPT.gsub(%r{^ {20}}, '')
         #!/bin/sh
 
         gpg-agent --homedir=#{Dir.pwd} --daemon \
           --no-use-standard-socket --sh --batch \
           --write-env-file "#{@gpg_agent_env_file}" \
-          --pinentry-program /usr/bin/pinentry-curses < /dev/null &
+          --pinentry-program #{pinentry_cmd} < /dev/null &
       AGENT_SCRIPT
 
       File.open(@gpg_agent_script, 'w') { |fh| fh.puts(gpg_agent_script) }
