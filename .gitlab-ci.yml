@@ -48,7 +48,7 @@ variables:
 
 # To avoid running a prohibitive number of tests every commit,
 # don't set this env var in your gitlab instance
-.only_with_SIMP_FULL_MATRIX: &only_with_SIMP_FULL_MATRIX
+.with_SIMP_ACCEPTANCE_MATRIX_LEVEL_3: &with_SIMP_ACCEPTANCE_MATRIX_LEVEL_3
   only:
     variables:
       - $SIMP_FULL_MATRIX == "yes"
@@ -56,7 +56,7 @@ variables:
 # Puppet Versions
 #-----------------------------------------------------------------------
 
-.pup_5_5_20: &pup_5_5_20
+.pup_5_pe: &pup_5_pe
   image: 'ruby:2.4'
   variables:
     PUPPET_VERSION: '5.5.20'
@@ -70,7 +70,7 @@ variables:
     BEAKER_PUPPET_COLLECTION: 'puppet6'
     MATRIX_RUBY_VERSION: '2.5'
 
-.pup_6_18: &pup_6
+.pup_6_18: &pup_6_x
   image: 'ruby:2.5'
   variables:
     PUPPET_VERSION: '~> 6.18'
@@ -105,11 +105,11 @@ variables:
 # See: https://puppet.com/misc/puppet-enterprise-lifecycle
 # --------------------------------------
 pup5.5-validation:
-  <<: *pup_5_5_20
+  <<: *pup_5_pe
   <<: *validation_checks
 
 pup5.5-unit:
-  <<: *pup_5_5_20
+  <<: *pup_5_pe
   <<: *spec_tests
 
 pup6.18-validation:
@@ -121,11 +121,11 @@ pup6.18-unit:
   <<: *spec_tests
 
 pup6.latest-validation:
-  <<: *pup_6
+  <<: *pup_6_x
   <<: *validation_checks
 
 pup6.latest-unit:
-  <<: *pup_6
+  <<: *pup_6_x
   <<: *spec_tests
 
 # Acceptance tests

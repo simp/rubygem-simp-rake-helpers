@@ -39,7 +39,7 @@ The `simp-rake-helpers` gem provides common Rake tasks to support the SIMP build
 
 ### This gem is part of SIMP
 
-This gem is part of (the build tooling for) the [System Integrity Management Platform](https://github.com/NationalSecurityAgency/SIMP), a compliance-management framework built on [Puppet](https://puppetlabs.com/).
+This gem is part of (the build tooling for) the [System Integrity Management Platform](https://simp-project.com), a compliance-management framework built on [Puppet](https://puppetlabs.com/).
 
 
 ### Features
