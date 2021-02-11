@@ -24,11 +24,15 @@ describe 'rake pkg:rpm with customized content' do
 
   before :all do
     copy_host_files_into_build_user_homedir(hosts)
-    hf_cmd(hosts, "bundle --local || bundle", nil, {run_in_parallel: true})
+
+    # If the build environment of user executing this test has a newer
+    # version of bundler than provided by the published docker container,
+    # the Gemfile.lock will cause problems. So, make sure to remove it!
+    hf_cmd(hosts, 'rm Gemfile.lock; bundle --local || bundle', nil, {run_in_parallel: true})
   end
 
   it 'can run the os-dependent Simp::LocalGpgSigningKey spec tests' do
-    hf_cmd( hosts, "bundle exec rspec spec/lib/simp/local_gpg_signing_key_spec.rb.beaker-only" );
+    hf_cmd( hosts, 'bundle exec rspec spec/lib/simp/local_gpg_signing_key_spec.rb.beaker-only' );
   end
 end
 

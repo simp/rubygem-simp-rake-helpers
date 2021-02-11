@@ -26,7 +26,7 @@ describe Simp::LocalGpgSigningKey do
 
   shared_examples_for 'it just generated a local gpg signing key' do
     it 'creates a local gpg-agent' do
-      expect(agent_info.reject{|x| x.nil?}.keys).to include(:info, :socket, :pid)
+      expect(agent_info.reject{|x| x.nil?}.keys).to include(:socket, :pid)
     end
 
     it 'had a gpg-agent socket' do
@@ -46,12 +46,7 @@ describe Simp::LocalGpgSigningKey do
     end
 
     it 'has a populated a gpg-agent directory' do
-      Dir.chdir(TMP_DEV_DIR) do |_dir|
-        expect(Dir['*'].sort).to include(
-          'gengpgkey',
-          'pubring.gpg',
-        )
-      end
+      Dir.chdir(TMP_DEV_DIR) { expect(Dir['*'].sort).to include( 'gengpgkey') }
     end
   end
 

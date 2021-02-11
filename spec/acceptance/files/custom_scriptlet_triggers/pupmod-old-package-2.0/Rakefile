@@ -1,3 +1,0 @@
-require 'simp/rake/pkg'
-
-Simp::Rake::Pkg.new( File.dirname( __FILE__ ) )

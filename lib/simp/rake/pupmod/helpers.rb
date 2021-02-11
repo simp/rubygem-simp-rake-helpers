@@ -290,6 +290,7 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
     # That will give Travis a way of warning us if the changelog
     # will prevent the rpm from building.
     task :changelog_annotation, [:quiet] do |t,args|
+      warning('DEPRECATED: use pkg:create_tag_changelog')
       quiet = true if args[:quiet].to_s == 'true'
       puts changelog_annotation( quiet )
     end
@@ -332,6 +333,7 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
       - doc directory
     EOM
     task :compare_latest_tag, [:tags_source, :ignore_owner, :verbose] do |t,args|
+      warning('DEPRECATED: use pkg:compare_latest_tag')
       require 'json'
 
       tags_source = args[:tags_source].nil? ? 'origin' : args[:tags_source]

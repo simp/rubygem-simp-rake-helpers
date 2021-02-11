@@ -37,28 +37,28 @@ shared_examples_for 'an RPM generator with customized scriptlets' do
     comment '...default preun postun scriptlets call simp_rpm_helper with correct arguments'
     expected_simp_rpm_helper_scriptlets = scriptlet_label_map.select{|k,v| %w(preun postun).include? v }
     expected_simp_rpm_helper_scriptlets.each do |rpm_label, simp_helper_label|
-      expected = <<EOM
-if [ -x /usr/local/sbin/simp_rpm_helper ] ; then
-  /usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='#{simp_helper_label}' --rpm_status=$1
-fi
-EOM
+      expected = <<~EOM
+        if [ -x /usr/local/sbin/simp_rpm_helper ] ; then
+          /usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='#{simp_helper_label}' --rpm_status=$1
+        fi
+      EOM
       expect(scriptlets[rpm_label][:bare_content]).to eq(expected.strip)
     end
 
     comment '...default posttrans scriptlet calls simp_rpm_helper with correct arguments'
-    expected = <<EOM
-if [ -e /var/lib/rpm-state/simp-adapter/rpm_status1.testpackage ] ; then
-  rm /var/lib/rpm-state/simp-adapter/rpm_status1.testpackage
-  if [ -x /usr/local/sbin/simp_rpm_helper ] ; then
-    /usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='posttrans' --rpm_status=1
-  fi
-elif [ -e /var/lib/rpm-state/simp-adapter/rpm_status2.testpackage ] ; then
-  rm /var/lib/rpm-state/simp-adapter/rpm_status2.testpackage
-  if [ -x /usr/local/sbin/simp_rpm_helper ] ; then
-    /usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='posttrans' --rpm_status=2
-  fi
-fi
-EOM
+    expected = <<~EOM
+      if [ -e /var/lib/rpm-state/simp-adapter/rpm_status1.testpackage ] ; then
+        rm /var/lib/rpm-state/simp-adapter/rpm_status1.testpackage
+        if [ -x /usr/local/sbin/simp_rpm_helper ] ; then
+          /usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='posttrans' --rpm_status=1
+        fi
+      elif [ -e /var/lib/rpm-state/simp-adapter/rpm_status2.testpackage ] ; then
+        rm /var/lib/rpm-state/simp-adapter/rpm_status2.testpackage
+        if [ -x /usr/local/sbin/simp_rpm_helper ] ; then
+          /usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='posttrans' --rpm_status=2
+        fi
+      fi
+    EOM
     expect(scriptlets['posttrans'][:bare_content]).to eq(expected.strip)
   end
 end
@@ -130,6 +130,5 @@ describe 'rake pkg:rpm with customized content' do
 
       end
     end
-
   end
 end

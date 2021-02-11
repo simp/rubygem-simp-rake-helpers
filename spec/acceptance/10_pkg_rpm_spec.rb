@@ -6,7 +6,7 @@ RSpec.configure do |c|
   c.extend  Simp::BeakerHelpers::SimpRakeHelpers::PkgRpmHelpers
 end
 
-shared_examples_for "an RPM generator with edge cases" do
+shared_examples_for 'an RPM generator with edge cases' do
   it 'should use specified release number for the RPM' do
     on host, %(#{run_cmd} "cd #{pkg_root_dir}/testpackage_with_release; #{rake_cmd} pkg:rpm")
     release_test_rpm = File.join(pkg_root_dir, 'testpackage_with_release',
@@ -19,14 +19,6 @@ shared_examples_for "an RPM generator with edge cases" do
     changelog_test_rpm = File.join(pkg_root_dir, 'testpackage_without_changelog',
       'dist', File.basename(testpackage_rpm))
     on host, %(rpm --changelog -qp #{changelog_test_rpm} | grep -q 'Auto Changelog')
-  end
-
-  it 'should not require pupmod-simp-simplib for simp-simplib RPM' do
-    on host, %(#{run_cmd} "cd #{pkg_root_dir}/simplib; #{rake_cmd} pkg:rpm")
-    simplib_rpm = File.join(pkg_root_dir, 'simplib', 'dist',
-      File.basename(testpackage_rpm).gsub(/simp-testpackage-0.0.1/,'simp-simplib-1.2.3'))
-    on host, %(test -f #{simplib_rpm})
-    on host, %(rpm -qpR #{simplib_rpm} | grep -q pupmod-simp-simplib), {:acceptable_exit_codes => [1]}
   end
 
   it 'should not fail to create an RPM when the CHANGELOG has a bad date' do
@@ -147,59 +139,65 @@ describe 'rake pkg:rpm' do
             ].sort
 
             comment '...default preinstall scriptlet'
-            expected =<<-EOM
-# (default scriptlet for SIMP 6.x)
-# when $1 = 1, this is an install
-# when $1 = 2, this is an upgrade
-mkdir -p /var/lib/rpm-state/simp-adapter
-touch /var/lib/rpm-state/simp-adapter/rpm_status$1.testpackage
-if [ -x /usr/local/sbin/simp_rpm_helper ] ; then
-  /usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='pre' --rpm_status=$1
-fi
+            expected =<<~EOM
+              # (default scriptlet for SIMP 6.x)
+              # when $1 = 1, this is an install
+              # when $1 = 2, this is an upgrade
+              mkdir -p /var/lib/rpm-state/simp-adapter
+              touch /var/lib/rpm-state/simp-adapter/rpm_status$1.testpackage
+              if [ -x /usr/local/sbin/simp_rpm_helper ] ; then
+                /usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='pre' --rpm_status=$1
+              fi
             EOM
             expect(scriptlets['preinstall'][:content]).to eq( expected.strip )
 
             comment '...default preuninstall scriptlet'
-            expected =<<-EOM
-# (default scriptlet for SIMP 6.x)
-# when $1 = 1, this is the uninstall of the previous version during an upgrade
-# when $1 = 0, this is the uninstall of the only version during an erase
-if [ -x /usr/local/sbin/simp_rpm_helper ] ; then
-  /usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='preun' --rpm_status=$1
-fi
+            expected =<<~EOM
+              # (default scriptlet for SIMP 6.x)
+              # when $1 = 1, this is the uninstall of the previous version during an upgrade
+              # when $1 = 0, this is the uninstall of the only version during an erase
+              if [ -x /usr/local/sbin/simp_rpm_helper ] ; then
+                /usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='preun' --rpm_status=$1
+              fi
             EOM
             expect(scriptlets['preuninstall'][:content]).to eq( expected.strip )
 
             comment '...default postuninstall scriptlet'
-            expected =<<-EOM
-# (default scriptlet for SIMP 6.x)
-# when $1 = 1, this is the uninstall of the previous version during an upgrade
-# when $1 = 0, this is the uninstall of the only version during an erase
-if [ -x /usr/local/sbin/simp_rpm_helper ] ; then
-  /usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='postun' --rpm_status=$1
-fi
+            expected =<<~EOM
+              # (default scriptlet for SIMP 6.x)
+              # when $1 = 1, this is the uninstall of the previous version during an upgrade
+              # when $1 = 0, this is the uninstall of the only version during an erase
+              if [ -x /usr/local/sbin/simp_rpm_helper ] ; then
+                /usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='postun' --rpm_status=$1
+              fi
             EOM
             expect(scriptlets['postuninstall'][:content]).to eq( expected.strip )
 
             comment '...default posttrans scriptlet'
-            expected =<<-EOM
-# (default scriptlet for SIMP 6.x)
-# Marker file is created in %pre and only exists for installs or upgrades
-# when marker file is prepended with 'rpm_status1.', this is an install
-# when marker file is prepended with 'rpm_status2.', this is an upgrade
-if [ -e /var/lib/rpm-state/simp-adapter/rpm_status1.testpackage ] ; then
-  rm /var/lib/rpm-state/simp-adapter/rpm_status1.testpackage
-  if [ -x /usr/local/sbin/simp_rpm_helper ] ; then
-    /usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='posttrans' --rpm_status=1
-  fi
-elif [ -e /var/lib/rpm-state/simp-adapter/rpm_status2.testpackage ] ; then
-  rm /var/lib/rpm-state/simp-adapter/rpm_status2.testpackage
-  if [ -x /usr/local/sbin/simp_rpm_helper ] ; then
-    /usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='posttrans' --rpm_status=2
-  fi
-fi
+            expected =<<~EOM
+              # (default scriptlet for SIMP 6.x)
+              # Marker file is created in %pre and only exists for installs or upgrades
+              # when marker file is prepended with 'rpm_status1.', this is an install
+              # when marker file is prepended with 'rpm_status2.', this is an upgrade
+              if [ -e /var/lib/rpm-state/simp-adapter/rpm_status1.testpackage ] ; then
+                rm /var/lib/rpm-state/simp-adapter/rpm_status1.testpackage
+                if [ -x /usr/local/sbin/simp_rpm_helper ] ; then
+                  /usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='posttrans' --rpm_status=1
+                fi
+              elif [ -e /var/lib/rpm-state/simp-adapter/rpm_status2.testpackage ] ; then
+                rm /var/lib/rpm-state/simp-adapter/rpm_status2.testpackage
+                if [ -x /usr/local/sbin/simp_rpm_helper ] ; then
+                  /usr/local/sbin/simp_rpm_helper --rpm_dir=/usr/share/simp/modules/testpackage --rpm_section='posttrans' --rpm_status=2
+                fi
+              fi
             EOM
             expect(scriptlets['posttrans'][:content]).to eq( expected.strip )
+
+            comment 'does not modify the shebangs in executable scripts in the RPM'
+            # if the shebangs were modified, we should see /usr/bin/ruby and /usr/bin/rspec
+            # as requirements of the RPM
+            on host, %(rpm -qpR #{testpackage_rpm} | grep -q /usr/bin/ruby), :acceptable_exit_codes => [1]
+            on host, %(rpm -qpR #{testpackage_rpm} | grep -q /usr/bin/rspec), :acceptable_exit_codes => [1]
           end
 
           it_should_behave_like 'an RPM generator with edge cases'

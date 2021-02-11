@@ -1,3 +1,11 @@
+### 5.12.0 / 2021-02-16
+- Disable brp-mangle-shebangs when building RPMs
+- Fixed bug in GPG handling for GPG 2.1+ in which an existing
+  GPG key that was not cached internally was not detected.
+- Deprecated the following top-level rake tasks for Puppet modules:
+  - compare_latest_tag: use pkg:compare_latest_tag instead
+  - changelog_annotation: use pkg:create_tag_changelog instead
+
 ### 5.11.6 / 2021-02-03
 * Fix GPG handling for GPG 2.1+
 

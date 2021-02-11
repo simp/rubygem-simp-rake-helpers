@@ -23,7 +23,7 @@ describe 'rake pkg:signrpms' do
   # Provides a scaffolded test project and `let` variables
   shared_context 'a freshly-scaffolded test project' do |dir|
     opts = {}
-    test__dir  = "#{build_user_homedir}/test--#{dir}"
+    test__dir  = "#{build_user_homedir}/test-#{dir}"
     rpms__dir  = "#{test__dir}/test.rpms"
     src__rpm   =  "#{build_user_host_files}/spec/lib/simp/files/testpackage-1-0.noarch.rpm"
     host__dirs = {}
@@ -67,6 +67,10 @@ describe 'rake pkg:signrpms' do
   end
 
   let(:expired_keydir) do
+    # FIXME When fix SIMP-9398, may need to create an EL8 expired keydir
+    # and select the correct one based on OS. Otherwise, remove files that
+    # are not needed in this directory and that are not applicable to
+    # both EL7 and EL8.
     "#{build_user_host_files}/spec/acceptance/files/build/pkg/gpg-keydir.expired.2018-04-06"
   end
 
@@ -91,33 +95,37 @@ describe 'rake pkg:signrpms' do
 
   shared_examples 'it signs RPM packages in the directory using the GPG dev signing key' do
     it 'signs RPM packages in the directory using the GPG dev signing key' do
-      on(hosts, %(#{run_cmd} "cd '#{test_dir}'; bundle exec rake pkg:signrpms[dev,'#{rpms_dir}']"), opts)
-      rpms_after_signing = on(hosts, %(#{run_cmd} "rpm -qip '#{test_rpm}' | grep ^Signature"), opts)
-      rpms_after_signing.each do |result|
-        host = hosts_with_name(hosts, result.host).first
-        on(host, "gpg --list-keys --homedir='#{dirs[host][:dev_keydir]}'", opts)
+      hosts.each do |host|
+        # NOTE: pkg:signrpms will not actually fail if it can't sign a RPM
+        on(host, %(#{run_cmd} "cd '#{test_dir}'; bundle exec rake pkg:signrpms[dev,'#{rpms_dir}']"), opts)
 
-        expect(result.stdout).to match rpm_signed_regex
-        signed_rpm_data = rpm_signed_regex.match(result.stdout)
-        expect(signed_rpm_data[:key_id]).to eql dev_signing_key_id(host, test_dir, opts)
+        os_major =  fact_on(host,'operatingsystemmajrelease')
+        if os_major > '7'
+          skip('SIMP-9398: pkg:signrpms does not work on EL8')
+        else
+          result = on(host, %(#{run_cmd} "rpm -qip '#{test_rpm}' | grep ^Signature"), opts)
+          expect(result.stdout).to match rpm_signed_regex
+          signed_rpm_data = rpm_signed_regex.match(result.stdout)
+          expect(signed_rpm_data[:key_id]).to eql dev_signing_key_id(host, test_dir, opts)
+        end
       end
     end
   end
 
   describe 'when starting without a dev key' do
-    include_context('a freshly-scaffolded test project', 'pkg-signrpms')
+    include_context('a freshly-scaffolded test project', 'signrpms')
     include_examples('it creates a new GPG dev signing key')
     include_examples('it begins with unsigned RPMs')
     include_examples('it signs RPM packages in the directory using the GPG dev signing key')
 
-    context 'when there is an unexpired GPG dev signing key' do
+    context 'when there is an unexpired GPG dev signing key and the packages are unsigned' do
       include_examples('it begins with unsigned RPMs')
       include_examples('it signs RPM packages in the directory using the GPG dev signing key')
     end
   end
 
   describe 'when starting with an expired dev key' do
-    include_context('a freshly-scaffolded test project', 'pkg-signrpms-expired_dev_key')
+    include_context('a freshly-scaffolded test project', 'signrpms-exp')
 
     it 'begins with an expired GPG signing key' do
       prep_rpms_dir(rpms_dir, [src_rpm], opts)
