@@ -366,11 +366,5 @@ describe Simp::RPM do
 
   describe '.create_rpm_build_metadata' do
   end
-
-  describe '.load_key' do
-  end
-
-  describe '.signrpm' do
-  end
 =end
 end

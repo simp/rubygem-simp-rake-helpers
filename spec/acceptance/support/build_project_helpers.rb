@@ -57,16 +57,25 @@ module Simp::BeakerHelpers::SimpRakeHelpers::BuildProjectHelpers
   # Scans a host path for the 'SIMP Development' GPG key and returns its Key ID
   #
   # @param [Host, String, Symbol] host Beaker host
-  # @param [Hash{Symbol=>String}] opts Beaker options Hash for `#on` ({})
-  # @param [String] proj_dir Absolute path to the parent project directory
+  # @param [String] key_dir Absolute path to GPG key dir
   # @param [Hash{Symbol=>String}] opts Beaker options Hash for `#on` ({})
   # @return [String] GPG dev signing Key ID
   #
-  def dev_signing_key_id(host, proj_dir, opts = {})
-    key_dir = distribution_dir(host, proj_dir, opts) + '/build_keys/dev'
-    res = on(host, %(#{run_cmd} "gpg --with-colons --fingerprint --homedir='#{key_dir}' 'SIMP Development'"))
+  def dev_signing_key_id(host, key_dir, opts = {})
+    # NOTE: This search uses a substring match on 'SIMP Development'.
+    res = on(host, %(#{run_cmd} "gpg --with-colons --fingerprint --homedir='#{key_dir}' 'SIMP Development'"), opts)
     pub_lines = res.stdout.lines.select { |x| x.start_with?('pub') }
-    raise "No 'SIMP Development' GPG keys found under '#{proj_dir}'" if pub_lines.empty?
+    raise "No 'SIMP Development' GPG keys found in '#{key_dir}'" if pub_lines.empty?
     pub_lines.first.split(':')[4].downcase
+  end
+
+  # Returns true when a gpg-agent daemon using the specified GPG home directory
+  # (aka key directory) is running.
+  #
+  # @param [Host, String, Symbol] host Beaker host
+  # @param [String] gpg_homedir Absolute path to GPG home dir
+  def gpg_agent_running?(host, gpg_homedir)
+    result = on(host, "pgrep -c -f 'gpg-agent.*homedir.*#{gpg_homedir}'", :accept_all_exit_codes => true)
+    result.stdout.strip != '0'
   end
 end

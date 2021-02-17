@@ -13,7 +13,7 @@ end
 #
 # It should be possible manage GPG keys using this logic from many OSes,
 # but it's silly to try to mock them all directly in RSpec.
-describe 'rake pkg:rpm with customized content' do
+describe 'local_gpg_signing_key unit test' do
 
   def hf_cmd( hosts, cmd, env_str=nil, opts={})
     if ENV['PUPPET_VERSION']

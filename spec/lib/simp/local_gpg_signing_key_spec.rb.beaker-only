@@ -3,12 +3,21 @@ require 'spec_helper'
 require 'fileutils'
 require 'tmpdir'
 
+
+def get_key_id(keydir, key_email)
+  key_id = nil
+  key_info = `gpg --with-colons --homedir=#{keydir} --list-keys '<#{key_email}>' 2>&1 | grep ^pub:`
+  unless key_info.strip.empty?
+    key_id = key_info.split(':')[4]
+  end
+end
+
 describe Simp::LocalGpgSigningKey do
   include FileUtils
 
   before :all do
     TMP_DIR     = Dir.mktmpdir('spec_test__simp_local_gpg_signing_key')
-    TMP_DEV_DIR = File.join(TMP_DIR, 'dev')
+    TMP_DEV_KEYDIR = File.join(TMP_DIR, 'dev')
     OPTS        = {verbose: ENV['VERBOSE'].to_s =~ /^(yes|true)$/ }
 
     mkdir_p TMP_DIR
@@ -24,8 +33,16 @@ describe Simp::LocalGpgSigningKey do
     ENV['GPG_AGENT_INFO'] = ORIGINAL_GPG_AGENT_INFO
   end
 
+  let(:gpg_keydir) { TMP_DEV_KEYDIR }
+  let(:gpg_email_name) { 'gatekeeper@simp.development.key' }
+  let(:opts) { OPTS }
+
   shared_examples_for 'it just generated a local gpg signing key' do
-    it 'creates a local gpg-agent' do
+    it 'has the key in the keyring' do
+      expect(get_key_id(gpg_keydir, gpg_email_name)).to_not be_nil
+    end
+
+    it 'had created a local gpg-agent' do
       expect(agent_info.reject{|x| x.nil?}.keys).to include(:socket, :pid)
     end
 
@@ -39,53 +56,123 @@ describe Simp::LocalGpgSigningKey do
     end
   end
 
-
   shared_examples_for 'a valid gpg signing key environment' do
-    it 'has a local GPG signing key' do
-      Dir.chdir(TMP_DEV_DIR) { expect(Dir['*']).to include('RPM-GPG-KEY-SIMP-Dev') }
+    it 'has an exported local GPG signing key' do
+      Dir.chdir(gpg_keydir) { expect(Dir['*']).to include('RPM-GPG-KEY-SIMP-Dev') }
     end
 
-    it 'has a populated a gpg-agent directory' do
-      Dir.chdir(TMP_DEV_DIR) { expect(Dir['*'].sort).to include( 'gengpgkey') }
+    it 'has a keygen params file with info required for package signing' do
+      params_file = File.join(gpg_keydir, 'gengpgkey')
+      expect(File.exist?(params_file)).to be true
+
+      content = File.read(params_file)
+      expect(content).to match(/^Passphrase: .*$/)
+      expect(content).to match(/^Name-Email: #{gpg_email_name}$/)
     end
   end
 
   shared_examples_for 'it encountered an unexpired local gpg signing key' do
     it 'reuses an unexpired local gpg signing key' do
-      expect{described_class.new(TMP_DEV_DIR,OPTS).ensure_key}.to output(
+      expect{described_class.new(gpg_keydir,opts).ensure_key}.to output(
         /^GPG key \(gatekeeper@simp\.development\.key\) will expire in 14 days\./
       ).to_stdout
+
+      expect(get_key_id(gpg_keydir, gpg_email_name)).to eq original_key_id
     end
 
     it 'reuses an unexpired local gpg signing key' do
-      expect{described_class.new(TMP_DEV_DIR,OPTS).ensure_key}.to output(
+      expect{described_class.new(gpg_keydir,opts).ensure_key}.to output(
         /^GPG key \(gatekeeper@simp\.development\.key\) will expire in 14 days\./
       ).to_stdout
+
+      expect(get_key_id(gpg_keydir, gpg_email_name)).to eq original_key_id
     end
   end
 
   context '#ensure_key' do
     before :all do
-      rm_rf   TMP_DEV_DIR
+      rm_rf   TMP_DEV_KEYDIR
       ENV['GPG_AGENT_INFO'] = nil
     end
 
+
     context 'when run from scratch' do
       before :all do
-        FIRST_RUN_AGENT_INFO  = described_class.new(TMP_DEV_DIR,OPTS).ensure_key
+        FIRST_RUN_AGENT_INFO  = described_class.new(TMP_DEV_KEYDIR,OPTS).ensure_key
       end
+
       let(:agent_info){ FIRST_RUN_AGENT_INFO }
+
       it_behaves_like 'it just generated a local gpg signing key'
       it_behaves_like 'a valid gpg signing key environment'
     end
 
     context 'when run again' do
       before :all do
-        SECOND_RUN_AGENT_INFO = described_class.new(TMP_DEV_DIR,OPTS).ensure_key
+        SECOND_RUN_AGENT_INFO = described_class.new(TMP_DEV_KEYDIR,OPTS).ensure_key
       end
+
       let(:agent_info){ SECOND_RUN_AGENT_INFO }
+      let(:original_key_id) { get_key_id(gpg_keydir, gpg_email_name) }
+
       it_behaves_like 'it encountered an unexpired local gpg signing key'
       it_behaves_like 'a valid gpg signing key environment'
+    end
+  end
+
+  context '#gpg_agent_info' do
+    before :all do
+      rm_rf   TMP_DEV_KEYDIR
+    end
+
+    # other use cases already tested in ensure_key tests
+    it 'returns nil when no gpg agent env file exists' do
+      expect(described_class.new(gpg_keydir,opts).gpg_agent_info).to be_nil
+    end
+  end
+
+  context '#dev_key_days_left' do
+    before :all do
+      rm_rf   TMP_DEV_KEYDIR
+    end
+
+    let(:gpg_cmd) {  "gpg --with-colons --homedir=#{gpg_keydir} --list-keys '<#{gpg_email_name}>' 2>&1" }
+
+    it 'returns 0 when key is not found' do
+      expect(described_class.new(gpg_keydir,opts).dev_key_days_left).to eq 0
+    end
+
+    it 'returns 0 when key is expired' do
+      generator = described_class.new(gpg_keydir,opts)
+      output = <<~EOM
+        tru::1:1521838828:0:3:1:5
+        pub:e:4096:1:722B97A808E7DAEA:1521838554:1523048154::-:::sc::::::23::0:
+        fpr:::::::::5DD3E8D45C99780DCA7D0B83722B97A808E7DAEA:
+        uid:e::::1521838554::773C55CA511CCE31244D86D4AB70F6499024695F::SIMP Development (Development key 1521838554) <gatekeeper@simp.development.key>::::::::::0:
+      EOM
+      expect(generator).to receive(:`).with(gpg_cmd).and_return(output)
+
+      expect(generator.dev_key_days_left).to eq 0
+    end
+
+    it 'returns # days left when unexpired key is found with ISO 8601 date' do
+      generator = described_class.new(gpg_keydir,opts)
+
+      require 'date'
+      creation_date = DateTime.now - 5
+      expiration_date = creation_date + 14
+      creation_str = creation_date.iso8601.gsub(/:|-/,'')
+      expiration_str = expiration_date.iso8601.gsub(/:|-/,'')
+
+      output = <<~EOM
+        tru::1:1521838828:0:3:1:5
+        pub:u:4096:1:722B97A808E7DAEA:#{creation_str}:#{expiration_str}::-:::sc::::::23::0:
+        fpr:::::::::5DD3E8D45C99780DCA7D0B83722B97A808E7DAEA:
+        uid:e::::1521838554::773C55CA511CCE31244D86D4AB70F6499024695F::SIMP Development (Development key 1521838554) <gatekeeper@simp.development.key>::::::::::0:
+      EOM
+      expect(generator).to receive(:`).with(gpg_cmd).and_return(output)
+
+      expect(generator.dev_key_days_left).to eq 9
     end
   end
 end

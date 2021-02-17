@@ -1,7 +1,6 @@
 #!/usr/bin/rake -T
 
 require 'simp/yum'
-require 'simp/local_gpg_signing_key.rb'
 require 'simp/rake/pkg'
 require 'simp/rake/build/constants'
 require 'simp/rake/build/rpmdeps'
@@ -17,9 +16,18 @@ module Simp::Rake::Build
     def initialize( base_dir )
       init_member_vars( base_dir )
 
+      @cpu_limit = get_cpu_limit
       @verbose = ENV.fetch('SIMP_PKG_verbose','no') == 'yes'
       @rpm_build_metadata = 'last_rpm_build_metadata.yaml'
       @rpm_dependency_file = File.join(@base_dir, 'build', 'rpm', 'dependencies.yaml')
+      @build_keys_dir = ENV.fetch('SIMP_PKG_build_keys_dir', File.join(@base_dir, '.dev_gpgkeys'))
+      @long_gpg_socket_err_msg = <<~EOM
+        If the problem is 'socket name <xxx> is too long', use SIMP_PKG_build_keys_dir
+        to override
+        #{@build_keys_dir}
+        with a shorter path. The socket name must be < 108 characters.
+
+      EOM
 
       define_tasks
     end
@@ -66,7 +74,7 @@ module Simp::Rake::Build
           @build_dirs.each_pair do |k,dirs|
             Parallel.map(
               Array(dirs),
-              :in_processes => get_cpu_limit,
+              :in_processes => @cpu_limit,
               :progress => t.name
             ) do |dir|
               Dir.chdir(dir) do
@@ -95,7 +103,7 @@ module Simp::Rake::Build
           @build_dirs.each_pair do |k,dirs|
             Parallel.map(
               Array(dirs),
-              :in_processes => get_cpu_limit,
+              :in_processes => @cpu_limit,
               :progress => t.name
             ) do |dir|
               Dir.chdir(dir) do
@@ -109,36 +117,49 @@ module Simp::Rake::Build
         desc <<-EOM
           Prepare a GPG signing key to sign build packages
 
-            * :key - the name of the directory under build/build_keys to
-                     prepare (defaults to 'dev')
+            * :key - the name of the build keys subdirectory to prepare
+              (defaults to 'dev')
+
+              - The default build keys directory is
+                `#{@build_keys_dir}`
+
 
           When :key is `dev`, a temporary signing key is created, if needed:
 
-            - A 14-day `dev` key will be created if none exists, including:
-              - The `<build_dir>/build_keys/dev/` dir
-              - gpgagent assets to create/update the key
+            * A 14-day `dev` key will be created if none exists or the existing
+              key has expired.  This includes creating
+              - A `dev` directory in the build keys directory
+              - gpg-agent assets to create/update the key within that `dev`
+                directory
 
           When :key is *not* `dev`, the logic is much stricter:
 
-            - You must already have create `<build_dir>/build_keys/<:key>/`
-              directoy, and placed a valid GPG signing key inside
+            - You must already have created the `<:key>` subdirectory within
+              the build keys directory and placed a valid GPG signing key and
+              requisite gpg-agent assets to access the key within the directory.
             - If the directory or key are missing, the task will fail.
 
           ENV vars:
             - Set `SIMP_PKG_verbose=yes` to report file operations as they happen.
+            - Set `SIMP_PKG_build_keys_dir` to override the default build keys path.
         EOM
         task :key_prep,[:key] => [:prep] do |t,args|
           args.with_defaults(:key => 'dev')
           key = args.key
-          build_keys_dir = File.join(@build_dir, 'build_keys')
-          key_dir = File.join(build_keys_dir,key)
+          key_dir = File.join(@build_keys_dir,key)
           dvd_dir = @dvd_src
 
-          FileUtils.mkdir_p build_keys_dir
+          FileUtils.mkdir_p @build_keys_dir
 
-          Dir.chdir(build_keys_dir) do
+          Dir.chdir(@build_keys_dir) do
             if key == 'dev'
-              Simp::LocalGpgSigningKey.new(key_dir,{verbose: @verbose}).ensure_key
+              require 'simp/local_gpg_signing_key'
+
+              begin
+                Simp::LocalGpgSigningKey.new(key_dir,{verbose: @verbose}).ensure_key
+              rescue Exception => e
+                raise("#{e.message}\n\n#{@long_gpg_socket_err_msg}")
+              end
             else
               unless File.directory?(key_dir)
                 fail("Could not find GPG keydir '#{key_dir}' in '#{Dir.pwd}'")
@@ -356,41 +377,79 @@ module Simp::Rake::Build
           Sign a set of RPMs.
 
             Signs any unsigned RPMs in the specified directory
-              * :key - The key directory to use under #{@build_dir}/build_keys
-                * Defaults to #{File.join(File.dirname(@rpm_dir), '*RPMS')}
+              * :key - The key directory to use under the build keys directory
+                * key defaults to 'dev'
+                * build keys directory defaults to
+                  `#{@build_keys_dir}`
               * :rpm_dir - A directory containing RPM files to sign. Will recurse!
-                * Defaults to 'dev'
+                * Defaults to #{File.join(File.dirname(@rpm_dir), '*RPMS')}
               * :force - Force rpms that are already signed to be resigned
                 * Defaults to 'false', can be enabled with 'true'
+              * :digest_algo - Digest algorithm to be used when signing the RPMs
+                * Defaults to 'sha256'
+
+          ENV vars:
+            * Set `SIMP_RPM_verbose=yes` to report RPM operations as they happen.
+            * Set `SIMP_PKG_build_keys_dir` to override the default build keys path.
+            * Set `SIMP_PKG_rpmsign_timeout` to override the maximum time in seconds
+              to wait for an individual RPM signing operation to complete.
+              - Defaults to 30 seconds.
         EOM
-        task :signrpms,[:key,:rpm_dir,:force] => [:prep,:key_prep] do |t,args|
-          which('rpmsign') || raise(StandardError, 'Could not find rpmsign on your system. Exiting.')
+        task :signrpms,[:key,:rpm_dir,:force,:digest_algo] => [:prep,:key_prep] do |t,args|
+          require 'simp/rpm_signer'
 
           args.with_defaults(:key => 'dev')
           args.with_defaults(:rpm_dir => File.join(File.dirname(@rpm_dir), '*RPMS'))
           args.with_defaults(:force => 'false')
+          args.with_defaults(:digest_algo => 'sha256')
 
           force = (args[:force].to_s == 'false' ? false : true)
+          timeout = ENV['SIMP_PKG_rpmsign_timeout'] ? ENV['SIMP_PKG_rpmsign_timeout'].to_i : 30
 
-          rpm_dirs = Dir.glob(args[:rpm_dir])
-          to_sign = []
+          opts = {
+            :digest_algo        => args[:digest_algo],
+            :force              => force,
+            :max_concurrent     => @cpu_limit,
+            :progress_bar_title => t.name,
+            :timeout_seconds    => timeout,
+            :verbose            => @verbose
+          }
 
-          rpm_dirs.each do |rpm_dir|
-            Find.find(rpm_dir) do |rpm|
-              next unless File.readable?(rpm)
-              to_sign << rpm if rpm =~ /\.rpm$/
-            end
+          results = nil
+          begin
+            results = Simp::RpmSigner.sign_rpms(
+              args[:rpm_dir],
+              File.join(@build_keys_dir, args[:key]),
+              opts
+            )
+          rescue Exception => e
+            raise("#{e.message}\n\n#{@long_gpg_socket_err_msg}")
           end
 
-          Parallel.map(
-            to_sign,
-            :in_processes => get_cpu_limit,
-            :progress => t.name
-          ) do |rpm|
-            rpm_info = Simp::RPM.new(rpm)
+          if results
+            successes = results.select { |rpm,status| status == :signed }
+            failures = results.select { |rpm,status| status == :unsigned }
+            already_signed = results.select { |rpm,status| status == :skipped_already_signed }
 
-            if force || !rpm_info.signature
-              Simp::RPM.signrpm(rpm, "#{@build_dir}/build_keys/#{args[:key]}")
+            if opts[:verbose]
+              puts
+              puts 'Summary'
+              puts '======='
+              puts "# RPMs already signed:      #{already_signed.size}"
+              puts "# RPMs successfully signed: #{successes.size}"
+              puts "# RPM signing failures:     #{failures.size}"
+              puts
+            end
+
+            if !failures.empty?
+              if ((results.size - already_signed.size) == (failures.size))
+                detail = already_signed.empty? ? '' : 'unsigned '
+                raise("ERROR: Failed to sign all #{detail}RPMs in #{args[:rpm_dir]}")
+              else
+                err_msg = "ERROR: Failed to sign some RPMs in #{args[:rpm_dir]}:\n"
+                err_msg += "  #{failures.keys.join("\n  ")}"
+                raise(err_msg)
+              end
             end
           end
         end
@@ -862,7 +921,7 @@ protect=1
           Parallel.map(
             # Allow for shell globs
             Array(dirs),
-            :in_processes => get_cpu_limit,
+            :in_processes => @cpu_limit,
             :progress => task.name
           ) do |dir|
             fail("Could not find directory #{dir}") unless Dir.exist?(dir)
