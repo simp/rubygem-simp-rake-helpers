@@ -1,5 +1,6 @@
 require 'securerandom'
 require 'rake'
+require 'simp/command_utils'
 
 module Simp
   # Ensure that a valid GPG signing key exists in a local directory
@@ -14,7 +15,8 @@ module Simp
   #     - New keys are generated using a temporary GPG agent with its own
   #       settings and socket.
   #
-  #   The local signing key's directory is structured like this:
+  #   The local signing key's directory includes the following:
+  #   EL7:
   #
   #   ```
   #   #{key_name}/                        # key directory
@@ -22,7 +24,18 @@ module Simp
   #     +-- gengpgkey                     # --gen-key params file **
   #     +-- pubring.gpg
   #     +-- secring.gpg
-  #     +-- trustring.gpg
+  #     +-- trustdb.gpg
+  #   ```
+  #
+  #   EL8:
+  #   ```
+  #   #{key_name}/                        # key directory
+  #     +-- RPM-GPG-KEY-SIMP-#{key_name}  # key file
+  #     +-- gengpgkey                     # --gen-key params file **
+  #     +-- openpgp-revocs.d/<fingerprint id>.rev
+  #     +-- private-keys-v1.d/<user id>.key
+  #     +-- pubring.kbx
+  #     +-- trustdb.gpg
   #   ```
   #
   #   `**` = `SIMP::RPM.sign_keys` will use the values in the `gengpgkey` file
@@ -52,6 +65,7 @@ module Simp
   #   ```
   class LocalGpgSigningKey
     include FileUtils
+    include Simp::CommandUtils
 
     # `SIMP::RPM.sign_keys` will look for a 'gengpgkey' file to
     #   non-interactively sign packages.
@@ -117,6 +131,7 @@ module Simp
       days_left   = 0
 
       which('gpg', true)
+      # FIXME This output parsing is fragile. Should use --with-colons option!
       current_key = %x(GPG_AGENT_INFO='' gpg --homedir=#{@dir} --list-keys #{@key_email} 2>/dev/null)
       unless current_key.empty?
         lasts_until = current_key.lines.first.strip.split("\s").last.delete(']')

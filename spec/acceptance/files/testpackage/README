@@ -1,0 +1,8 @@
+The following scripts with problematic shebangs have their execute bits set in
+order to trigger the brp-mangle-shebangs script during an RPM build in EL8:
+
+* spec/classes/init_spec.rb:    #!/usr/bin/env rspec => #!/usr/bin/rspec
+* spec/files/mock_something.rb: #!/usr/bin/env ruby  => #!/usr/bin/ruby
+* utils/convert_v1_to_v2.rb:    #!/usr/bin/env ruby  => #!/usr/bin/ruby
+
+*** Do not change their execute bits in Git! ***

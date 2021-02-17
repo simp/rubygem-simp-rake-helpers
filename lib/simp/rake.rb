@@ -9,8 +9,11 @@ module Simp::Rake
   require 'parallel'
   require 'tempfile'
   require 'facter'
+  require 'simp/command_utils'
   require 'simp/rpm'
   require 'simp/rake/pkg'
+
+  include Simp::CommandUtils
 
   attr_reader(:puppetfile)
   attr_reader(:module_paths)
@@ -94,23 +97,6 @@ module Simp::Rake
     Kernel.select [STDIN] # Wait until we have input before we start the pager
     pager = ENV['PAGER'] || 'less'
     exec pager rescue exec "/bin/sh", "-c", pager
-  end
-
-  def which(cmd, fail=false)
-    @which_cache ||= {}
-
-    if @which_cache.has_key?(cmd)
-      command = @which_cache[cmd]
-    else
-      command = Facter::Core::Execution.which(cmd)
-      @which_cache[cmd] = command
-    end
-
-    msg = "Warning: Command #{cmd} not found on the system."
-
-    fail ? raise(msg) : warn(msg) unless command
-
-    command
   end
 
   def help

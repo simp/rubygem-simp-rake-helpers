@@ -551,10 +551,18 @@ EOE
 
       gpg_key_size = nil
       gpg_key_id = nil
-      %x(gpg --homedir=#{keydir} --list-keys #{gpg_name} 2>&1).each_line do |line|
-        head,data = line.split(/\s+/)
-        if head == 'pub'
-          gpg_key_size,gpg_key_id = data.split('/')
+      cmd = "gpg --with-colons --homedir=#{keydir} --list-keys #{gpg_name} 2>&1"
+      puts "Executing: #{cmd}" if @verbose
+      %x(#{cmd}).each_line do |line|
+        # See https://github.com/CSNW/gnupg/blob/master/doc/DETAILS
+        # Index  Content
+        #   0    record type
+        #   2    key length
+        #   4    keyID
+        fields = line.split(':')
+        if fields[0] == 'pub'
+          gpg_key_size = fields[2]
+          gpg_key_id = fields[4]
           break
         end
       end
@@ -595,7 +603,7 @@ EOE
           PTY.spawn(signcommand) do |read, write, pid|
             begin
               while !read.eof? do
-                read.expect(/pass\s?phrase:.*/) do |text|
+                read.expect(/pass\s?phrase:.*/, 10) do |text|
                   write.puts(gpgkey[:password])
                   write.flush
                 end

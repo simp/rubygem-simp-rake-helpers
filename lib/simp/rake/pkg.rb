@@ -235,7 +235,11 @@ module Simp::Rake
             %(-D '_sourcedir #{@rpm_srcdir}'),
             %(-D '_rpmdir #{@pkg_dir}'),
             %(-D '_srcrpmdir #{@pkg_dir}'),
-            %(-D '_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm')
+            %(-D '_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm'),
+
+            # needed on EL8 to disable the aggressive brp_mangle_shebangs script
+            # that results in invalid script shebangs; does nothing in EL7
+            %(-D '__brp_mangle_shebangs /usr/bin/true')
           ]
           rpm_opts << '-v' if @verbose
           rpm_opts << "-D 'lua_debug 1'" if (ENV.fetch('SIMP_RAKE_PKG_LUA_verbose','no') =='yes')

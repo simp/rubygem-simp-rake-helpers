@@ -1,3 +1,0 @@
----
-copy_rpm_data: true
-target_directory: /opt/test/puppet/code
