@@ -49,7 +49,11 @@ module Simp::Rake
         task :install_gem => [:clean, :gem] do
           Dir.chdir @rakefile_dir
           Dir.glob("dist/#{@package}*.gem") do |pkg|
-            sh %Q{bundle exec gem install --no-ri --no-rdoc #{pkg}}
+            if Gem::Version.new(RUBY_VERSION) >= Gem::Version.new('2.6')
+              sh %Q{bundle exec gem install --no-document #{pkg}}
+            else
+              sh %Q{bundle exec gem install --no-ri --no-rdoc #{pkg}}
+            end
           end
         end
       end

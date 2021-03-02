@@ -1,4 +1,6 @@
 ### 5.12.0 / 2021-02-16
+- Ensure that pkg:install_gem uses the correct documentation options for the
+  version of Ruby in use.
 - Disable brp-mangle-shebangs when building RPMs.
 - Mitigated problem where gpg-agent daemon fails to start because
   its socket path is longer than 108 characters.
