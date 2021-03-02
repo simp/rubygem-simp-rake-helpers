@@ -1,6 +1,7 @@
 require 'simp/local_gpg_signing_key'
 require 'spec_helper'
 require 'fileutils'
+require 'timeout'
 require 'tmpdir'
 
 
@@ -52,6 +53,20 @@ describe Simp::LocalGpgSigningKey do
     end
 
     it 'has killed the local gpg-agent' do
+      begin
+        # it may take some time for the local gpg-agent to die
+        Timeout::timeout(30) do
+          done = !File.exist?(agent_info[:socket])
+          until(done)
+            sleep(2)
+            done = !File.exist?(agent_info[:socket])
+          end
+        end
+      rescue Timeout::Error
+        puts "agent_info = #{agent_info}"
+        puts "gpg-agent processes running:\n#{`pgrep -f gpg-agent`}"
+      end
+
       expect(File.exist?(agent_info[:socket])).to be false
     end
   end
