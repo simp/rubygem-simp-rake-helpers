@@ -137,7 +137,7 @@ class Simp::RpmSigner
   # @options options :digest_algo      Digest algorithm to use in RPM
   #                                    signing operation; defaults to 'sha256'
   # @options options :timeout_seconds  Timeout in seconds for an individual
-  #                                    RPM signing operation; defaults to 30.
+  #                                    RPM signing operation; defaults to 60.
   # @options options :verbose          Whether to log debug information;
   #                                    defaults to false.
   #
@@ -153,7 +153,7 @@ class Simp::RpmSigner
     which('rpmsign') || raise("ERROR: Cannot sign RPMs without 'rpmsign'.")
 
     digest_algo = options.key?(:digest_algo) ?  options[:digest_algo] : 'sha256'
-    timeout_seconds = options.key?(:timeout_seconds) ?  options[:timeout_seconds] : 30
+    timeout_seconds = options.key?(:timeout_seconds) ?  options[:timeout_seconds] : 60
     verbose = options.key?(:verbose) ?  options[:verbose] : false
 
     gpgkey = load_key(gpg_keydir, verbose)
@@ -247,7 +247,7 @@ class Simp::RpmSigner
   #                                      the console during the signing process;
   #                                      defaults to 'sign_rpms'.
   # @options options :timeout_seconds    Timeout in seconds for an individual
-  #                                      RPM signing operation; defauls to 30.
+  #                                      RPM signing operation; defauls to 60.
   # @options options :verbose            Whether to log debug information;
   #                                      defaults to false.
   #
@@ -267,7 +267,7 @@ class Simp::RpmSigner
      :force              => false,
      :max_concurrent     => 1,
      :progress_bar_title => 'sign_rpms',
-     :timeout_seconds    => 30,
+     :timeout_seconds    => 60,
      :verbose            => false
     }.merge(options)
 
