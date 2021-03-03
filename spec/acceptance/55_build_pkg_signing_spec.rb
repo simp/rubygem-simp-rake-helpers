@@ -10,7 +10,9 @@ RSpec.configure do |c|
 end
 
 def run_opts
-  { run_in_parallel: true }
+  # WARNING: If you set run_in_parallel to true, tests will fail
+  # when run in a GitHub action.
+  { run_in_parallel: false }
 end
 
 describe 'rake pkg:signrpms' do

@@ -75,7 +75,22 @@ module Simp::BeakerHelpers::SimpRakeHelpers::BuildProjectHelpers
   # @param [Host, String, Symbol] host Beaker host
   # @param [String] gpg_homedir Absolute path to GPG home dir
   def gpg_agent_running?(host, gpg_homedir)
-    result = on(host, "pgrep -c -f 'gpg-agent.*homedir.*#{gpg_homedir}'", :accept_all_exit_codes => true)
-    result.stdout.strip != '0'
+
+    # This check is being used in tests to verify no gpg-agent for gpg_homedir
+    # is running.  On slow VMs, the gpg-agent can take some time to shutdown.
+    # So wait up to 20 seconds for gpg-agent to shutdown before finalizing
+    # gpg-agent status to be reported.
+
+    retries = 20
+    agent_exists = true
+    while (agent_exists || (retries > 0))
+      result = on(host, "pgrep -c -f 'gpg-agent.*homedir.*#{gpg_homedir}'", :accept_all_exit_codes => true)
+      agent_exists  = (result.stdout.strip != '0')
+      break unless agent_exists
+      sleep 1
+      retries -= 1
+    end
+
+    agent_exists
   end
 end
