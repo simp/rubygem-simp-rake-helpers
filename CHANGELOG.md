@@ -1,8 +1,26 @@
 ### 5.12.0 / 2021-02-16
-- Disable brp-mangle-shebangs when building RPMs
+- Ensure that pkg:install_gem uses the correct documentation options for the
+  version of Ruby in use.
+- Disable brp-mangle-shebangs when building RPMs.
+- Mitigated problem where gpg-agent daemon fails to start because
+  its socket path is longer than 108 characters.
+  - Changed the default location of the GPG keys directory used in the
+    pkg:key_prep and pkg:signrpms Rake tasks to <base_dir>/.dev_gpgkeys.
+  - Added a SIMP_PKG_build_keys_dir environment variable that overrides
+    the default location of the GPG keys directory used in the
+    pkg:key_prep and pkg:signrpms Rake tasks.
+- Added SIMP_PKG_rpmsign_timeout environment variable that overrides
+  default timeout in seconds to wait for an individual RPM signing
+  operation to complete.
+  - Default timeout is 30 seconds.
+  - Most relevant when signing on RPMs on EL8 and the gpg-agent
+    started by rpmsign fails to start, but rpmsign does not detect
+    the failure and hangs.
+- Improved pkg:signrpms error handling and reporting.
 - Fixed bug in GPG handling for GPG 2.1+ in which an existing
   GPG key that was not cached internally was not detected.
-- Deprecated the following top-level rake tasks for Puppet modules:
+- Fixed bug where pkg:signrpms failed to sign RPMs on EL8.
+- Deprecated the following top-level Rake tasks for Puppet modules:
   - compare_latest_tag: use pkg:compare_latest_tag instead
   - changelog_annotation: use pkg:create_tag_changelog instead
 

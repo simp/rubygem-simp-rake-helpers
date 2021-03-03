@@ -14,7 +14,6 @@ module Simp
     require 'pty'
     require 'rake'
 
-    @@gpg_keys = Hash.new
     attr_reader :verbose, :lua_debug, :packages
 
     if Gem.loaded_specs['rake'].version >= Gem::Version.new('0.9')
@@ -402,20 +401,20 @@ module Simp
       end
 
       if version_results[:exit_status] != 0
-        raise <<-EOE
-#{indent('Error getting RPM info:', 2)}
-#{indent(version_results[:stderr].strip, 5)}
-#{indent("Run '#{rpm_version_query.gsub("\n",'\\n')} #{query_source}' to recreate the issue.", 2)}
-EOE
+        raise <<~EOE
+          #{indent('Error getting RPM info for #{query_source}:', 2)}
+          #{indent(version_results[:stderr].strip, 5)}
+          #{indent("Run '#{rpm_version_query.gsub("\n",'\\n')} #{query_source}' to recreate the issue.", 2)}
+        EOE
       end
 
       unless signature_results.nil?
         if signature_results[:exit_status] != 0
-          raise <<-EOE
-#{indent('Error getting RPM signature:', 2)}
-#{indent(signature_results[:stderr].strip, 5)}
-#{indent("Run '#{rpm_signature_query.gsub("\n",'\\n')} #{query_source}' to recreate the issue.", 2)}
-EOE
+          raise <<~EOE
+            #{indent('Error getting RPM signature for #{query_source}:', 2)}
+            #{indent(signature_results[:stderr].strip, 5)}
+            #{indent("Run '#{rpm_signature_query.gsub("\n",'\\n')} #{query_source}' to recreate the issue.", 2)}
+          EOE
        else
          signature = signature_results[:stdout].strip
        end
@@ -494,130 +493,6 @@ EOE
         FileUtils.mkdir_p(File.join(project_dir, 'dist', 'logs'))
         File.open('logs/last_rpm_build_metadata.yaml','w') do |fh|
           fh.puts(last_build.to_yaml)
-        end
-      end
-    end
-
-    # Loads metadata for a GPG key. The GPG key is to be used to sign RPMs. The
-    # value of gpg_key should be the full path of the directory where the key
-    # resides. If the metadata cannot be found, then the user will be prompted
-    # for it.
-    def self.load_key(gpg_key)
-      keydir = gpg_key
-      File.directory?(keydir) || fail("Error: Could not find '#{keydir}'")
-
-      gpg_key = File.basename(gpg_key)
-
-      if @@gpg_keys[gpg_key]
-          return @@gpg_keys[gpg_key]
-      end
-
-      gpg_name = nil
-      gpg_password = nil
-      begin
-        File.read("#{keydir}/gengpgkey").each_line do |ln|
-          name_line = ln.split(/^\s*Name-Email:/)
-          if name_line.length > 1
-            gpg_name = name_line.last.strip
-          end
-
-          passwd_line = ln.split(/^\s*Passphrase:/)
-          if passwd_line.length > 1
-            gpg_password = passwd_line.last.strip
-          end
-        end
-      rescue Errno::ENOENT
-      end
-
-      if gpg_name.nil?
-        puts "Warning: Could not find valid e-mail address for use with GPG."
-        puts "Please enter e-mail address to use:"
-        gpg_name = $stdin.gets.strip
-      end
-
-      if gpg_password.nil?
-        if File.exist?(%(#{keydir}/password))
-          gpg_password = File.read(%(#{keydir}/password)).chomp
-        end
-
-        if gpg_password.nil?
-          puts "Warning: Could not find a password in '#{keydir}/password'!"
-          puts "Please enter your GPG key password:"
-          system 'stty -echo'
-          gpg_password = $stdin.gets.strip
-          system 'stty echo'
-        end
-      end
-
-      gpg_key_size = nil
-      gpg_key_id = nil
-      cmd = "gpg --with-colons --homedir=#{keydir} --list-keys #{gpg_name} 2>&1"
-      puts "Executing: #{cmd}" if @verbose
-      %x(#{cmd}).each_line do |line|
-        # See https://github.com/CSNW/gnupg/blob/master/doc/DETAILS
-        # Index  Content
-        #   0    record type
-        #   2    key length
-        #   4    keyID
-        fields = line.split(':')
-        if fields[0] == 'pub'
-          gpg_key_size = fields[2]
-          gpg_key_id = fields[4]
-          break
-        end
-      end
-
-      if !gpg_key_size || !gpg_key_id
-        fail("Error getting GPG Key metadata")
-      end
-
-      @@gpg_keys[gpg_key] = {
-        :dir => keydir,
-        :name => gpg_name,
-        :key_id => gpg_key_id,
-        :key_size => gpg_key_size,
-        :password => gpg_password
-      }
-    end
-
-    # Signs the given RPM with the given gpg_key (see Simp::RPM.load_key for
-    # details on the value of this parameter).
-    def self.signrpm(rpm, gpg_key)
-      gpgkey = load_key(gpg_key)
-
-      gpg_sig = nil
-      %x(rpm -Kv #{rpm}).each_line do |line|
-        if line =~ /key\sID\s(.*):/
-          gpg_sig = $1.strip
-        end
-      end
-
-      unless gpg_sig == gpgkey[:key_id]
-        signcommand = "rpm " +
-            "--define '%_signature gpg' " +
-            "--define '%__gpg %{_bindir}/gpg' " +
-            "--define '%_gpg_name #{gpgkey[:name]}' " +
-            "--define '%_gpg_path #{gpgkey[:dir]}' " +
-            "--resign #{rpm}"
-        begin
-          PTY.spawn(signcommand) do |read, write, pid|
-            begin
-              while !read.eof? do
-                read.expect(/pass\s?phrase:.*/, 10) do |text|
-                  write.puts(gpgkey[:password])
-                  write.flush
-                end
-              end
-            rescue Errno::EIO
-              # This ALWAYS happens in Ruby 1.8.
-            end
-            Process.wait(pid)
-          end
-
-          raise "Failure running #{signcommand}" unless $?.success?
-        rescue Exception => e
-          puts "Error occured while attempting to sign #{rpm}, skipping."
-          puts e
         end
       end
     end

@@ -16,18 +16,20 @@ module Simp
   #       settings and socket.
   #
   #   The local signing key's directory includes the following:
-  #   EL7:
+  #   gpg < 2.1.0 (EL7):
   #
   #   ```
   #   #{key_name}/                        # key directory
   #     +-- RPM-GPG-KEY-SIMP-#{key_name}  # key file
   #     +-- gengpgkey                     # --gen-key params file **
+  #     +-- gpg-agent-info.env            # Lists location of gpg-agent socket + pid
+  #     +-- run_gpg_agnet                 # Script used to start gpg-agent
   #     +-- pubring.gpg
   #     +-- secring.gpg
   #     +-- trustdb.gpg
   #   ```
   #
-  #   EL8:
+  #   gpg >= 2.1.0 (EL8):
   #   ```
   #   #{key_name}/                        # key directory
   #     +-- RPM-GPG-KEY-SIMP-#{key_name}  # key file
@@ -38,39 +40,27 @@ module Simp
   #     +-- trustdb.gpg
   #   ```
   #
-  #   `**` = `SIMP::RPM.sign_keys` will use the values in the `gengpgkey` file
+  #   `**` = `SIMP::RpmSigner.sign_rpms` will use the values in the `gengpgkey` file
   #     for the GPG signing key's email and passphrase
   #
   #   If a new key is required, a project-only `gpg-agent` daemon is momentarily
   #   created to generate it, and destroyed after this is done.  The daemon does
-  #   not interact with any other `gpg-agent` daemons on the system--it is
-  #   launched on a random socket and keeps all its files under the
-  #   #{key_name/} directory.
+  #   not interact with any other `gpg-agent` daemons on the system. It is
+  #   launched on random socket(s) whose socket file(s) can be found as follows:
   #
-  #   When instantiated, the daemon writes an "env-file" to the #{key_name}
-  #   directory.  This file specifies the location of the daemon's socket and
-  #   pid.
+  #   Location                           Environment
+  #   #{key_name} dir                    Docker container for EL8
+  #   temp dir in /run/user/<uid>/gnupg  EL8
+  #   temp dir in /tmp                   EL7
   #
-  #   A typical env-file looks like:
-  #
-  #   ```sh
-  #   GPG_AGENT_INFO=/tmp/gpg-4yhfOB/S.gpg-agent:15495:1
-  #   ```
-  #
-  #   A brand-new gpg-agent daemon will output similar information, with an
-  #   additional export:
-  #
-  #   ```sh
-  #   GPG_AGENT_INFO=/tmp/gpg-4yhfOB/S.gpg-agent:15495:1; export GPG_AGENT_INFO;\n"
-  #   ```
   class LocalGpgSigningKey
     include FileUtils
     include Simp::CommandUtils
 
-    # `SIMP::RPM.sign_keys` will look for a 'gengpgkey' file to
+    # `SIMP::RpmSigner.sign_rpms` will look for a 'gengpgkey' file to
     #   non-interactively sign packages.
     #
-    #   @see SIMP::RPM.sign_keys
+    #   @see SIMP::RpmSigner.sign_rpms
     GPG_GENKEY_PARAMS_FILENAME = 'gengpgkey'.freeze
 
     # @param dir  [String] path to gpg-agent / key directory
@@ -88,6 +78,7 @@ module Simp
       @key_file  = opts[:file]    || "RPM-GPG-KEY-SIMP-#{@label.capitalize}"
       @verbose   = opts[:verbose] || false
 
+      # for EL7 only
       @gpg_agent_env_file = 'gpg-agent-info.env'
       @gpg_agent_script   = 'run_gpg_agent'
     end
@@ -125,18 +116,45 @@ module Simp
       info
     end
 
-    # Return the number of days left before the GPG signing key expires
+    # Return the number of days left before the GPG signing key expires or
+    # 0 if the key does not exist or the key is missing an expiration date.
     def dev_key_days_left
-      ensure_gpg_directory
-      days_left   = 0
-
       which('gpg', true)
-      # FIXME This output parsing is fragile. Should use --with-colons option!
-      current_key = %x(GPG_AGENT_INFO='' gpg --homedir=#{@dir} --list-keys #{@key_email} 2>/dev/null)
-      unless current_key.empty?
-        lasts_until = current_key.lines.first.strip.split("\s").last.delete(']')
-        days_left = (Date.parse(lasts_until) - Date.today).to_i
+      ensure_gpg_directory
+
+      days_left = 0
+      cmd = "gpg --with-colons --homedir=#{@dir} --list-keys '<#{@key_email}>' 2>&1"
+      puts "Executing: #{cmd}" if @verbose
+      %x(#{cmd}).each_line do |line|
+        # See https://github.com/CSNW/gnupg/blob/master/doc/DETAILS
+        # Index  Content
+        #   0    record type
+        #   6    expiration date
+        #
+        # If expiration date contains a 'T', it is in an ISO 8601 format
+        # (e.g., 20210223T091500). Otherwise it is seconds since the epoch.
+        #
+        fields = line.split(':')
+        if fields[0] && (fields[0] == 'pub')
+          raw_exp_date = fields[6]
+          unless raw_exp_date.nil? || raw_exp_date.strip.empty?
+            require 'date'
+
+            exp_date = nil
+            if raw_exp_date.include?('T')
+              exp_date = DateTime.parse(raw_exp_date).to_date
+            else
+              exp_date = Time.at(raw_exp_date.to_i).to_date
+            end
+
+            days_left = (exp_date - Date.today).to_i
+            days_left = 0 if days_left < 0
+          end
+
+          break
+        end
       end
+
       days_left
     end
 
@@ -168,55 +186,16 @@ module Simp
 
         clean_gpg_agent_directory
         write_genkey_parameter_file
-        write_gpg_agent_startup_script
 
+        agent_info = nil
         begin
           if gpg_version < Gem::Version.new('2.1')
-            # Start the GPG agent.
-            gpg_agent_output = %x(./#{@gpg_agent_script}).strip
-
-            # Provide a local socket (needed by the `gpg` command when
-            local_socket = File.join(Dir.pwd, 'S.gpg-agent')
-
-            # This condition was handled differently in previous logic.
-            #
-            #   a.) As the surrounding logic works now, it will _always_ be a new
-            #       agent by this point, because the directory is cleaned out
-            #   b.) The agent's information will be read from the env-file it
-            #        writes at startup
-            #   c.) The old command `gpg-agent --homedir=#{Dir.pwd} /get serverpid`
-            #       did not work on EL6 or EL7.
-            #
-            warn(empty_gpg_agent_message) if gpg_agent_output.empty?
-
-            agent_info = gpg_agent_info
-
-            # The socket is useful to get back info on the command line.
-            unless File.exist?(File.join(Dir.pwd, File.basename(agent_info[:socket])))
-              ln_s(agent_info[:socket], local_socket, :verbose => @verbose)
-            end
-
-            generate_key(agent_info[:info])
+            agent_info = start_gpg_agent_old
           else
-            which('gpg', true)
-            which('gpg-agent', true)
-            which('gpg-connect-agent', true)
-
-            # Start the GPG agent
-            %x{gpg-agent --homedir=#{Dir.pwd} >&/dev/null || gpg-agent --homedir=#{Dir.pwd} --daemon >&/dev/null}
-
-            agent_info = {}
-
-            # Provide a local socket (needed by the `gpg` command when
-            agent_info[:socket] = %x{echo 'GETINFO socket_name' | gpg-connect-agent --homedir=#{Dir.pwd}}.lines.first[1..-1].strip
-
-            # Get the pid
-            agent_info[:pid] = %x{echo 'GETINFO pid' | gpg-connect-agent --homedir=#{Dir.pwd}}.lines.first[1..-1].strip.to_i
-
-            generate_key(%{#{agent_info[:socket]}:#{agent_info[:pid]}:1})
+            agent_info = start_gpg_agent
           end
         ensure
-          kill_agent(agent_info[:pid])
+          kill_agent(agent_info[:pid]) if agent_info
         end
 
         agent_info
@@ -228,7 +207,7 @@ module Simp
     #
     # @return [String] Warning message
     def empty_gpg_agent_message
-      <<-WARNING.gsub(/^\s{8}/,'')
+      <<~WARNING
         WARNING: Tried to start an project-only gpg-agent daemon on a random socket by
                  running the script:
 
@@ -249,7 +228,6 @@ module Simp
     #
     # @param pid [String] The GPG Agent PID to kill
     def kill_agent(pid)
-      rm('S.gpg-agent') if File.symlink?('S.gpg-agent')
       if pid
         Process.kill(0, pid)
         Process.kill(15, pid)
@@ -269,8 +247,8 @@ module Simp
       gpg_cmd = %(GPG_AGENT_INFO=#{gpg_agent_info_str} gpg --homedir="#{@dir}")
 
       pipe    = @verbose ? '| tee' : '>'
-      sh %(#{gpg_cmd} --batch --gen-key #{GPG_GENKEY_PARAMS_FILENAME})
-      sh %(#{gpg_cmd} --armor --export #{@key_email} #{pipe} "#{@key_file}")
+      %x(#{gpg_cmd} --batch --gen-key #{GPG_GENKEY_PARAMS_FILENAME})
+      %x(#{gpg_cmd} --armor --export '<#{@key_email}>' #{pipe} "#{@key_file}")
 
       if File.stat(@key_file).size == 0
         fail "Error: Something went wrong generating #{@key_file}"
@@ -284,6 +262,62 @@ module Simp
       info    = %r{^(GPG_AGENT_INFO=)?(?<info>[^;]+)}.match(str)[:info]
       matches = %r{^(?<socket>[^:]+):(?<pid>[^:]+)}.match(info)
       { info: info.strip, socket: matches[:socket], pid: matches[:pid].to_i }
+    end
+
+    # Start the gpg-agent
+    # @return Hash of agent info
+    # @raise if gpg-agent fails to start
+    def start_gpg_agent
+      which('gpg', true)
+      which('gpg-agent', true)
+      which('gpg-connect-agent', true)
+
+      # Start the GPG agent, if it is not already running
+      check_agent = "gpg-agent -q --homedir=#{Dir.pwd} >&/dev/null"
+      start_agent = "gpg-agent --homedir=#{Dir.pwd} --daemon >&/dev/null"
+      cmd = "#{check_agent} || #{start_agent}"
+      puts "Executing: #{cmd}" if @verbose
+      %x(#{cmd})
+      if $? && ($?.exitstatus != 0)
+        err_msg = [
+          'Failed to start gpg-agent during key creation.',
+          "  Execute '#{start_agent.gsub(' >&/dev/null','')}' to debug."
+        ].join("\n")
+        raise(err_msg)
+      end
+
+      agent_info = {}
+
+      # Provide a local socket (needed by the `gpg` command when
+      agent_info[:socket] = %x{echo 'GETINFO socket_name' | gpg-connect-agent --homedir=#{Dir.pwd}}.lines.first[1..-1].strip
+
+      # Get the pid
+      agent_info[:pid] = %x{echo 'GETINFO pid' | gpg-connect-agent --homedir=#{Dir.pwd}}.lines.first[1..-1].strip.to_i
+
+      generate_key(%{#{agent_info[:socket]}:#{agent_info[:pid]}:1})
+
+      agent_info
+    end
+
+    # Start the gpg-agent with options suitable for gpg version < 2.1
+    # @return Hash of agent info
+    def start_gpg_agent_old
+      write_gpg_agent_startup_script
+      gpg_agent_output = %x(./#{@gpg_agent_script}).strip
+
+      # By the time we get here, we can be assured we will be starting a
+      # new agent, because the directory is cleaned out.
+      #
+      # Follow-on gpg actions will read the agent's information from
+      # the env-file the agent writes at startup.
+
+      # We're using the --sh option which will spew out the agent config
+      # when the agent starts. If it is empty, this is a problem.
+      warn(empty_gpg_agent_message) if gpg_agent_output.empty?
+
+      agent_info = gpg_agent_info
+      generate_key(agent_info[:info])
+      agent_info
     end
 
     # Write the `gpg --genkey --batch` control parameter file
@@ -326,7 +360,7 @@ module Simp
       which('gpg-agent', true)
       pinentry_cmd = which('pinentry-curses', true)
 
-      gpg_agent_script = <<-AGENT_SCRIPT.gsub(%r{^ {20}}, '')
+      gpg_agent_script = <<~AGENT_SCRIPT
         #!/bin/sh
 
         gpg-agent --homedir=#{Dir.pwd} --daemon \
