@@ -9,14 +9,14 @@ RSpec.configure do |c|
   c.extend  Simp::BeakerHelpers::SimpRakeHelpers::BuildProjectHelpers
 end
 
+# options to be applied to each on() operation
 def run_opts
   # WARNING: If you set run_in_parallel to true, tests will fail
   # when run in a GitHub action.
   { run_in_parallel: false }
 end
 
-describe 'rake pkg:signrpms' do
-  # options to be applied to each on() operation
+describe 'rake pkg:signrpms and pkg:checksig' do
 
   # Clean out RPMs dir and copy in a fresh dummy RPM
   def prep_rpms_dir(rpms_dir, src_rpms, opts = {})
@@ -70,6 +70,7 @@ describe 'rake pkg:signrpms' do
       extra_args = digest_algo_param ? ",false,#{digest_algo_param}" : ''
       "SIMP_PKG_verbose=yes #{extra_env} bundle exec rake pkg:signrpms[dev,'#{rpms_dir}'#{extra_args}]"
     }
+    let(:checksig_cmd) { "#{extra_env} bundle exec rake pkg:checksig[#{rpms_dir}]" }
   end
 
   let(:rpm_unsigned_regex) do
@@ -91,6 +92,19 @@ describe 'rake pkg:signrpms' do
     it 'does not leave the gpg-agent daemon running' do
       hosts.each do |host|
         expect(gpg_agent_running?(host, dev_keydir)).to be false
+      end
+    end
+  end
+
+  shared_examples 'it verifies RPM signatures' do
+    let(:public_gpgkeys_dir) { 'src/assets/gpgkeys/GPGKEYS' }
+    it 'verifies RPM signatures' do
+      hosts.each do |host|
+        # mock out the simp-gpgkeys project checkout so that the pkg:checksig
+        # doesn't fail before reading in the generated 'dev' GPGKEY
+        on(host, %(#{run_cmd} "cd '#{test_dir}'; mkdir -p #{public_gpgkeys_dir}"), run_opts)
+        on(host, %(#{run_cmd} "cd '#{test_dir}'; touch #{public_gpgkeys_dir}/RPM-GPG-KEY-empty"), run_opts)
+        on(host, %(#{run_cmd} "cd '#{test_dir}'; #{checksig_cmd}"), run_opts)
       end
     end
   end
@@ -164,10 +178,12 @@ describe 'rake pkg:signrpms' do
     include_context('a freshly-scaffolded test project', 'signrpms')
     include_examples('it begins with unsigned RPMs')
     include_examples('it creates GPG dev signing key and signs packages')
+    include_examples('it verifies RPM signatures')
 
     context 'when there is an unexpired GPG dev signing key and the packages are unsigned' do
       include_examples('it begins with unsigned RPMs')
       include_examples('it signs RPM packages using existing GPG dev signing key')
+      include_examples('it verifies RPM signatures')
     end
   end
 
@@ -190,6 +206,7 @@ describe 'rake pkg:signrpms' do
 
     include_examples('it begins with unsigned RPMs')
     include_examples('it creates GPG dev signing key and signs packages')
+    include_examples('it verifies RPM signatures')
   end
 
   describe 'when packages are already signed' do
@@ -219,6 +236,21 @@ describe 'rake pkg:signrpms' do
 
           # verify RPM is not signed with the new signing key
           expect(signed_rpm_data[:key_id]).to_not eql dev_signing_key_id(host, dev_keydir, run_opts)
+        end
+      end
+
+      it 'does not verify RPM signatures with the new key' do
+        public_gpgkeys_dir = 'src/assets/gpgkeys/GPGKEYS'
+        hosts.each do |host|
+          # mock out the simp-gpgkeys project checkout so that the pkg:checksig
+          # doesn't fail before reading in the new generated 'dev' GPGKEY
+          on(host, %(#{run_cmd} "cd '#{test_dir}'; mkdir -p #{public_gpgkeys_dir}"), run_opts)
+          on(host, %(#{run_cmd} "cd '#{test_dir}'; touch #{public_gpgkeys_dir}/RPM-GPG-KEY-empty"), run_opts)
+          result = on(host, %(#{run_cmd} "cd '#{test_dir}'; #{checksig_cmd}"),
+            :acceptable_exit_codes => [1]
+          )
+
+          expect(result.stderr).to match('ERROR: Untrusted RPMs found in the repository')
         end
       end
     end
@@ -256,6 +288,7 @@ describe 'rake pkg:signrpms' do
     include_context('a freshly-scaffolded test project', 'custom-digest-algo', opts)
     include_examples('it begins with unsigned RPMs')
     include_examples('it creates GPG dev signing key and signs packages')
+    include_examples('it verifies RPM signatures')
   end
 
   describe 'when some rpm signing fails' do

@@ -20,6 +20,8 @@
 - Fixed bug in GPG handling for GPG 2.1+ in which an existing
   GPG key that was not cached internally was not detected.
 - Fixed bug where pkg:signrpms failed to sign RPMs on EL8.
+- Fixed bug where pkg:checksig reported failure on EL8, even when
+  the signatures were valid.
 - Deprecated the following top-level Rake tasks for Puppet modules:
   - compare_latest_tag: use pkg:compare_latest_tag instead
   - changelog_annotation: use pkg:create_tag_changelog instead

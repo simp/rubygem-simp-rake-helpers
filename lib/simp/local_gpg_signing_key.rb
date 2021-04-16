@@ -83,7 +83,7 @@ module Simp
       @gpg_agent_script   = 'run_gpg_agent'
     end
 
-    # Return the version of GPG instealled on the system
+    # Return the version of GPG installed on the system
     #
     # @return [Gem::Version]
     def gpg_version
