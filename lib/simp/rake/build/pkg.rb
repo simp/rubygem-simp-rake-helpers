@@ -505,7 +505,9 @@ module Simp::Rake::Build
                 $stderr.puts "pkg:checksig: Warning no GPG keys found in #{key_dirs_tried}"
               end
             end
-            public_keys += Dir.glob(File.join(@build_dir, 'build_keys', '*', 'RPM-GPG-KEY*'))
+
+            # be sure to include any development keys packaged with the DVD
+            public_keys += Dir.glob(File.join(@dvd_src, 'RPM-GPG-KEY*'))
 
             # Only import thngs that look like GPG keys...
             public_keys.each do |key|
@@ -523,8 +525,9 @@ module Simp::Rake::Build
             rpm_dirs.each do |rpm_dir|
               Find.find(rpm_dir) do |path|
                 if (path =~ /.*\.rpm$/)
-                  result = %x{#{rpm_cmd} --checksig #{path}}.strip
-                  if result !~ /:.*\(\S+\).* OK$/
+                  %x{#{rpm_cmd} --checksig #{path}}.strip
+                  result = $?
+                  unless result && (result.exitstatus == 0)
                     bad_rpms << path.split(/\s/).first
                   end
                 end
