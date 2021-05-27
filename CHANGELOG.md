@@ -1,3 +1,7 @@
+### 5.12.1 / 2021-05-27
+- Default `@build_dir` to `@distro_build_dir` in build tasks
+
+
 ### 5.12.0 / 2021-02-16
 - Ensure that pkg:install_gem uses the correct documentation options for the
   version of Ruby in use.

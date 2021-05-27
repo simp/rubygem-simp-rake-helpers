@@ -26,7 +26,7 @@ module Simp::Rake::Build
       namespace :iso do
         task :prep do
           if $simp6
-            @build_dir = $simp6_build_dir
+            @build_dir = $simp6_build_dir || @distro_build_dir
           end
         end
 
