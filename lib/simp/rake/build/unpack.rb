@@ -50,7 +50,7 @@ module Simp::Rake::Build
         File.exist?(args.iso_path) or
           fail "Error: You must provide the full path and filename of the ISO image."
 
-        %x{file #{iso_path}}.split(":")[1..-1].to_s =~ /ISO/ or
+        %x{file --keep-going '#{iso_path}'}.split(":")[1..-1].to_s =~ /ISO/ or
           fail "Error: The file provided is not a valid ISO."
 
         pieces = File.basename(iso_path,'.iso').split('-')
