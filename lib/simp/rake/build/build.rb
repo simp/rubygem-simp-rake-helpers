@@ -25,7 +25,7 @@ module Simp::Rake::Build
       namespace :build do
         task :prep do
           if $simp6
-            @build_dir = $simp6_build_dir
+            @build_dir = $simp6_build_dir || @distro_build_dir
           end
         end
 
@@ -96,7 +96,7 @@ module Simp::Rake::Build
           task :prep do
             if $simp6
               # `$simp6_build_dir` is set by the build:auto task
-              @build_dir = $simp6_build_dir
+              @build_dir = $simp6_build_dir || @distro_build_dir
 
               unless @build_dir
                 if ENV['SIMP_BUILD_yum_dir'] && File.exist?(File.join(ENV['SIMP_BUILD_yum_dir'], 'yum_data'))

@@ -43,7 +43,7 @@ module Simp::Rake::Build
 
           # This doesn't get caught for things like 'rake clean'
           if $simp6 && $simp6_build_dir
-            @build_dir = $simp6_build_dir
+            @build_dir = $simp6_build_dir || @distro_build_dir
             @dvd_src = File.join(@build_dir, File.basename(@dvd_src))
           end
 

@@ -20,7 +20,7 @@ module Simp::Rake::Build
       namespace :tar do
         task :prep do
           if $simp6
-            @build_dir = $simp6_build_dir
+            @build_dir = $simp6_build_dir || @distro_build_dir
             @dvd_src = File.join(@build_dir, File.basename(@dvd_src))
           end
 
