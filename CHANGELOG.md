@@ -1,6 +1,8 @@
 ### 5.12.1 / 2021-05-27
 - Default `@build_dir` to `@distro_build_dir` in build tasks
-
+- Use  `file --keep-going` in the **unpack** task's ISO validation check.  This
+  allows the check to work from EL8-based systems, where `ISO 9660 CD-ROM
+  filesystem data` is not the first match.
 
 ### 5.12.0 / 2021-02-16
 - Ensure that pkg:install_gem uses the correct documentation options for the
