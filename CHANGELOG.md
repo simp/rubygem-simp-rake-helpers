@@ -1,3 +1,6 @@
+### 5.12.2 / 2021-06-22
+- Change to '-1' from '-0' as the default RPM release
+
 ### 5.12.1 / 2021-05-27
 - Default `@build_dir` to `@distro_build_dir` in build tasks
 - Use  `file --keep-going` in the **unpack** task's ISO validation check.  This

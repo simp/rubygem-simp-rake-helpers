@@ -106,8 +106,8 @@ package_name = "UNKNOWN"
 package_version = "UNKNOWN"
 module_license = "UNKNOWN"
 
--- Default to 0
-package_release = 0
+-- Default to 1
+package_release = 1
 
 lua_stderr("\n")
 lua_stderr("--------------------------------------------------------------------------------\n")
@@ -202,7 +202,7 @@ end
 --    only accepts release in SemVer \d+\.\d+\.\d+ release format)
 --
 --    This code will remove a '-rc0' style prerelease string from the RPM
---     Version, and use it as the default RPM Release (instead of '-0')
+--     Version, and use it as the default RPM Release (instead of '-1')
 
 local version_match = metadata:match('"version":%s+"(.-)"%s*,'):gsub('-.*','')
 if version_match then

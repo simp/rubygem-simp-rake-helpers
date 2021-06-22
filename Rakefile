@@ -1,5 +1,3 @@
-# -*- ruby -*-
-
 require "rubygems"
 require 'rake/clean'
 require 'find'
@@ -12,5 +10,6 @@ require 'rspec/core/rake_task'
 require 'simp/rake/rubygem'
 Simp::Rake::Rubygem.new(@package, @rakefile_dir)
 
+require 'simp/rake/beaker'
 
-# vim: syntax=ruby
+Simp::Rake::Beaker.new(Dir.pwd)
