@@ -11,7 +11,7 @@ shared_examples_for 'an RPM generator with customized scriptlets' do
     scriptlets = rpm_scriptlets_for(
       host,
       "#{pkg_root_dir}/testpackage_custom_scriptlet/dist/" +
-      'pupmod-simp-testpackage-0.0.1-0.noarch.rpm'
+      'pupmod-simp-testpackage-0.0.1-1.noarch.rpm'
     )
 
     comment '...the expected scriptlet types are present'
@@ -69,7 +69,7 @@ shared_examples_for 'an RPM generator with customized triggers' do
     triggers = rpm_triggers_for(
       host,
       "#{pkg_root_dir}/testpackage_custom_scriptlet/dist/" +
-      'pupmod-simp-testpackage-0.0.1-0.noarch.rpm'
+      'pupmod-simp-testpackage-0.0.1-1.noarch.rpm'
     )
 
 

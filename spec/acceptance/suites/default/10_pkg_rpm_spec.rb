@@ -107,7 +107,7 @@ describe 'rake pkg:rpm' do
         context 'using simpdefault.spec' do
 
           let(:build_type) {:default}
-          let(:testpackage_rpm) { File.join(testpackage_dir, 'dist/pupmod-simp-testpackage-0.0.1-0.noarch.rpm') }
+          let(:testpackage_rpm) { File.join(testpackage_dir, 'dist/pupmod-simp-testpackage-0.0.1-1.noarch.rpm') }
 
           it 'should create an RPM' do
             comment "produces RPM on #{host}"
@@ -119,8 +119,8 @@ describe 'rake pkg:rpm' do
             on host, %(rpm -qpR #{testpackage_rpm} | grep -q pupmod-simp-foo), :acceptable_exit_codes => [1]
             on host, %(rpm -qpR #{testpackage_rpm} | grep -q pupmod-simp-simplib)
             on host, %(rpm -qpR #{testpackage_rpm} | grep -q pupmod-puppetlabs-stdlib)
-            on host, %(rpm -qp --provides #{testpackage_rpm} | grep -q -x 'pupmod-testpackage = 0.0.1-0')
-            on host, %(rpm -qp --provides #{testpackage_rpm} | grep -q -x 'simp-testpackage = 0.0.1-0')
+            on host, %(rpm -qp --provides #{testpackage_rpm} | grep -q -x 'pupmod-testpackage = 0.0.1-1')
+            on host, %(rpm -qp --provides #{testpackage_rpm} | grep -q -x 'simp-testpackage = 0.0.1-1')
             on host, %(rpm -qp --queryformat "[%{obsoletes}\\n]" #{testpackage_rpm} | grep -q "^pupmod-testpackage")
             on host, %(rpm -qp --queryformat "[%{obsoletes}\\n]" #{testpackage_rpm} | grep -q "^simp-testpackage")
 
