@@ -26,7 +26,6 @@
     * [`rake pkg:rpm`](#rake-pkgrpm)
     * [`rake pkg:tar`](#rake-pkgtar)
 * [Limitations](#limitations)
-  * [Some versions of bundler fail on FIPS-enabled Systems](#some-versions-of-bundler-fail-on-fips-enabled-systems)
 * [Development](#development)
   * [License](#license)
   * [History](#history)
@@ -66,25 +65,6 @@ group :test do
   gem 'puppet', puppetversion
   gem 'beaker-rspec'
   gem 'vagrant-wrapper'
-
-  # Puppet 4+ has issues with Hiera 3.1+
-   if puppetversion.to_s =~ />(\d+)/
-     pversion = $1
-     else
-     pversion = puppetversion
-   end
-
-   if Gem::Dependency.new('puppet', '~> 4.0').match?('puppet', pversion)
-     gem 'hiera', '~> 3.0.0'
-   end
-
-  # simp-rake-helpers does not suport puppet 2.7.X
-  if "#{ENV['PUPPET_VERSION']}".scan(/\d+/).first != '2' &&
-      # simp-rake-helpers and ruby 1.8.7 bomb Travis tests
-      # TODO: fix upstream deps (parallel in simp-rake-helpers)
-      RUBY_VERSION.sub(/\.\d+$/,'') != '1.8'
-    gem 'simp-rake-helpers'
-  end
 end
 ```
 
@@ -164,7 +144,7 @@ directory .  The full list of files considered are:
 ├── CHANGELOG         # OPTIONAL written in RPM's CHANGELOG format
 └── build/            # OPTIONAL
     └── rpm_metadata/ # OPTIONAL
-        ├── release   # OPTIONAL defines the RPM's "-0" release number
+        ├── release   # OPTIONAL defines the RPM's "-<qualifier>" release qualifier
         ├── requires  # OPTIONAL supplementary 'Requires','Provides','Obsoletes'
         └── custom/   # OPTIONAL
           └── *       # OPTIONAL custom snippets in RPM .spec format
@@ -187,7 +167,7 @@ level of the project, if it exists.
 
     Example:
 
-        * Mon Nov 06 2017 Tom Smith <tom.smith@simp.com> - 3.8.0-0
+        * Mon Nov 06 2017 Tom Smith <tom.smith@simp.com> - 3.8.0
         - Add feature x
 
     **Important:** Note the leading zero in "`Nov 05`".  It is a convention
@@ -226,21 +206,6 @@ Packages the current SIMP project as an RPM
 Build the tar package for the current SIMP project
 
 ## Limitations
-
-### Some versions of bundler fail on FIPS-enabled Systems
-
-This is a limitation of Bundler, not the gem.
-
-If you are running on a FIPS-enabled system, you will need to use
-`bundler '~> 1.14.0'` or `bundler '~> 1.16'`
-
-If you are using RVM, the appropriate steps are as follows:
-
-```shell
-rm Gemfile.lock ||:
-rvm @global do gem uninstall bundler -a -x
-rvm @global do gem install bundler -v '~> 1.14.0'
-```
 
 ## Development
 

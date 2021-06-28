@@ -85,7 +85,7 @@ describe 'rake pkg:signrpms and pkg:checksig' do
     # NOTE: This expired keydir actually works on EL7 and EL8, even though
     # the newer gpg version creates different files than those in this
     # directory.
-    "#{build_user_host_files}/spec/acceptance/files/build/pkg/gpg-keydir.expired.2018-04-06"
+    "#{build_user_host_files}/spec/acceptance/suites/default/files/build/pkg/gpg-keydir.expired.2018-04-06"
   end
 
   shared_examples 'it does not leave the gpg-agent daemon running' do
