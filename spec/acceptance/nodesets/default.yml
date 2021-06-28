@@ -6,7 +6,7 @@ HOSTS:
     platform: el-7-x86_64
     hypervisor: docker
     image: simpproject/simp_build_centos7
-    docker_cmd: '["/sbin/init"]'
+    docker_cmd: '/usr/sbin/sshd -D -E /var/log/sshd.log'
 
   el8-build-server:
     roles:

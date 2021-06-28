@@ -80,7 +80,7 @@ describe 'rake pkg:rpm' do
 
       context 'rpm building' do
 
-        let(:pkg_root_dir){'/home/build_user/host_files/spec/acceptance/files'}
+        let(:pkg_root_dir){'/home/build_user/host_files/spec/acceptance/suites/default/files'}
         let(:testpackage_dir){"#{pkg_root_dir}/testpackage"}
 
         it 'can prep the package directories' do

@@ -7,7 +7,7 @@ module Simp::BeakerHelpers::SimpRakeHelpers::BuildProjectHelpers
   #
   def scaffold_build_project(hosts, test_dir, opts = {})
     copy_host_files_into_build_user_homedir(hosts, opts)
-    skeleton_dir = "#{build_user_host_files}/spec/acceptance/files/build/project_skeleton/"
+    skeleton_dir = "#{build_user_host_files}/spec/acceptance/suites/default/files/build/project_skeleton/"
 
     on(hosts, %(mkdir "#{test_dir}"; chown build_user:build_user "#{test_dir}"), opts)
     on(hosts, %(#{run_cmd} "cp -aT '#{skeleton_dir}' '#{test_dir}'"), opts)

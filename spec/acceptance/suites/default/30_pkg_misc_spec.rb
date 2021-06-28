@@ -40,7 +40,7 @@ describe 'rake pkg:check_rpm_changelog' do
   hosts.each do |_host|
     context "on #{_host}" do
       let!(:host){ _host }
-      let(:pkg_root_dir) { '/home/build_user/host_files/spec/acceptance/files' }
+      let(:pkg_root_dir) { '/home/build_user/host_files/spec/acceptance/suites/default/files' }
 
       it 'can prep the package directories' do
         testpackages = [

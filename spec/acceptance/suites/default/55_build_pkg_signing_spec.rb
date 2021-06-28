@@ -28,7 +28,7 @@ describe 'rake pkg:signrpms and pkg:checksig' do
   shared_context 'a freshly-scaffolded test project' do |dir, opts = {}|
     test__dir     = "#{build_user_homedir}/test-#{dir}"
     rpms__dir     = "#{test__dir}/test.rpms"
-    src__rpm      =  "#{build_user_host_files}/spec/lib/simp/files/testpackage-1-1.noarch.rpm"
+    src__rpm      =  "#{build_user_host_files}/spec/lib/simp/files/testpackage-1-0.noarch.rpm"
     host__dirs    = {}
     gpg__keysdir  = opts[:gpg_keysdir] ? opts[:gpg_keysdir] : "#{test__dir}/.dev_gpgkeys"
     extra__env    = opts[:gpg_keysdir] ? "SIMP_PKG_build_keys_dir=#{gpg__keysdir}" : ''
@@ -85,7 +85,7 @@ describe 'rake pkg:signrpms and pkg:checksig' do
     # NOTE: This expired keydir actually works on EL7 and EL8, even though
     # the newer gpg version creates different files than those in this
     # directory.
-    "#{build_user_host_files}/spec/acceptance/files/build/pkg/gpg-keydir.expired.2018-04-06"
+    "#{build_user_host_files}/spec/acceptance/suites/default/files/build/pkg/gpg-keydir.expired.2018-04-06"
   end
 
   shared_examples 'it does not leave the gpg-agent daemon running' do

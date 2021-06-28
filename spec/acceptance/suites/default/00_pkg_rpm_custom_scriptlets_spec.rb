@@ -101,7 +101,7 @@ describe 'rake pkg:rpm with customized content' do
     copy_host_files_into_build_user_homedir(hosts)
   end
 
-  let(:pkg_root_dir){'/home/build_user/host_files/spec/acceptance/files'}
+  let(:pkg_root_dir){'/home/build_user/host_files/spec/acceptance/suites/default/files'}
   let(:testpackage_dir){"#{pkg_root_dir}/testpackage"}
 
   hosts.each do |_host|
