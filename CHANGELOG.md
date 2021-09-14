@@ -1,3 +1,6 @@
+### 5.12.3 / 2021-09-14
+- Handle multiple options for required applications in build:auto
+
 ### 5.12.2 / 2021-06-22
 - Change to '-1' from '-0' as the default RPM release
 
