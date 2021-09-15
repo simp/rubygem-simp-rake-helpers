@@ -64,7 +64,7 @@ module Simp::Rake::Build
       'wc',
       'which',
       'xargs',
-      'yum',
+      ['dnf','yum'],
       'yumdownloader'
     ]
 
