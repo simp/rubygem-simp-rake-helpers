@@ -120,6 +120,9 @@ module Simp::Rake::Build
             end
           end
 
+          reposync_location = File.join(@build_dir,'yum_data','reposync')
+          reposync_active = !Dir.glob(File.join(reposync_location, '**', 'repomd.xml')).empty?
+
           tarfiles = File.directory?(tarball) ?
             Dir.glob("#{tarball}/*.tar.gz") : [tarball]
           vermap = YAML::load_file( File.join( File.dirname(__FILE__), 'vermap.yaml'))
@@ -171,6 +174,7 @@ module Simp::Rake::Build
               unless Array(vermap[simpver.split('.').first]).include?(baseosver.split('.').first)
                 if verbose
                   warn("Could not find SIMP version mapping for #{simpver} for Base OS #{baseosver}")
+                  warn("Do you need to update vermap.yaml in the Gem?")
                 end
 
                 next
@@ -186,34 +190,51 @@ module Simp::Rake::Build
                 end
               end
 
-              # Prune unwanted packages
-              begin
-                system("tar --no-same-permissions -C #{dir} -xzf #{tball} *simp_pkglist.txt")
-              rescue
-                # Does not matter if the command fails
-              end
+              # If we've pulled in reposync directories, we expect them to
+              # completely overwrite the directory of the same name in the
+              # target ISO so no pruning is required
+              #
+              # Note: CASE MATTERS on the directory names
+              if reposync_active
+                repos_to_overwrite = Dir.glob(File.join(reposync_location, '*'))
+                  .delete_if{|x| !File.directory?(x)}
+                  .map{|x| File.basename(x)}
 
-              pkglist_file = ENV.fetch(
-                'SIMP_PKGLIST_FILE',
-                File.join(dir,"#{baseosver.split('.').first}-simp_pkglist.txt")
-              )
-
-              puts
-              puts '-'*80
-              puts "### Pruning packages not in file '#{pkglist_file}'"
-              puts
-              puts '   (override this with `SIMP_PKGLIST_FILE=<file>`)'
-              puts
-              puts '-'*80
-              puts
-
-              if (args.prune.casecmp("false") != 0) && File.exist?(pkglist_file)
-                exclude_pkgs = Array.new
-                File.read(pkglist_file).each_line do |line|
-                  next if line =~ /^(\s+|#.*)$/
-                  exclude_pkgs.push(line.chomp)
+                repos_to_overwrite.each do |repo|
+                  target = File.join(dir, repo)
+                  rm_rf(target, :verbose => verbose) if File.directory?(target)
+                  cp_r(File.join(reposync_location, repo), dir, :verbose => verbose)
                 end
-                prune_packages(dir,['SIMP'],exclude_pkgs,mkrepo)
+              else
+                # Prune unwanted packages
+                begin
+                  system("tar --no-same-permissions -C #{dir} -xzf #{tball} *simp_pkglist.txt")
+                rescue
+                  # Does not matter if the command fails
+                end
+
+                pkglist_file = ENV.fetch(
+                  'SIMP_PKGLIST_FILE',
+                  File.join(dir,"#{baseosver.split('.').first}-simp_pkglist.txt")
+                )
+
+                puts
+                puts '-'*80
+                puts "### Pruning packages not in file '#{pkglist_file}'"
+                puts
+                puts '   (override this with `SIMP_PKGLIST_FILE=<file>`)'
+                puts
+                puts '-'*80
+                puts
+
+                if (args.prune.casecmp("false") != 0) && File.exist?(pkglist_file)
+                  exclude_pkgs = Array.new
+                  File.read(pkglist_file).each_line do |line|
+                    next if line =~ /^(\s+|#.*)$/
+                    exclude_pkgs.push(line.chomp)
+                  end
+                  prune_packages(dir,['SIMP'],exclude_pkgs,mkrepo)
+                end
               end
 
               # Add the SIMP code
@@ -230,12 +251,15 @@ module Simp::Rake::Build
                   yum_dep_location = File.join(@build_dir,'yum_data',simp_dep_src,'packages')
                 end
 
+                yum_dep_rpms = Dir.glob(File.join(yum_dep_location,'*.rpm'))
+
                 unless File.directory?(yum_dep_location)
+                  next if reposync_active
                   fail("Could not find dependency directory at #{yum_dep_location}")
                 end
 
-                yum_dep_rpms = Dir.glob(File.join(yum_dep_location,'*.rpm'))
                 if yum_dep_rpms.empty?
+                  next if reposync_active
                   fail("Could not find any dependency RPMs at #{yum_dep_location}")
                 end
 

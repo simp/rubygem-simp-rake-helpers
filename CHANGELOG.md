@@ -1,3 +1,15 @@
+### 5.12.3 / 2021-09-15
+- Handle multiple options for required applications in build:auto
+- Allow users to populate a `reposync` directory in the YUM build space that
+  will overwrite any target directories on the ISO.
+  - The SIMP tarball is unpacked after the copy so you always get the latest
+    built artifacts.
+  - Pruning will not occur if this technique is used since it is presumed that
+    you are overwriting the data with authoritative content.
+- Added a helpful tip about updating vermap.yaml
+- Fixed the call to repoclosure if on a system with DNF
+- Added support for EL8 to vermap.yaml
+
 ### 5.12.2 / 2021-06-22
 - Change to '-1' from '-0' as the default RPM release
 

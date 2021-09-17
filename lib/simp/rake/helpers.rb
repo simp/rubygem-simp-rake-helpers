@@ -20,8 +20,8 @@ class Simp::Rake::Helpers
     invalid_commands = Array.new
 
     Array(required_commands).each do |command|
-      unless Facter::Core::Execution.which(command)
-        invalid_commands << command
+      unless Array(command).find { |x| Facter::Core::Execution.which(x) }
+        invalid_commands << Array(command).join(' or ')
       end
     end
 

@@ -204,7 +204,8 @@ module Simp::Rake::Build
 
             Dir.chdir(target_dir) do
               if File.exist?('packages.yaml')
-                known_package_hash = YAML::load_file('packages.yaml')
+                # The empty YAML file returns 'false'
+                known_package_hash = YAML::load_file('packages.yaml') || {}
               end
             end
 
@@ -276,7 +277,7 @@ module Simp::Rake::Build
                 pkg = downloaded_package_hash[pkg][:rpm_name]
               }.compact
 
-              if known_packages.empty? && downloaded_packages.empty?
+              if known_packages.empty? && downloaded_packages.empty? && Dir.glob('reposync/**/repomd.xml').empty?
                 fail <<-EOM
         Error: Could not find anything to do!
 

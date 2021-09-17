@@ -18,6 +18,8 @@ module Simp::Rake::Build
   class Auto < ::Rake::TaskLib
 
     # Commands that are required by some part of the rake stack
+    #
+    # Use an array for commands that may have multiple valid options
     BUILD_REQUIRED_COMMANDS = [
       'basename',
       'cat',
@@ -42,7 +44,7 @@ module Simp::Rake::Build
       'make',
       'mkdir',
       'mktemp',
-      'python',
+      ['python','python2','python3'],
       'readlink',
       'repoclosure',
       'rm',
@@ -62,7 +64,7 @@ module Simp::Rake::Build
       'wc',
       'which',
       'xargs',
-      'yum',
+      ['dnf','yum'],
       'yumdownloader'
     ]
 

@@ -63,7 +63,7 @@ jobs:
   # we restrict ourselves to sending data elsewhere.
   glci-syntax:
     name: '.gitlab-ci.yml Syntax'
-    runs-on: ubuntu-16.04
+    runs-on: ubuntu-18.04
     outputs:
       valid: ${{ steps.validate-glci-file.outputs.valid }}
     steps:
