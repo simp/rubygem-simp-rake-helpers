@@ -606,23 +606,19 @@ protect=1
               mkdir_p('repos/lookaside')
               mkdir_p('repodata')
 
-              Dir.glob(args[:target_dir]).each do |base_dir|
-                Find.find(base_dir) do |path|
-                  if (path =~ /.*\.rpm$/) and (path !~ /.*.src\.rpm$/)
-                    sym_path = "repos/base/#{File.basename(path)}"
-                    ln_s(path,sym_path, :verbose => @verbose) unless File.exists?(sym_path)
-                  end
-                end
+              Dir.glob(File.join(args[:target_dir], '**', '*.rpm'))
+                .delete_if{|x| x =~ /\.src\.rpm$/}
+                .each do |path|
+                  sym_path = "repos/base/#{File.basename(path)}"
+                  ln_s(path,sym_path, :verbose => @verbose) unless File.exists?(sym_path)
               end
 
               if args[:aux_dir]
-                Dir.glob(args[:aux_dir]).each do |aux_dir|
-                  Find.find(aux_dir) do |path|
-                    if (path =~ /.*\.rpm$/) and (path !~ /.*.src\.rpm$/)
-                      sym_path = "repos/lookaside/#{File.basename(path)}"
-                      ln_s(path,sym_path, :verbose => @verbose) unless File.exists?(sym_path)
-                    end
-                  end
+                Dir.glob(File.join(args[:aux_dir], '**', '*.rpm'))
+                  .delete_if{|x| x =~ /\.src\.rpm$/}
+                  .each do |path|
+                    sym_path = "repos/lookaside/#{File.basename(path)}"
+                    ln_s(path,sym_path, :verbose => @verbose) unless File.exists?(sym_path)
                 end
               end
 
@@ -647,7 +643,11 @@ protect=1
                 file.write(ERB.new(yum_conf_template,nil,'-').result(binding))
               end
 
-              cmd = 'repoclosure -c repodata -n -t -r base -l lookaside -c yum.conf'
+              if which('dnf')
+                cmd = 'repoclosure -c base.conf --disablerepo=* --enablerepo=base'
+              else
+                cmd = 'repoclosure -c repodata -n -t -r base -l lookaside -c yum.conf'
+              end
 
               if ENV['SIMP_BUILD_verbose'] == 'yes'
                 puts
