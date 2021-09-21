@@ -201,9 +201,16 @@ module Simp::Rake::Build
                   .map{|x| File.basename(x)}
 
                 repos_to_overwrite.each do |repo|
+                  src = File.join(reposync_location, repo)
                   target = File.join(dir, repo)
+
+                  # The group files are needed from the original ISO
+                  Dir.glob(File.join(target, 'repodata', '*-comps-*.xml')).each do |compsfile|
+                    cp(compsfile, File.join(src, 'repodata'), :verbose => verbose)
+                  end
+
                   rm_rf(target, :verbose => verbose) if File.directory?(target)
-                  cp_r(File.join(reposync_location, repo), dir, :verbose => verbose)
+                  cp_r(src, dir, :verbose => verbose)
                 end
               else
                 # Prune unwanted packages
