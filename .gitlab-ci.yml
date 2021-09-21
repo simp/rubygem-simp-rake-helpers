@@ -104,13 +104,7 @@ variables:
 # Puppet 5.5 for PE 2018.1 support
 # See: https://puppet.com/misc/puppet-enterprise-lifecycle
 # --------------------------------------
-pup5.5-validation:
-  <<: *pup_5_pe
-  <<: *validation_checks
 
-pup5.5-unit:
-  <<: *pup_5_pe
-  <<: *spec_tests
 
 pup6.18-validation:
   <<: *pup_6_18
