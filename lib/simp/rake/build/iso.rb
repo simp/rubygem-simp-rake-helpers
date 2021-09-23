@@ -208,6 +208,10 @@ module Simp::Rake::Build
                   if Dir.glob(File.join(src, 'repodata', '*-comps-*.xml')).empty?
                     Dir.glob(File.join(target, 'repodata', '*-comps-*.xml')).each do |compsfile|
                       cp(compsfile, File.join(src, 'repodata'), :verbose => verbose)
+
+                      Dir.chdir(src) do
+                        system("createrepo --update -g repodata/*-comps-*.xml .")
+                      end
                     end
                   end
 
