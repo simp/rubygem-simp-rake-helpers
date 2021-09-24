@@ -204,17 +204,6 @@ module Simp::Rake::Build
                   src = File.join(reposync_location, repo)
                   target = File.join(dir, repo)
 
-                  # The group files are needed from the original ISO
-                  if Dir.glob(File.join(src, 'repodata', '*-comps-*.xml')).empty?
-                    Dir.glob(File.join(target, 'repodata', '*-comps-*.xml')).each do |compsfile|
-                      cp(compsfile, File.join(src, 'repodata'), :verbose => verbose)
-
-                      Dir.chdir(src) do
-                        system("createrepo --update -g repodata/*-comps-*.xml .")
-                      end
-                    end
-                  end
-
                   rm_rf(target, :verbose => verbose) if File.directory?(target)
                   cp_r(src, dir, :verbose => verbose)
                 end
