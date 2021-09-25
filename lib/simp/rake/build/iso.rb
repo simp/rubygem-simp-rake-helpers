@@ -201,9 +201,11 @@ module Simp::Rake::Build
                   .map{|x| File.basename(x)}
 
                 repos_to_overwrite.each do |repo|
+                  src = File.join(reposync_location, repo)
                   target = File.join(dir, repo)
+
                   rm_rf(target, :verbose => verbose) if File.directory?(target)
-                  cp_r(File.join(reposync_location, repo), dir, :verbose => verbose)
+                  cp_r(src, dir, :verbose => verbose)
                 end
               else
                 # Prune unwanted packages
@@ -254,13 +256,11 @@ module Simp::Rake::Build
                 yum_dep_rpms = Dir.glob(File.join(yum_dep_location,'*.rpm'))
 
                 unless File.directory?(yum_dep_location)
-                  next if reposync_active
-                  fail("Could not find dependency directory at #{yum_dep_location}")
+                  fail("Could not find dependency directory at #{yum_dep_location}") unless reposync_active
                 end
 
                 if yum_dep_rpms.empty?
-                  next if reposync_active
-                  fail("Could not find any dependency RPMs at #{yum_dep_location}")
+                  fail("Could not find any dependency RPMs at #{yum_dep_location}") unless reposync_active
                 end
 
                 # Add any one-off RPMs that you might want to add to your own build
@@ -285,7 +285,9 @@ module Simp::Rake::Build
                   cp(rpm,rpm_arch, :verbose => verbose)
                 end
 
-                fail("Could not find architecture '#{arch}' in the SIMP distribution") unless File.directory?(arch)
+                ln_s('noarch', arch, :verbose => verbose) if (!File.directory?(arch) && File.directory?('noarch'))
+                fail("Could not find architecture '#{arch}' in the SIMP distribution") unless (File.directory?(arch) || File.symlink?(arch))
+
                 # Get everything set up properly...
                 Dir.chdir(arch) do
                   Dir.glob('../*') do |rpm_dir|
