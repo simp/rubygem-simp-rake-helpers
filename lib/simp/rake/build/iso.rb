@@ -190,27 +190,34 @@ module Simp::Rake::Build
                 end
               end
 
+              repo_target_dir = dir
+
               # If we've pulled in reposync directories, we expect them to
               # completely overwrite the directory of the same name in the
               # target ISO so no pruning is required
               #
               # Note: CASE MATTERS on the directory names
               if reposync_active
+                # We're working with the new EL8+ layout, so we need to target
+                # the SimpRepos subdirectory
+                repo_target_dir = File.join(dir,'SimpRepos')
+                mkdir_p(repo_target_dir)
+
                 repos_to_overwrite = Dir.glob(File.join(reposync_location, '*'))
                   .delete_if{|x| !File.directory?(x)}
                   .map{|x| File.basename(x)}
 
                 repos_to_overwrite.each do |repo|
                   src = File.join(reposync_location, repo)
-                  target = File.join(dir, repo)
+                  target = File.join(repo_target_dir, repo)
 
                   rm_rf(target, :verbose => verbose) if File.directory?(target)
-                  cp_r(src, dir, :verbose => verbose)
+                  cp_r(src, repo_target_dir, :verbose => verbose)
                 end
               else
                 # Prune unwanted packages
                 begin
-                  system("tar --no-same-permissions -C #{dir} -xzf #{tball} *simp_pkglist.txt")
+                  system("tar --no-same-permissions -C #{repo_target_dir} -xzf #{tball} *simp_pkglist.txt")
                 rescue
                   # Does not matter if the command fails
                 end
@@ -235,14 +242,14 @@ module Simp::Rake::Build
                     next if line =~ /^(\s+|#.*)$/
                     exclude_pkgs.push(line.chomp)
                   end
-                  prune_packages(dir,['SIMP'],exclude_pkgs,mkrepo)
+                  prune_packages(dir,['SIMP','SimpRepos'],exclude_pkgs,mkrepo)
                 end
               end
 
               # Add the SIMP code
-              system("tar --no-same-permissions -C #{dir} -xzf #{tball}")
+              system("tar --no-same-permissions -C #{repo_target_dir} -xzf #{tball}")
 
-              Dir.chdir("#{dir}/SIMP") do
+              Dir.chdir("#{repo_target_dir}/SIMP") do
                 # Add the SIMP Dependencies
                 simp_base_ver = simpver.split('-').first
 
