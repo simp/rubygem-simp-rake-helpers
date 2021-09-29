@@ -209,10 +209,15 @@ module Simp::Rake::Build
 
                 repos_to_overwrite.each do |repo|
                   src = File.join(reposync_location, repo)
-                  target = File.join(repo_target_dir, repo)
+                  target = File.join(dir, repo)
 
-                  rm_rf(target, :verbose => verbose) if File.directory?(target)
-                  cp_r(src, repo_target_dir, :verbose => verbose)
+                  if File.directory?(target)
+                    rm_rf(target, :verbose => verbose) if File.directory?(target)
+                  else
+                    target = File.join(repo_target_dir, repo)
+                  end
+
+                  cp_r(src, target, :verbose => verbose)
                 end
               else
                 # Prune unwanted packages
@@ -247,7 +252,11 @@ module Simp::Rake::Build
               end
 
               # Add the SIMP code
-              system("tar --no-same-permissions -C #{repo_target_dir} -xzf #{tball}")
+              system("tar --no-same-permissions -C #{dir} -xzf #{tball}")
+
+              # Pop the SIMP directory from the tarball into the correct spot
+              # FIXME: This is a hack
+              FileUtils.mv("#{dir}/SIMP", repo_target_dir) if File.directory?("#{dir}/SIMP")
 
               Dir.chdir("#{repo_target_dir}/SIMP") do
                 # Add the SIMP Dependencies
@@ -292,27 +301,30 @@ module Simp::Rake::Build
                   cp(rpm,rpm_arch, :verbose => verbose)
                 end
 
-                ln_s('noarch', arch, :verbose => verbose) if (!File.directory?(arch) && File.directory?('noarch'))
-                fail("Could not find architecture '#{arch}' in the SIMP distribution") unless (File.directory?(arch) || File.symlink?(arch))
+                unless reposync_active
+                  ln_s('noarch', arch, :verbose => verbose) if (!File.directory?(arch) && File.directory?('noarch'))
+                  fail("Could not find architecture '#{arch}' in the SIMP distribution") unless (File.directory?(arch) || File.symlink?(arch))
 
-                # Get everything set up properly...
-                Dir.chdir(arch) do
-                  Dir.glob('../*') do |rpm_dir|
-                    # Don't dive into ourselves
-                    next if File.basename(rpm_dir) == arch
+                  # Get everything set up properly...
+                  Dir.chdir(arch) do
+                    Dir.glob('../*') do |rpm_dir|
+                      # Don't dive into ourselves
+                      next if File.basename(rpm_dir) == arch
 
-                    Dir.glob(%(#{rpm_dir}/*.rpm)) do |source_rpm|
-                      link_target = File.basename(source_rpm)
-                      if File.exist?(source_rpm) && File.exist?(link_target)
-                        next if Pathname.new(source_rpm).realpath == Pathname.new(link_target).realpath
+                      Dir.glob(%(#{rpm_dir}/*.rpm)) do |source_rpm|
+                        link_target = File.basename(source_rpm)
+                        if File.exist?(source_rpm) && File.exist?(link_target)
+                          next if Pathname.new(source_rpm).realpath == Pathname.new(link_target).realpath
+                        end
+
+                        ln_sf(source_rpm,link_target, :verbose => verbose)
                       end
-
-                      ln_sf(source_rpm,link_target, :verbose => verbose)
                     end
                   end
 
-                  fail("Error: Could not run createrepo in #{Dir.pwd}") unless system(%(#{mkrepo} .))
                 end
+
+                fail("Error: Could not run createrepo in #{Dir.pwd}") unless system(%(#{mkrepo} .))
               end
 
               # Make sure we have all of the necessary RPMs!
