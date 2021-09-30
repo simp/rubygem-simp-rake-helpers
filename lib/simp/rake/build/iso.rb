@@ -201,7 +201,7 @@ module Simp::Rake::Build
                 # We're working with the new EL8+ layout, so we need to target
                 # the SimpRepos subdirectory
                 repo_target_dir = File.join(dir,'SimpRepos')
-                mkdir_p(repo_target_dir)
+                mkdir_p(repo_target_dir, :verbose => verbose)
 
                 repos_to_overwrite = Dir.glob(File.join(reposync_location, '*'))
                   .delete_if{|x| !File.directory?(x)}
@@ -321,10 +321,21 @@ module Simp::Rake::Build
                       end
                     end
                   end
-
                 end
 
                 fail("Error: Could not run createrepo in #{Dir.pwd}") unless system(%(#{mkrepo} .))
+              end
+
+              # New ISO Layout
+              if reposync_active
+                Dir.chdir(repo_target_dir) do
+                  gpgkeysdir = File.join('SIMP','GPGKEYS')
+
+                  if File.directory?(gpgkeysdir)
+                    cp_r(gpgkeysdir, '.', :verbose => verbose)
+                    rm_rf(gpgkeysdir, :verbose => verbose)
+                  end
+                end
               end
 
               # Make sure we have all of the necessary RPMs!
