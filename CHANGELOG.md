@@ -1,3 +1,7 @@
+### 5.12.4 / 2021-09-28
+- Use the new SimpRepos directory layout when building an ISO using externally
+  copied repos.
+
 ### 5.12.3 / 2021-09-15
 - Handle multiple options for required applications in build:auto
 - Allow users to populate a `reposync` directory in the YUM build space that

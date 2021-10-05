@@ -190,12 +190,19 @@ module Simp::Rake::Build
                 end
               end
 
+              repo_target_dir = dir
+
               # If we've pulled in reposync directories, we expect them to
               # completely overwrite the directory of the same name in the
               # target ISO so no pruning is required
               #
               # Note: CASE MATTERS on the directory names
               if reposync_active
+                # We're working with the new EL8+ layout, so we need to target
+                # the SimpRepos subdirectory
+                repo_target_dir = File.join(dir,'SimpRepos')
+                mkdir_p(repo_target_dir, :verbose => verbose)
+
                 repos_to_overwrite = Dir.glob(File.join(reposync_location, '*'))
                   .delete_if{|x| !File.directory?(x)}
                   .map{|x| File.basename(x)}
@@ -204,13 +211,18 @@ module Simp::Rake::Build
                   src = File.join(reposync_location, repo)
                   target = File.join(dir, repo)
 
-                  rm_rf(target, :verbose => verbose) if File.directory?(target)
-                  cp_r(src, dir, :verbose => verbose)
+                  if File.directory?(target)
+                    rm_rf(target, :verbose => verbose) if File.directory?(target)
+                  else
+                    target = File.join(repo_target_dir, repo)
+                  end
+
+                  cp_r(src, target, :verbose => verbose)
                 end
               else
                 # Prune unwanted packages
                 begin
-                  system("tar --no-same-permissions -C #{dir} -xzf #{tball} *simp_pkglist.txt")
+                  system("tar --no-same-permissions -C #{repo_target_dir} -xzf #{tball} *simp_pkglist.txt")
                 rescue
                   # Does not matter if the command fails
                 end
@@ -235,14 +247,18 @@ module Simp::Rake::Build
                     next if line =~ /^(\s+|#.*)$/
                     exclude_pkgs.push(line.chomp)
                   end
-                  prune_packages(dir,['SIMP'],exclude_pkgs,mkrepo)
+                  prune_packages(dir,['SIMP','SimpRepos'],exclude_pkgs,mkrepo)
                 end
               end
 
               # Add the SIMP code
               system("tar --no-same-permissions -C #{dir} -xzf #{tball}")
 
-              Dir.chdir("#{dir}/SIMP") do
+              # Pop the SIMP directory from the tarball into the correct spot
+              # FIXME: This is a hack
+              FileUtils.mv("#{dir}/SIMP", repo_target_dir) if File.directory?("#{dir}/SIMP")
+
+              Dir.chdir("#{repo_target_dir}/SIMP") do
                 # Add the SIMP Dependencies
                 simp_base_ver = simpver.split('-').first
 
@@ -285,26 +301,40 @@ module Simp::Rake::Build
                   cp(rpm,rpm_arch, :verbose => verbose)
                 end
 
-                ln_s('noarch', arch, :verbose => verbose) if (!File.directory?(arch) && File.directory?('noarch'))
-                fail("Could not find architecture '#{arch}' in the SIMP distribution") unless (File.directory?(arch) || File.symlink?(arch))
+                unless reposync_active
+                  ln_s('noarch', arch, :verbose => verbose) if (!File.directory?(arch) && File.directory?('noarch'))
+                  fail("Could not find architecture '#{arch}' in the SIMP distribution") unless (File.directory?(arch) || File.symlink?(arch))
 
-                # Get everything set up properly...
-                Dir.chdir(arch) do
-                  Dir.glob('../*') do |rpm_dir|
-                    # Don't dive into ourselves
-                    next if File.basename(rpm_dir) == arch
+                  # Get everything set up properly...
+                  Dir.chdir(arch) do
+                    Dir.glob('../*') do |rpm_dir|
+                      # Don't dive into ourselves
+                      next if File.basename(rpm_dir) == arch
 
-                    Dir.glob(%(#{rpm_dir}/*.rpm)) do |source_rpm|
-                      link_target = File.basename(source_rpm)
-                      if File.exist?(source_rpm) && File.exist?(link_target)
-                        next if Pathname.new(source_rpm).realpath == Pathname.new(link_target).realpath
+                      Dir.glob(%(#{rpm_dir}/*.rpm)) do |source_rpm|
+                        link_target = File.basename(source_rpm)
+                        if File.exist?(source_rpm) && File.exist?(link_target)
+                          next if Pathname.new(source_rpm).realpath == Pathname.new(link_target).realpath
+                        end
+
+                        ln_sf(source_rpm,link_target, :verbose => verbose)
                       end
-
-                      ln_sf(source_rpm,link_target, :verbose => verbose)
                     end
                   end
+                end
 
-                  fail("Error: Could not run createrepo in #{Dir.pwd}") unless system(%(#{mkrepo} .))
+                fail("Error: Could not run createrepo in #{Dir.pwd}") unless system(%(#{mkrepo} .))
+              end
+
+              # New ISO Layout
+              if reposync_active
+                Dir.chdir(repo_target_dir) do
+                  gpgkeysdir = File.join('SIMP','GPGKEYS')
+
+                  if File.directory?(gpgkeysdir)
+                    cp_r(gpgkeysdir, '.', :verbose => verbose)
+                    rm_rf(gpgkeysdir, :verbose => verbose)
+                  end
                 end
               end
 
