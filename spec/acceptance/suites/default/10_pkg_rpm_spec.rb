@@ -76,7 +76,7 @@ describe 'rake pkg:rpm' do
   hosts.each do |_host|
     context "on #{_host}" do
       let!(:host){ _host }
-      let(:rpm_dist){ on(host, %{rpm --eval '%{dist}'}).output.strip }
+      let(:rpm_dist){ on(host, %{rpm --eval '%{dist}'}).output.strip.gsub(/\.centos$/, '') }
 
       context 'rpm building' do
 

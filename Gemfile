@@ -10,7 +10,8 @@ gem_sources.each { |gem_source| source gem_source }
 gemspec
 
 gem 'simp-build-helpers'
-gem 'simp-beaker-helpers'
+#gem 'simp-beaker-helpers'
+gem 'simp-beaker-helpers', :git => 'https://github.com/trevor-vaughan/rubygem-simp-beaker-helpers', :branch => 'SIMP-MAINT-fix_seds'
 gem 'beaker-puppet_install_helper'
 gem 'rake', '>= 12.3.3'
 gem 'beaker-docker'

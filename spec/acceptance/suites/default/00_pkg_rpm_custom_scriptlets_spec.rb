@@ -107,7 +107,7 @@ describe 'rake pkg:rpm with customized content' do
   hosts.each do |_host|
     context "on #{_host}" do
       let!(:host){ _host }
-      let(:rpm_dist){ on(host, %{rpm --eval '%{dist}'}).output.strip }
+      let(:rpm_dist){ on(host, %{rpm --eval '%{dist}'}).output.strip.gsub(/\.centos$/, '') }
 
       it 'can prep the package directories' do
         testpackages = [
