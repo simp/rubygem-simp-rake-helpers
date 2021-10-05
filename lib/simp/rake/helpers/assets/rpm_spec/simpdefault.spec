@@ -301,7 +301,7 @@ end
 
 if req_file then
   for line in req_file:lines() do
-    valid_line = (line:match("^Requires: ") or line:match("^Obsoletes: ") or line:match("^Provides: "))
+    valid_line = (line:match("^Requires: ") or line:match("^Obsoletes: ") or line:match("^Provides: ") or line:match("^Recommends: "))
 
     if valid_line then
       module_requires = (module_requires .. "\n" .. line)
@@ -319,7 +319,7 @@ Summary:   %{module_name} Puppet Module
 Name:      %{package_name}
 
 Version:   %{lua: print(package_version)}
-Release:   %{lua: print(package_release)}
+Release:   %{lua: print(package_release)}%{?dist}
 License:   %{lua: print(module_license)}
 Group:     Applications/System
 Source0:   %{package_name}-%{version}-%{release}.tar.gz
