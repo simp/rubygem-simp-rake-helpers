@@ -320,7 +320,7 @@ describe 'rake pkg:signrpms and pkg:checksig' do
 
     it 'should corrupt the password of new key' do
       key_gen_file = File.join(dev_keydir, 'gengpgkey')
-      on(hosts, "sed -i -e \"s/^Passphrase: /Passphrase: OOPS/\" #{key_gen_file}")
+      on(hosts, "sed -ci -e \"s/^Passphrase: /Passphrase: OOPS/\" #{key_gen_file}")
     end
 
     include_examples('it begins with unsigned RPMs')

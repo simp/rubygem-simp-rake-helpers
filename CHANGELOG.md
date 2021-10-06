@@ -1,4 +1,5 @@
-### 5.12.4 / 2021-09-28
+### 5.12.4 / 2021-10-05
+- Ensure that the DIST qualifier is added to all built RPMs
 - Use the new SimpRepos directory layout when building an ISO using externally
   copied repos.
 
