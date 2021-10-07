@@ -256,7 +256,9 @@ module Simp::Rake::Build
 
               # Pop the SIMP directory from the tarball into the correct spot
               # FIXME: This is a hack
-              FileUtils.mv("#{dir}/SIMP", repo_target_dir) if File.directory?("#{dir}/SIMP")
+              unless dir == repo_target_dir
+                 FileUtils.mv("#{dir}/SIMP", repo_target_dir) if File.directory?("#{dir}/SIMP")
+              end
 
               Dir.chdir("#{repo_target_dir}/SIMP") do
                 # Add the SIMP Dependencies
