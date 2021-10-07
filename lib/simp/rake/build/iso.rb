@@ -322,10 +322,10 @@ module Simp::Rake::Build
                         ln_sf(source_rpm,link_target, :verbose => verbose)
                       end
                     end
+
+                    fail("Error: Could not run createrepo in #{Dir.pwd}") unless system(%(#{mkrepo} .))
                   end
                 end
-
-                fail("Error: Could not run createrepo in #{Dir.pwd}") unless system(%(#{mkrepo} .))
               end
 
               # New ISO Layout
