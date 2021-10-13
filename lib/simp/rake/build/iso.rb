@@ -256,7 +256,9 @@ module Simp::Rake::Build
 
               # Pop the SIMP directory from the tarball into the correct spot
               # FIXME: This is a hack
-              FileUtils.mv("#{dir}/SIMP", repo_target_dir) if File.directory?("#{dir}/SIMP")
+              unless dir == repo_target_dir
+                 FileUtils.mv("#{dir}/SIMP", repo_target_dir) if File.directory?("#{dir}/SIMP")
+              end
 
               Dir.chdir("#{repo_target_dir}/SIMP") do
                 # Add the SIMP Dependencies
@@ -301,7 +303,9 @@ module Simp::Rake::Build
                   cp(rpm,rpm_arch, :verbose => verbose)
                 end
 
-                unless reposync_active
+                if reposync_active
+                    fail("Error: Could not run createrepo in #{Dir.pwd}") unless system(%(#{mkrepo} .))
+                else
                   ln_s('noarch', arch, :verbose => verbose) if (!File.directory?(arch) && File.directory?('noarch'))
                   fail("Could not find architecture '#{arch}' in the SIMP distribution") unless (File.directory?(arch) || File.symlink?(arch))
 
@@ -320,10 +324,10 @@ module Simp::Rake::Build
                         ln_sf(source_rpm,link_target, :verbose => verbose)
                       end
                     end
+
+                    fail("Error: Could not run createrepo in #{Dir.pwd}") unless system(%(#{mkrepo} .))
                   end
                 end
-
-                fail("Error: Could not run createrepo in #{Dir.pwd}") unless system(%(#{mkrepo} .))
               end
 
               # New ISO Layout

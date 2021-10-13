@@ -126,9 +126,15 @@ module Simp::Rake::Build
 
             Simp::RPM.copy_wo_vcs(@dvd_src,".",base_dir)
 
-            # Copy in the GPG Public Keys
+            # Copy in the GPG Public Keys from @build_dir
             mkdir_p("#{destdir}/GPGKEYS")
             ln(Dir.glob("#{@build_dir}/GPGKEYS/RPM-GPG-KEY*"), "#{destdir}/GPGKEYS", { :force => true })
+
+            # Copy in the GPG Public Keys packaged by simp-gpgkeys
+            simp_gpgkeys = File.join(@src_dir, 'assets', 'gpgkeys', 'GPGKEYS')
+            if Dir.exist?(simp_gpgkeys)
+              ln(Dir.glob("#{simp_gpgkeys}/RPM-GPG-KEY*"), "#{destdir}/GPGKEYS", { :force => true })
+            end
 
             # Copy in the auto-build RPMs
             Dir.chdir("#{@build_dir}/SIMP/RPMS") do

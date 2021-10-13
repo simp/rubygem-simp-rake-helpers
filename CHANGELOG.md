@@ -1,3 +1,8 @@
+### 5.12.5 / 2021-10-07
+- Fixed a bug where `build:auto` failed when building the SIMP ISO for EL7,
+  because the code attempted to move a directory onto itself.
+- Ensured GPG keys in simp-gpgkeys are available in the DVD overlay tar file
+
 ### 5.12.4 / 2021-10-05
 - Ensure that the DIST qualifier is added to all built RPMs
 - Use the new SimpRepos directory layout when building an ISO using externally
