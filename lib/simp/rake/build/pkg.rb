@@ -610,7 +610,7 @@ protect=1
                 .delete_if{|x| x =~ /\.src\.rpm$/}
                 .each do |path|
                   sym_path = "repos/base/#{File.basename(path)}"
-                  ln_s(path,sym_path, :verbose => @verbose) unless File.exists?(sym_path)
+                  ln_sf(path,sym_path, :verbose => @verbose) unless File.exists?(sym_path)
               end
 
               if args[:aux_dir]
@@ -618,7 +618,7 @@ protect=1
                   .delete_if{|x| x =~ /\.src\.rpm$/}
                   .each do |path|
                     sym_path = "repos/lookaside/#{File.basename(path)}"
-                    ln_s(path,sym_path, :verbose => @verbose) unless File.exists?(sym_path)
+                    ln_sf(path,sym_path, :verbose => @verbose) unless File.exists?(sym_path)
                 end
               end
 

@@ -341,7 +341,7 @@ module Simp::Rake::Build
                 if reposync_active
                     fail("Error: Could not run createrepo in #{Dir.pwd}") unless system(%(#{mkrepo} .))
                 else
-                  ln_s('noarch', arch, :verbose => verbose) if (!File.directory?(arch) && File.directory?('noarch'))
+                  ln_sf('noarch', arch, :verbose => verbose) if (!File.directory?(arch) && File.directory?('noarch'))
                   fail("Could not find architecture '#{arch}' in the SIMP distribution") unless (File.directory?(arch) || File.symlink?(arch))
 
                   # Get everything set up properly...
