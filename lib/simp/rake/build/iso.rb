@@ -190,6 +190,36 @@ module Simp::Rake::Build
                 end
               end
 
+              ### Munge the Repos
+
+              # Create an Updates directory that is properly populated
+              updates_readme = <<~README
+                This directory houses updates to NON-MODULAR RPMs.
+
+                DO NOT put modular RPMs in this directory or you will break your
+                system updates!
+                README
+
+              updates_dir = File.join(dir, 'Updates')
+              mkdir_p(updates_dir)
+
+              Dir.chdir(updates_dir) do
+                File.open('README','w'){|fh| fh.puts(updates_readme) }
+
+                repos = Dir.glob(File.join('..','**','repodata'))
+                modular_repos = Dir.glob(File.join('..','**','repodata','*-modules.*'))
+                non_modular_repos = repos.select{|x| modular_repos.grep(%r{^#{Regexp.escape(x)}}).empty? }
+                non_modular_repos.map!{|x| File.split(x).first}
+
+                non_modular_repos.each do |non_modular_repo|
+                  Dir.glob(File.join(non_modular_repo, '**', '*.rpm')).each do |rpm|
+                    ln_sf(rpm, '.')
+                  end
+                end
+
+                fail("Error: Could not run createrepo in #{Dir.pwd}") unless system(%(#{mkrepo} .))
+              end
+
               repo_target_dir = dir
 
               # If we've pulled in reposync directories, we expect them to
@@ -257,7 +287,12 @@ module Simp::Rake::Build
               # Pop the SIMP directory from the tarball into the correct spot
               # FIXME: This is a hack
               unless dir == repo_target_dir
-                 FileUtils.mv("#{dir}/SIMP", repo_target_dir) if File.directory?("#{dir}/SIMP")
+                simpdir = File.join(dir,'SIMP')
+
+                if File.directory?(simpdir)
+                   FileUtils.cp_r(simpdir, repo_target_dir)
+                   FileUtils.rm_rf(simpdir)
+                end
               end
 
               Dir.chdir("#{repo_target_dir}/SIMP") do
