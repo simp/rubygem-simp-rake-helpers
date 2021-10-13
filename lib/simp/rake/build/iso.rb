@@ -213,7 +213,7 @@ module Simp::Rake::Build
 
                 non_modular_repos.each do |non_modular_repo|
                   Dir.glob(File.join(non_modular_repo, '**', '*.rpm')).each do |rpm|
-                    ln_sf(rpm, '.')
+                    ln_sf(rpm, '.', :verbose => verbose)
                   end
                 end
 
@@ -290,8 +290,8 @@ module Simp::Rake::Build
                 simpdir = File.join(dir,'SIMP')
 
                 if File.directory?(simpdir)
-                   FileUtils.cp_r(simpdir, repo_target_dir)
-                   FileUtils.rm_rf(simpdir)
+                   cp_r(simpdir, repo_target_dir, :verbose => verbose)
+                   rm_rf(simpdir, :verbose => verbose)
                 end
               end
 
