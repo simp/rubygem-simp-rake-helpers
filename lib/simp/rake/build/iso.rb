@@ -190,35 +190,6 @@ module Simp::Rake::Build
                 end
               end
 
-              ### Munge the Repos
-
-              # Create an Updates directory that is properly populated
-              updates_readme = <<~README
-                This directory houses updates to NON-MODULAR RPMs.
-
-                DO NOT put modular RPMs in this directory or you will break your
-                system updates!
-                README
-
-              updates_dir = File.join(dir, 'Updates')
-              mkdir_p(updates_dir)
-
-              Dir.chdir(updates_dir) do
-                File.open('README','w'){|fh| fh.puts(updates_readme) }
-
-                repos = Dir.glob(File.join('..','**','repodata'))
-                modular_repos = Dir.glob(File.join('..','**','repodata','*-modules.*'))
-                non_modular_repos = repos.select{|x| modular_repos.grep(%r{^#{Regexp.escape(x)}}).empty? }
-                non_modular_repos.map!{|x| File.split(x).first}
-
-                non_modular_repos.each do |non_modular_repo|
-                  Dir.glob(File.join(non_modular_repo, '**', '*.rpm')).each do |rpm|
-                    ln_sf(rpm, '.', :verbose => verbose)
-                  end
-                end
-
-                fail("Error: Could not run createrepo in #{Dir.pwd}") unless system(%(#{mkrepo} .))
-              end
 
               repo_target_dir = dir
 
@@ -363,6 +334,36 @@ module Simp::Rake::Build
                     fail("Error: Could not run createrepo in #{Dir.pwd}") unless system(%(#{mkrepo} .))
                   end
                 end
+              end
+
+              ### Munge the Repos
+
+              # Create an Updates directory that is properly populated
+              updates_readme = <<~README
+                This directory houses updates to NON-MODULAR RPMs.
+
+                DO NOT put modular RPMs in this directory or you will break your
+                system updates!
+                README
+
+              updates_dir = File.join(dir, 'Updates')
+              mkdir_p(updates_dir)
+
+              Dir.chdir(updates_dir) do
+                File.open('README','w'){|fh| fh.puts(updates_readme) }
+
+                repos = Dir.glob(File.join('..','**','repodata'))
+                modular_repos = Dir.glob(File.join('..','**','repodata','*-modules.*'))
+                non_modular_repos = repos.select{|x| modular_repos.grep(%r{^#{Regexp.escape(x)}}).empty? }
+                non_modular_repos.map!{|x| File.split(x).first}
+                non_modular_repos.delete_if{|x| x.match(%r{/SimpRepos|/SIMP}) }
+                non_modular_repos.each do |non_modular_repo|
+                  Dir.glob(File.join(non_modular_repo, '**', '*.rpm')).each do |rpm|
+                    ln_sf(rpm, '.', :verbose => verbose)
+                  end
+                end
+
+                fail("Error: Could not run createrepo in #{Dir.pwd}") unless system(%(#{mkrepo} .))
               end
 
               # New ISO Layout
