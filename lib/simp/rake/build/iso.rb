@@ -359,6 +359,10 @@ module Simp::Rake::Build
                 non_modular_repos.delete_if{|x| x.match(%r{/SimpRepos|/SIMP}) }
                 non_modular_repos.each do |non_modular_repo|
                   Dir.glob(File.join(non_modular_repo, '**', '*.rpm')).each do |rpm|
+                    # when non_modular_repo is '..', can still find RPMs we need
+                    # to exclude
+                    next if rpm.match(%r{/SimpRepos|/SIMP})
+
                     ln_sf(rpm, '.', :verbose => verbose)
                   end
                 end
