@@ -363,7 +363,12 @@ module Simp::Rake::Build
                     # to exclude
                     next if rpm.match(%r{/SimpRepos|/SIMP})
 
-                    ln_sf(rpm, '.', :verbose => verbose)
+                    rpm_dest = File.basename(rpm)
+                    if File.exist?(rpm) && File.exist?(rpm_dest)
+                      next if (File.realpath(rpm) == File.realpath(rpm_dest))
+                    end
+
+                    ln_sf(rpm, rpm_dest, :verbose => verbose)
                   end
                 end
 
