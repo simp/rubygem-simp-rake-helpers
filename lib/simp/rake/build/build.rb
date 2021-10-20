@@ -282,7 +282,7 @@ module Simp::Rake::Build
         Error: Could not find anything to do!
 
         In #{target_dir}:
-            No packages in either packages.yaml or the packages/ directory
+            No packages in either packages.yaml or the packages/ directory and no repos found in the reposync/ directory
                 EOM
               end
 
