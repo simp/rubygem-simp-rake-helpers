@@ -1,3 +1,6 @@
+### 5.12.6 / 2021-10-19
+- Ensure that the `Updates` directory does not link to files in itself
+
 ### 5.12.5 / 2021-10-07
 - Fixed a bug where `build:auto` failed when building the SIMP ISO for EL7,
   because the code attempted to move a directory onto itself.

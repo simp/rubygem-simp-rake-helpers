@@ -195,8 +195,13 @@ class Simp::RpmSigner
               # the first RPM to be signed with the key after the gpg-agent is
               # started and the key's passphrase has not been cleared from the
               # agent's cache.
-              read.expect(/pass\s?phrase:.*/) do |text|
-                write.puts(gpgkey[:password])
+              read.expect(/(pass\s?phrase:|verwrite).*/) do |text|
+                if text.last.include?('verwrite')
+                  write.puts('y')
+                else
+                  write.puts(gpgkey[:password])
+                end
+
                 write.flush
               end
             end
@@ -287,7 +292,7 @@ class Simp::RpmSigner
     begin
       results = Parallel.map(
         to_sign,
-        :in_processes => opts[:max_concurrent],
+        :in_processes => 1,
         :progress => opts[:progress_bar_title]
       ) do |rpm|
         _result = nil

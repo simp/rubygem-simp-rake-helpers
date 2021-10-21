@@ -643,7 +643,8 @@ protect=1
                 file.write(ERB.new(yum_conf_template,nil,'-').result(binding))
               end
 
-              if which('dnf')
+              dnf_system = which('dnf')
+              if dnf_system
                 cmd = 'repoclosure -c base.conf --disablerepo=* --enablerepo=base'
               else
                 cmd = 'repoclosure -c repodata -n -t -r base -l lookaside -c yum.conf'
@@ -661,7 +662,16 @@ protect=1
               if (!$?.success? || (repoclosure_output =~ /nresolved/))
                 errmsg = ['Error: REPOCLOSURE FAILED:']
                 errmsg << [repoclosure_output]
-                fail(errmsg.join("\n"))
+                puts(errmsg.join("\n"))
+
+                if dnf_system
+                  if ENV.fetch('SIMP_BUILD_prompt', 'yes') != 'no'
+                    puts('- Press any key to continue or ^C to abort -')
+                    $stdin.gets
+                  end
+                else
+                  fail('Repoclosure Failed')
+                end
               end
             end
           end
