@@ -51,7 +51,8 @@ module Simp::Rake::Build
               'rubygem-simp-cli',
               'simp',
               'simp-gpgkeys',
-              'simp-utils'
+              'simp-utils',
+              'simp-vendored-r10k'
             ]
           }
 
@@ -83,8 +84,11 @@ module Simp::Rake::Build
             end
 
             unless failures.empty?
-              msg = ['Error: Could not find the following packages:']
-              fail((msg + failures).join("\n"))
+              msg = ['Error: Could not find the following packages:'] +
+                failures +
+                ['Did "dist/logs/last_rpm_build_metadata.yaml" get generated in the build directory?']
+
+              fail(msg.join("\n"))
             end
           end
         end
