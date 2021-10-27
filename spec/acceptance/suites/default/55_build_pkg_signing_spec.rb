@@ -342,7 +342,7 @@ describe 'rake pkg:signrpms and pkg:checksig' do
   end
 
   hosts.each do |host|
-    os_major =  fact_on(host,'operatingsystemmajrelease')
+    os_major =  fact_on(host,'os.release.major')
     if os_major > '7'
       # this problem only happens on EL > 7 in a docker container
       describe "when gpg-agent's socket path is too long on #{host}" do
