@@ -1,3 +1,14 @@
+### 5.12.7 / 2021-10-26
+- Added:
+  - Env var `SIMP_PKG_progress_bar=no` to turn off pkg RPM build progress bars
+  - Env var `SIMP_PKG_fetch_published_rpm=no` to prevent downloading a
+    published package
+- Fixed:
+  - RPM builds no longer fail with leftover generated
+    `build/rpm_metadata/releases` files
+  - Removed unused code, tidied up some confusing bits to make structure more
+    obvious
+
 ### 5.12.6 / 2021-10-19
 - Ensure that the `Updates` directory does not link to files in itself
 

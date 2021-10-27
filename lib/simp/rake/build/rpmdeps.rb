@@ -267,7 +267,13 @@ module Simp::Rake::Build::RpmDeps
   def self.release_file_up_to_date?(new_release_info, rpm_release_file)
     return false unless File.exist?(rpm_release_file)
 
-    return File.read(rpm_release_file).strip == new_release_info.strip
+    # remove comments like "# release set by simp-core dependencies.yaml"
+    release_file_content = File.readlines(rpm_release_file).reject{|x| x =~ /^ *#/}.join("\n").strip
+
+    # sanitize numerics, etc.
+    new_release_content = "#{new_release_info}".strip
+
+    return release_file_content == new_release_content
   end
 
   # Generate 'build/rpm_metadata/release' file containing release qualifier

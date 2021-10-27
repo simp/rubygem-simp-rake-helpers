@@ -21,13 +21,17 @@ module Simp::Rake::Build
       @rpm_build_metadata = 'last_rpm_build_metadata.yaml'
       @rpm_dependency_file = File.join(@base_dir, 'build', 'rpm', 'dependencies.yaml')
       @build_keys_dir = ENV.fetch('SIMP_PKG_build_keys_dir', File.join(@base_dir, '.dev_gpgkeys'))
-      @long_gpg_socket_err_msg = <<~EOM
+      @long_gpg_socket_err_msg = <<~MSG
         If the problem is 'socket name <xxx> is too long', use SIMP_PKG_build_keys_dir
         to override
         #{@build_keys_dir}
         with a shorter path. The socket name must be < 108 characters.
 
-      EOM
+      MSG
+      # nil = default not set; use local preference
+      @fetch_published_rpm_default = ENV['SIMP_PKG_fetch_published_rpm'] ? (
+        ENV['SIMP_PKG_fetch_published_rpm'] =~ /\A(yes|true)\Z/i ? true : false
+      ) : nil
 
       define_tasks
     end
@@ -114,7 +118,7 @@ module Simp::Rake::Build
           end
         end
 
-        desc <<-EOM
+        desc <<~DESC
           Prepare a GPG signing key to sign build packages
 
             * :key - the name of the build keys subdirectory to prepare
@@ -142,7 +146,7 @@ module Simp::Rake::Build
           ENV vars:
             - Set `SIMP_PKG_verbose=yes` to report file operations as they happen.
             - Set `SIMP_PKG_build_keys_dir` to override the default build keys path.
-        EOM
+        DESC
         task :key_prep,[:key] => [:prep] do |t,args|
           args.with_defaults(:key => 'dev')
           key = args.key
@@ -251,7 +255,7 @@ module Simp::Rake::Build
 
 
 =begin
-        desc <<-EOM
+        desc <<~DESC
           Build the entire SIMP release.
 
             * :docs - Build the docs. Set this to false if you wish to skip building the docs.
@@ -261,7 +265,7 @@ module Simp::Rake::Build
               - Set `SIMP_PKG_verbose=yes` to report file operations as they happen.
               - Set `SIMP_YUM_makecache=no` if you do NOT want to rebuild the
                 build-specific YUM cache
-        EOM
+        DESC
 =end
         task :build,[:docs,:key] => [:prep,:key_prep] do |t,args|
           args.with_defaults(:key => 'dev')
@@ -269,12 +273,7 @@ module Simp::Rake::Build
 
           check_dvd_env
 
-          begin
-            yum_helper = Simp::YUM.new(
-              Simp::YUM.generate_yum_conf(File.join(@distro_build_dir, 'yum_data')),
-              ENV.fetch('SIMP_YUM_makecache','yes') == 'yes')
-          rescue Simp::YUM::Error
-          end
+          get_yum_helper
 
           Rake::Task['pkg:aux'].invoke
           if "#{args.docs}" == 'true'
@@ -287,7 +286,7 @@ module Simp::Rake::Build
           Rake::Task['pkg:signrpms'].invoke(args[:key])
         end
 
-        desc <<-EOM
+        desc <<~DESC
           Build the Puppet module RPMs.
 
             * :method - The Puppetfile from which the repository information
@@ -295,12 +294,12 @@ module Simp::Rake::Build
 
             ENV vars:
               - Set `SIMP_PKG_verbose=yes` to report file operations as they happen.
-        EOM
+        DESC
         task :modules,[:method] => [:prep] do |t,args|
           build(@build_dirs[:modules],t)
         end
 
-        desc <<-EOM
+        desc <<~DESC
           Build a single Puppet Module RPM.
 
             * :name   - The path, or name, of the module to build. If a name is
@@ -314,11 +313,12 @@ module Simp::Rake::Build
               - Set `SIMP_PKG_verbose=yes` to report file operations as they happen.
               - Set `SIMP_YUM_makecache=no` if you do NOT want to rebuild the
                 build-specific YUM cache
-        EOM
+        DESC
         task :single,[:name,:method] => [:prep] do |t,args|
           fail("You must pass :name to '#{t.name}'") unless args[:name]
 
           mod_path = File.absolute_path(args[:name])
+          get_yum_helper
 
           if args[:name].include?('/')
             fail("'#{args[:name]}' does not exist!") unless File.directory?(mod_path)
@@ -333,35 +333,27 @@ module Simp::Rake::Build
             mod_path = local_module[:path]
           end
 
-          begin
-            yum_helper = Simp::YUM.new(
-              Simp::YUM.generate_yum_conf(File.join(@distro_build_dir, 'yum_data')),
-              ENV.fetch('SIMP_YUM_makecache','yes') == 'yes')
-          rescue Simp::YUM::Error
-          end
-
-          ENV['SIMP_PKG_rand_name'] = 'yes'
           build(Array(mod_path), t)
 
           puts("Your packages can be found in '#{mod_path}/dist'")
         end
 
-        desc <<-EOM
+        desc <<~DESC
           Build the SIMP non-module RPMs.
 
             ENV vars:
               - Set `SIMP_PKG_verbose=yes` to report file operations as they happen.
-        EOM
+        DESC
         task :aux => [:prep]  do |t,args|
           build(@build_dirs[:aux],t)
         end
 
-        desc <<-EOM
+        desc <<~DESC
           Build the SIMP documentation.
 
             ENV vars:
               - Set `SIMP_PKG_verbose=yes` to report file operations as they happen.
-        EOM
+        DESC
         task :doc => [:prep] do |t,args|
           # Need to make sure that the docs have the version updated
           # appropriately prior to building
@@ -373,7 +365,7 @@ module Simp::Rake::Build
           build(@build_dirs[:doc],t)
         end
 
-        desc <<-EOM
+        desc <<~DESC
           Sign a set of RPMs.
 
             Signs any unsigned RPMs in the specified directory
@@ -394,7 +386,7 @@ module Simp::Rake::Build
             * Set `SIMP_PKG_rpmsign_timeout` to override the maximum time in seconds
               to wait for an individual RPM signing operation to complete.
               - Defaults to 60 seconds.
-        EOM
+        DESC
         task :signrpms,[:key,:rpm_dir,:force,:digest_algo] => [:prep,:key_prep] do |t,args|
           require 'simp/rpm_signer'
 
@@ -455,13 +447,13 @@ module Simp::Rake::Build
         end
 
 =begin
-        desc <<-EOM
+        desc <<~DESC
           Check that RPMs are signed.
 
             Checks all RPM files in a directory to see if they are trusted.
               * :rpm_dir - A directory containing RPM files to check. Default #{@build_dir}/SIMP
               * :key_dir - The path to the GPG keys you want to check the packages against. Default #{@src_dir}/assets/gpgkeys/
-        EOM
+        DESC
 =end
         task :checksig,[:rpm_dir,:key_dir] => [:prep] do |t,args|
           begin
@@ -547,7 +539,7 @@ module Simp::Rake::Build
           end
         end
 
-        desc <<-EOM
+        desc <<~DESC
           Run repoclosure on RPM files.
 
             Finds all rpm files in the target dir and all of its subdirectories, then
@@ -561,7 +553,7 @@ module Simp::Rake::Build
               - Set `SIMP_PKG_verbose=yes` to report file operations as they happen.
               - Set `SIMP_PKG_repoclose_pe=yes` to enable repoclosure on PE-related RPMs.
 
-        EOM
+        DESC
         task :repoclosure,[:target_dir,:aux_dir] => [:prep] do |t,args|
           default_target = @pkg_dirs[:simp]
           args.with_defaults(:target_dir => File.expand_path(default_target))
@@ -572,31 +564,31 @@ module Simp::Rake::Build
 
           _repoclose_pe = ENV.fetch('SIMP_PKG_repoclose_pe','no') == 'yes'
 
-          yum_conf_template = <<-EOF
-[main]
-keepcache=0
-exactarch=1
-obsoletes=1
-gpgcheck=0
-plugins=1
-installonly_limit=5
-<% unless #{_repoclose_pe} -%>
-exclude=*-pe-*
-<% end -%>
+          yum_conf_template = <<~YUM_CONF
+            [main]
+            keepcache=0
+            exactarch=1
+            obsoletes=1
+            gpgcheck=0
+            plugins=1
+            installonly_limit=5
+            <% unless #{_repoclose_pe} -%>
+            exclude=*-pe-*
+            <% end -%>
 
-<% repo_files.each do |repo| -%>
-include=file://<%= repo %>
-<% end -%>
-  EOF
+            <% repo_files.each do |repo| -%>
+            include=file://<%= repo %>
+            <% end -%>
+          YUM_CONF
 
-          yum_repo_template = <<-EOF
-[<%= repo_name %>]
-name=<%= repo_name %>
-baseurl=file://<%= repo_path %>
-enabled=1
-gpgcheck=0
-protect=1
-  EOF
+          yum_repo_template = <<~YUM_REPO
+            [<%= repo_name %>]
+            name=<%= repo_name %>
+            baseurl=file://<%= repo_path %>
+            enabled=1
+            gpgcheck=0
+            protect=1
+          YUM_REPO
 
           fail("#{args[:target_dir]} does not exist!") unless File.directory?(args[:target_dir])
 
@@ -677,9 +669,9 @@ protect=1
           end
         end
 
-        desc <<-EOM
+        desc <<~DESC
           Print published status of all project RPMs
-        EOM
+        DESC
         task :check_published => [:prep] do |t,args|
           begin
             yum_helper = Simp::YUM.new(
@@ -697,7 +689,12 @@ protect=1
 
             if Dir.exist?(dir)
               begin
-                require_rebuild?(dir, yum_helper, { :verbose => true, :check_git => true, :prefix => '' })
+                require_rebuild?(dir, yum_helper, {
+                  fetch:      false,
+                  verbose:    true,
+                  check_git:  true,
+                  prefix:     ''
+                })
               rescue => e
                 _errmsg = "Error: require_rebuild?(): Status check failed on '#{dir}' => #{e}"
               end
@@ -724,9 +721,24 @@ protect=1
           return (0...24).map{ (65 + rand(26)).chr }.join.downcase
         end
 
+        # Return a SIMP::YUM object configured for the local build dir or nil
+        #
+        # ENV vars:
+        #   - Set `SIMP_PKG_verbose=yes` to report file operations as they happen.
+        #   - Set `SIMP_YUM_makecache=no` if you do NOT want to rebuild the
+        #     build-specific YUM cache
+        def get_yum_helper( makecache = (ENV.fetch('SIMP_YUM_makecache','yes') == 'yes') )
+          begin
+            build_yum_data = File.join(@distro_build_dir, 'yum_data')
+            return Simp::YUM.new(Simp::YUM.generate_yum_conf(build_yum_data), makecache)
+          rescue Simp::YUM::Error => e
+            $stderr.puts "Simp::YUM::Error: #{e}" if @verbose
+          end
+        end
+
         # Check and see if 'dir' requires a rebuild based on published packages
         #
-        # If 'fetch' is true => Download the RPM
+        # If 'fetch' is true => Download the published RPM
         # If 'verbose' is true => Print helpful information to stderr
         # If 'check_git' is true => Print the git tag status if 'verbose' is true
         # 'prefix' is used to prepend verbose messages
@@ -735,7 +747,13 @@ protect=1
         # - Method is too long
         # - Method needs to be passed in class variables (@xxx) so that it
         #   can be pulled out into a library that is easily unit-testable
-        def require_rebuild?(dir, yum_helper, opts={ :unique_namespace => generate_namespace, :fetch => false, :verbose => @verbose, :check_git => false, :prefix => '' })
+        def require_rebuild?(dir, yum_helper, opts={
+          unique_namespace:  generate_namespace,
+          fetch:             false,
+          verbose:           @verbose,
+          check_git:         false,
+          prefix:            ''
+        })
           result = false
           rpm_metadata = File.exist?(@rpm_dependency_file) ? YAML.load(File.read(@rpm_dependency_file)) : {}
           dir_relpath = Pathname.new(dir).relative_path_from(Pathname.new(Dir.pwd)).to_path
@@ -870,7 +888,8 @@ protect=1
                     else
                       $stderr.puts "#{opts[:prefix]}Found Existing Remote RPM: #{published_rpm}" if opts[:verbose]
                       if opts[:fetch]
-                        # Download remote RPM, unless already downloaded it.
+                        # Download published RPM, unless it's already been downloaded.
+                        # TODO Unhandled edge case: Validate that downloaded RPM is valid
                         if File.exist?(File.join('dist', published_rpm))
                           $stderr.puts "#{opts[:prefix]}#{published_rpm} previously downloaded" if opts[:verbose]
                         else
@@ -914,101 +933,107 @@ protect=1
           return result
         end
 
+        def build_pupmod_rpm(dir, yum_helper, dbg_prefix = '  ')
+          unique_namespace = generate_namespace
+          if require_rebuild?(dir, yum_helper, {
+            unique_namespace:  unique_namespace,
+            fetch:             @fetch_published_rpm.nil? ? true : @fetch_published_rpm,
+            verbose:           @verbose,
+            prefix:            dbg_prefix,
+          })
+            $stderr.puts("#{dbg_prefix}Running 'rake pkg:rpm' on #{File.basename(dir)}") if @verbose
+            Rake::Task["#{unique_namespace}:pkg:rpm"].invoke
+          else
+            # Record metadata for the downloaded RPM
+            Simp::RPM::create_rpm_build_metadata(File.expand_path(dir))
+          end
+          true
+        end
+
+
+        def build_rakefile_rpm(dir, yum_helper, dbg_prefix = '  ')
+          if require_rebuild?(dir, yum_helper, {
+            fetch:    @fetch_published_rpm.nil? ? true : @fetch_published_rpm,
+            verbose:  @verbose,
+            prefix:   dbg_prefix
+          })
+            $stderr.puts("#{dbg_prefix}Running 'rake pkg:rpm' in #{File.basename(dir)}") if @verbose
+            rake_flags = Rake.application.options.trace ? '--trace' : ''
+            cmd = %{SIMP_BUILD_version=#{@simp_version} rake pkg:rpm #{rake_flags} 2>&1}
+
+            build_success = true
+            begin
+              %x{#{cmd}}
+              build_success = $?.success?
+
+              built_rpm = true
+            rescue
+              build_success = false
+            end
+
+            unless build_success
+              if @verbose
+                $stderr.puts("First 'rake pkg:rpm' attempt for #{dir} failed, running bundle and trying again.")
+              end
+
+              if Bundler.respond_to?(:with_unbundled_env)
+                # Bundler 2.1+
+                clean_env_method = :with_unbundled_env
+                bundle_install_cmd = %{bundle config set with 'development' && bundle install}
+              else
+                # Old Bundler
+                clean_env_method = :with_clean_env
+                bundle_install_cmd = %{bundle install --with development}
+              end
+
+              ::Bundler.send(clean_env_method) do
+                %x{#{bundle_install_cmd}}
+
+                output = %x{#{cmd} 2>&1}
+
+                unless $?.success?
+                  raise("Error in #{dir} running #{cmd}\n#{output}")
+                end
+              end
+            end
+          else
+            # Record metadata for the downloaded RPM
+            Simp::RPM::create_rpm_build_metadata(File.expand_path(dir))
+            built_rpm = true
+          end
+        end
+
+
         # Takes a list of directories to hop into and perform builds within
         #
         # The task must be passed so that we can output the calling name in the
         # status bar.
         def build(dirs, task, rebuild_for_arch=false, remake_yum_cache = false)
-          _verbose = ENV.fetch('SIMP_PKG_verbose','no') == 'yes'
-          dbg_prefix = '  ' # prefix for debug messages
-
           fail("Could not find RPM dependency file '#{@rpm_dependency_file}'") unless File.exist?(@rpm_dependency_file)
-
-          begin
-            yum_helper = Simp::YUM.new(
-              Simp::YUM.generate_yum_conf(File.join(@distro_build_dir, 'yum_data'))
-            )
-          rescue Simp::YUM::Error
-          end
+          yum_helper = get_yum_helper( remake_yum_cache )
 
           Parallel.map(
             # Allow for shell globs
-            Array(dirs),
-            :in_processes => @cpu_limit,
-            :progress => task.name
+            Array(dirs), {
+              in_processes:  @cpu_limit,
+              progress:      (ENV.fetch('SIMP_PKG_progress_bar','yes') == 'yes') ? task.name : nil,
+            }
           ) do |dir|
             fail("Could not find directory #{dir}") unless Dir.exist?(dir)
 
             Dir.chdir(dir) do
               built_rpm = false
+              $stderr.puts("\nPackaging #{File.basename(dir)}") if @verbose
 
-              if @verbose
-                $stderr.puts("\nPackaging #{File.basename(dir)}")
-              end
-
-              # We're building a module, override anything down there
               if File.exist?('metadata.json')
-                unique_namespace = generate_namespace
-                if require_rebuild?(dir, yum_helper, { :unique_namespace => unique_namespace, :fetch => true, :verbose => @verbose, :prefix => dbg_prefix})
-                  $stderr.puts("#{dbg_prefix}Running 'rake pkg:rpm' on #{File.basename(dir)}") if @verbose
-                  Rake::Task["#{unique_namespace}:pkg:rpm"].invoke
-                else
-                  # Record metadata for the downloaded RPM
-                  Simp::RPM::create_rpm_build_metadata(File.expand_path(dir))
-                end
-
-                built_rpm = true
-
-              # We're building one of the extra assets and should honor its Rakefile
-              # and RPM spec file.
+                # We're building a module, override anything down there
+                built_rpm = build_pupmod_rpm(dir, yum_helper)
               elsif File.exist?('Rakefile')
-                if require_rebuild?(dir, yum_helper, { :fetch => true, :verbose => @verbose, :prefix => dbg_prefix })
-                  $stderr.puts("#{dbg_prefix}Running 'rake pkg:rpm' in #{File.basename(dir)}") if @verbose
-                  rake_flags = Rake.application.options.trace ? '--trace' : ''
-                  cmd = %{SIMP_BUILD_version=#{@simp_version} rake pkg:rpm #{rake_flags} 2>&1}
-
-                  build_success = true
-                  begin
-                    %x{#{cmd}}
-                    build_success = $?.success?
-
-                    built_rpm = true
-                  rescue
-                    build_success = false
-                  end
-
-                  unless build_success
-                    if @verbose
-                      $stderr.puts("First 'rake pkg:rpm' attempt for #{dir} failed, running bundle and trying again.")
-                    end
-
-                    if Bundler.respond_to?(:with_unbundled_env)
-                      # Bundler 2.1+
-                      clean_env_method = :with_unbundled_env
-                      bundle_install_cmd = %{bundle config set with 'development' && bundle install}
-                    else
-                      # Old Bundler
-                      clean_env_method = :with_clean_env
-                      bundle_install_cmd = %{bundle install --with development}
-                    end
-
-                    ::Bundler.send(clean_env_method) do
-                      %x{#{bundle_install_cmd}}
-
-                      output = %x{#{cmd} 2>&1}
-
-                      unless $?.success?
-                        raise("Error in #{dir} running #{cmd}\n#{output}")
-                      end
-                    end
-                  end
-                else
-                  # Record metadata for the downloaded RPM
-                  Simp::RPM::create_rpm_build_metadata(File.expand_path(dir))
-                  built_rpm = true
-                end
+                # We're building one of the extra assets and should honor its Rakefile
+                # and RPM spec file.
+                built_rpm = build_rakefile_rpm(dir, yum_helper)
               else
-                puts "Warning: '#{dir}' could not be built via Rake"
+                puts "Warning: '#{dir}' could not be built (not a pupmod & no Rakefile!)"
               end
 
               if built_rpm
@@ -1024,12 +1049,7 @@ protect=1
 
                 raise("No RPMs generated for #{dir}") if rpms.empty?
               end
-
-              if @verbose
-                rpms = Dir.glob('dist/*.rpm')
-#                $stderr.puts("#{dbg_prefix}RPMS: #{rpms.join("\n#{dbg_prefix}      ")}")
-                $stderr.puts("Finished  #{File.basename(dir)}")
-              end
+              $stderr.puts("Finished  #{File.basename(dir)}") if @verbose
             end
           end
         end
