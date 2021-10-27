@@ -378,7 +378,7 @@ describe 'rake pkg:signrpms and pkg:checksig' do
               :acceptable_exit_codes => [1]
             )
 
-            err_msg = %r(Failed to sign #{test_rpm} in 5 seconds)
+            err_msg = %r(Failed to sign)
             expect(result.stderr).to match(err_msg)
 
             signature_check = on(host, "rpm -qip '#{test_rpm}' | grep ^Signature", run_opts)
