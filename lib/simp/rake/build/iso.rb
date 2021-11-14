@@ -421,9 +421,11 @@ module Simp::Rake::Build
                 '-x ./lost+found',
                 "-o #{@simp_output_iso}",
                 dir
-              ]
+              ].join(' ')
 
-              system(mkisofs_cmd.join(' '))
+              $stdout.puts "Running: #{mkisofs_cmd}"
+
+              system(mkisofs_cmd)
             end
           end # End of tarfiles loop
 
