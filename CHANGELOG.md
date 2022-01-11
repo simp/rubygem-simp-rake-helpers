@@ -1,3 +1,7 @@
+### 5.13.0 /2021-11-14
+- Added:
+  - Output the full `mkisofs` command when building an ISO
+
 ### 5.12.7 / 2021-10-26
 - Added:
   - Env var `SIMP_PKG_progress_bar=no` to turn off pkg RPM build progress bars
