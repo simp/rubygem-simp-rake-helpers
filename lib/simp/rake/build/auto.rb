@@ -110,14 +110,15 @@ module Simp::Rake::Build
           - SIMP_BUILD_docs            => 'yes' builds & includes documentation
           - SIMP_BUILD_checkout        => 'no' will skip the git repo checkouts
           - SIMP_BUILD_bundle          => 'no' skips running bundle in each subrepo
-          - SIMP_BUILD_unpack          => 'no' skips the unpack section
-          - SIMP_BUILD_unpack_merge    => 'no' prevents auto-merging the unpacked DVD
+          - SIMP_BUILD_unpack          => 'no' prevents unpacking the source ISO
+          - SIMP_BUILD_unpack_merge    => 'no' prevents auto-merging the unpacked ISO
           - SIMP_BUILD_prune           => 'no' passes :prune=>false to iso:build
           - SIMP_BUILD_iso_name        => Renames the output ISO filename [Default: false]
           - SIMP_BUILD_iso_tag         => Appended to the output ISO's filename [Default: false]
           - SIMP_BUILD_update_packages => Automatically update any necessary packages in the packages.yaml file [Default: false]
           - SIMP_BUILD_verbose         => 'yes' enables verbose reporting. [Default: 'no']
           - SIMP_BUILD_signing_key     => The name of the GPG key to use to sign packages. [Default: 'dev']
+          - SIMP_BUILD_reposync_only   => 'yes' skips unpacking the locally-build tarball so that you only get items from the reposync directory (if present)
         EOM
 
         task :auto, [:iso_paths,

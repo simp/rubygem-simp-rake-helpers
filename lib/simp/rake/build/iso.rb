@@ -252,61 +252,77 @@ module Simp::Rake::Build
                 end
               end
 
-              # Add the SIMP code
-              system("tar --no-same-permissions -C #{dir} -xzf #{tball}")
-
-              # Pop the SIMP directory from the tarball into the correct spot
-              # FIXME: This is a hack
-              unless dir == repo_target_dir
-                simpdir = File.join(dir,'SIMP')
-
-                if File.directory?(simpdir)
-                   cp_r(simpdir, repo_target_dir, :verbose => verbose)
-                   rm_rf(simpdir, :verbose => verbose)
-                end
+              reposync_only = (ENV.fetch('SIMP_BUILD_reposync_only', 'no') == 'yes')
+              if reposync_only && !reposync_active
+                fail("ERROR: Reposync-only requested, but no reposync content found")
               end
 
-              Dir.chdir("#{repo_target_dir}/SIMP") do
-                # Add the SIMP Dependencies
-                simp_base_ver = simpver.split('-').first
+              if reposync_only
+                puts
+                puts '-'*80
+                puts '### Reposync-Only Mode ###'
+                puts
+                puts '  Locally built packages will not be added'
+                puts
+                puts '-'*80
+                puts
+              else
+                # Add the SIMP code
+                system("tar --no-same-permissions -C #{dir} -xzf #{tball}")
 
-                if $simp6
-                  yum_dep_location = File.join(@build_dir,'yum_data','packages')
-                else
-                  simp_dep_src = %(SIMP#{simp_base_ver}_#{baseos}#{baseosver}_#{arch})
-                  yum_dep_location = File.join(@build_dir,'yum_data',simp_dep_src,'packages')
+                # Pop the SIMP directory from the tarball into the correct spot
+                # FIXME: This is a hack
+                unless dir == repo_target_dir
+                  simpdir = File.join(dir,'SIMP')
+
+                  if File.directory?(simpdir)
+                     cp_r(simpdir, repo_target_dir, :verbose => verbose)
+                     rm_rf(simpdir, :verbose => verbose)
+                  end
                 end
 
-                yum_dep_rpms = Dir.glob(File.join(yum_dep_location,'*.rpm'))
+                Dir.chdir("#{repo_target_dir}/SIMP") do
+                  # Add the SIMP Dependencies
+                  simp_base_ver = simpver.split('-').first
 
-                unless File.directory?(yum_dep_location)
-                  fail("Could not find dependency directory at #{yum_dep_location}") unless reposync_active
-                end
-
-                if yum_dep_rpms.empty?
-                  fail("Could not find any dependency RPMs at #{yum_dep_location}") unless reposync_active
-                end
-
-                # Add any one-off RPMs that you might want to add to your own build
-                # These are *not* checked to make sure that they actually match your
-                # environment
-                aux_packages = File.join(File.dirname(yum_dep_location),'aux_packages')
-                if File.directory?(aux_packages)
-                  yum_dep_rpms += Dir.glob(File.join(aux_packages,'*.rpm'))
-                end
-
-                yum_dep_rpms.each do |rpm|
-                  rpm_arch = rpm.split('.')[-2]
-
-                  unless File.directory?(rpm_arch)
-                    mkdir(rpm_arch)
+                  if $simp6
+                    yum_dep_location = File.join(@build_dir,'yum_data','packages')
+                  else
+                    simp_dep_src = %(SIMP#{simp_base_ver}_#{baseos}#{baseosver}_#{arch})
+                    yum_dep_location = File.join(@build_dir,'yum_data',simp_dep_src,'packages')
                   end
 
-                  # Just in case this is a symlink, broken, or some other nonsense.
-                  target_file = File.join(rpm_arch,File.basename(rpm))
-                  rm_f(target_file) if File.exist?(target_file)
+                  yum_dep_rpms = Dir.glob(File.join(yum_dep_location,'*.rpm'))
 
-                  cp(rpm,rpm_arch, :verbose => verbose)
+                  unless File.directory?(yum_dep_location)
+                    fail("Could not find dependency directory at #{yum_dep_location}") unless reposync_active
+                  end
+
+                  if yum_dep_rpms.empty?
+                    fail("Could not find any dependency RPMs at #{yum_dep_location}") unless reposync_active
+                  end
+
+                  # Add any one-off RPMs that you might want to add to your own build
+                  # These are *not* checked to make sure that they actually match your
+                  # environment
+                  aux_packages = File.join(File.dirname(yum_dep_location),'aux_packages')
+                  if File.directory?(aux_packages)
+                    yum_dep_rpms += Dir.glob(File.join(aux_packages,'*.rpm'))
+                  end
+
+                  yum_dep_rpms.each do |rpm|
+                    rpm_arch = rpm.split('.')[-2]
+
+                    unless File.directory?(rpm_arch)
+                      mkdir(rpm_arch)
+                    end
+
+                    # Just in case this is a symlink, broken, or some other nonsense.
+                    target_file = File.join(rpm_arch,File.basename(rpm))
+                    rm_f(target_file) if File.exist?(target_file)
+
+                    cp(rpm,rpm_arch, :verbose => verbose)
+                  end
                 end
 
                 if reposync_active

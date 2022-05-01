@@ -16,7 +16,7 @@ class R10KHelper
     end
 
     # Return true if the repository has local modifications, false otherwise.
-    def dirty?
+    def dirty?(exclude_spec=false)
       repo_status = false
 
       return repo_status unless File.directory?(path)
