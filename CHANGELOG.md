@@ -1,4 +1,8 @@
-### 5.13.0 /2021-11-14
+### 5.13.1 / 2022-05-01
+- Fixed:
+  - Aligned wtih an API change in the `dirty?` method in `r10k`
+
+### 5.13.0 / 2021-11-14
 - Added:
   - Output the full `mkisofs` command when building an ISO
 
