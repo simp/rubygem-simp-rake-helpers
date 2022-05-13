@@ -1,3 +1,7 @@
+### 5.13.2 / 2022-05-13
+- Fixed:
+  - SIMP_BUILD_reposync_only now properly unpacks the tarball
+
 ### 5.13.1 / 2022-05-01
 - Fixed:
   - Aligned wtih an API change in the `dirty?` method in `r10k`
@@ -5,6 +9,8 @@
 ### 5.13.0 / 2021-11-14
 - Added:
   - Output the full `mkisofs` command when building an ISO
+  - Added SIMP_BUILD_reposync_only to ignore the built tarball if a reposync
+    directory is present
 
 ### 5.12.7 / 2021-10-26
 - Added:
