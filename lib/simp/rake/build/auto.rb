@@ -38,6 +38,7 @@ module Simp::Rake::Build
       'gpg',
       'grep',
       'gzip',
+      'implantisomd5',
       'install',
       'isoinfo',
       'm4',
@@ -139,6 +140,7 @@ module Simp::Rake::Build
             :key_name     => ENV['SIMP_BUILD_signing_key'] || 'dev'
           )
 
+          reposync_only    = ENV.fetch('SIMP_BUILD_reposync_only', 'no') == 'yes'
           iso_paths        = File.expand_path(args[:iso_paths])
           target_release   = args[:release]
           do_checksum      = (args.do_checksum = ~ /^$/ ? 'false' : args.do_checksum)

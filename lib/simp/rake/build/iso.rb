@@ -449,7 +449,10 @@ module Simp::Rake::Build
           end # End of tarfiles loop
 
           # If we got here and didn't generate any ISOs, something went horribly wrong
-          fail('Error: No ISO was built!') unless @simp_output_iso
+          fail('Error: No ISO was built!') unless ( @simp_output_iso && File.exist?(@simp_output_iso) )
+
+          # Embed the validation checksum
+          system("implantisomd5 --supported-iso #{@simp_output_iso}")
         end
 
 =begin
