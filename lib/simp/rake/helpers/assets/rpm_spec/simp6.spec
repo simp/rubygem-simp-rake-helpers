@@ -587,7 +587,7 @@ mkdir -p %{buildroot}/%{prefix}
 
 
 %files
-%defattr(0640,root,root,0750)
+%defattr(0644,root,root,0755)
 %{prefix}/%{module_name}
 
 %changelog
