@@ -268,7 +268,7 @@ module Simp::Rake::Build
                 puts
 
                 # Only add the ISO modifications
-                system(%(tar --no-same-permissions --exclude="SIMP" -C #{dir} -xzf #{tball}))
+                system(%(tar --no-same-permissions --exclude="*.rpm" -C #{dir} -xzf #{tball}))
               else
                 # Add the SIMP code and ISO modifications
                 system("tar --no-same-permissions -C #{dir} -xzf #{tball}")
