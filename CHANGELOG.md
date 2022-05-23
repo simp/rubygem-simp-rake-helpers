@@ -6,6 +6,8 @@
 ### 5.13.3 / 2022-05-20
 - Fixed:
   - Changed default RPM installed file permissions to 0644/0755
+  - The tarball unpack exclusions were too aggressive. The `SIMP/GPGKEYS`
+      directory is now preserved properly.
 
 ### 5.13.2 / 2022-05-13
 - Fixed:
