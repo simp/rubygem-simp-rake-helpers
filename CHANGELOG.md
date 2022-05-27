@@ -1,3 +1,8 @@
+### 5.14.0 / 2022-05-14
+- Added
+  - Run `implantisomd5` after the ISO has been created so that it can be
+    validated by the installer at runtime.
+
 ### 5.13.3 / 2022-05-20
 - Fixed:
   - Changed default RPM installed file permissions to 0644/0755
