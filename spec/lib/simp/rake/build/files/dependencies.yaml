@@ -20,7 +20,7 @@
     # does NOT include puppetlabs/apt
     - 'pupmod-puppetlabs-stdlib'
     - 'pupmod-ceritsc-yum'
-    - 'pupmod-richardc-datacat'
+    - ['pupmod-richardc-datacat', '1.2.3', '<=3.4.5']
   :release: '2017.0'
   :external_dependencies:
     'rubygem-puppetserver-toml':

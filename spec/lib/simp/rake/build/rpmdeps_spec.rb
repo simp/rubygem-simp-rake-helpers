@@ -105,8 +105,8 @@ Requires: pupmod-puppetlabs-stdlib >= 3.2.0
 Requires: pupmod-puppetlabs-stdlib < 5.0.0
 Requires: pupmod-ceritsc-yum >= 0.9.6
 Requires: pupmod-ceritsc-yum < 1.0.0
-Requires: pupmod-richardc-datacat >= 0.6.2
-Requires: pupmod-richardc-datacat < 1.0.0
+Requires: pupmod-richardc-datacat >= 1.2.3
+Requires: pupmod-richardc-datacat <=3.4.5
 Requires: rubygem-puppetserver-toml >= 0.1.2
 Requires: rubygem-puppetserver-blackslate >= 2.1.2.4-1
 Requires: rubygem-puppetserver-blackslate < 2.2.0.0
