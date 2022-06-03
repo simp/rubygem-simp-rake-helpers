@@ -1,3 +1,8 @@
+### 5.15.0 / 2022-06-03
+- Added
+  - Users now have the ability to set version limits in the `dependencies.yaml`
+    file that will override those in the `metadata.json`
+
 ### 5.14.0 / 2022-05-14
 - Added
   - Run `implantisomd5` after the ISO has been created so that it can be

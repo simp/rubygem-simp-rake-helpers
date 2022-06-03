@@ -89,12 +89,40 @@ module Simp::Rake::Build::RpmDeps
   #
   # +requires_list+:: list of package this module should require
   #   from the 'dependencies.yaml'
+  #
+  #   * If the entry is an Array, the second value will be treated as the
+  #     minimum version and the third as the maximum version
+  #   * If you specify your own limiters, it will put them in place verbatim
+  #   * Examples:
+  #     * ['rpm-name', '1.2.3']
+  #       * Requires rpm-name >= 1.2.3
+  #     * ['rpm-name', '1.2.3', '2.0.0']
+  #       * Requires rpm-name >= 1.2.3
+  #       * Requires rpm-name < 2.0.0
+  #     * ['rpm-name', '> 1.2.3', '<= 2.0.0']
+  #       * Requires rpm-name > 1.2.3
+  #       * Requires rpm-name <= 2.0.0
   # +module_metadata+:: Hash containing the contents of the
   #   module's 'metadata.json' file
   def self.generate_custom_rpm_requires(requires_list, module_metadata)
     rpm_metadata_content = []
 
-    requires_list.each do |pkg|
+    requires_list.each do |pkg_to_modify|
+      pkg = pkg_to_modify
+      min_version = nil
+      max_version = nil
+
+      pkg, min_version, max_version = pkg if pkg.is_a?(Array)
+
+      rpm_version_chars = ['<','>','=']
+
+      if min_version && rpm_version_chars.none? { |x| min_version.include?(x) }
+        min_version = ">= #{min_version}"
+      end
+      if max_version && rpm_version_chars.none? { |x| max_version.include?(x) }
+        max_version = "< #{max_version}"
+      end
+
       pkg_parts = pkg.split(%r(-|/))[-2..-1]
 
       # Need to cover all base cases
@@ -118,12 +146,18 @@ module Simp::Rake::Build::RpmDeps
         dep_version = dep_info.first['version_requirement']
       end
 
-      begin
-        rpm_metadata_content << get_version_requires(pkg, dep_version)
-      rescue SIMPRpmDepVersionException
-        err_msg = "Unable to parse #{short_names.first} dependency" +
-          " version '#{dep_version}'"
-        raise SIMPRpmDepException.new(err_msg)
+      # Use the version specified in the config file if it exists
+      if min_version || max_version
+        rpm_metadata_content << "Requires: #{pkg} #{min_version}" if min_version
+        rpm_metadata_content << "Requires: #{pkg} #{max_version}" if max_version
+      else
+        begin
+          rpm_metadata_content << get_version_requires(pkg, dep_version)
+        rescue SIMPRpmDepVersionException
+          err_msg = "Unable to parse #{short_names.first} dependency" +
+            " version '#{dep_version}'"
+          raise SIMPRpmDepException.new(err_msg)
+        end
       end
     end
     rpm_metadata_content.flatten
