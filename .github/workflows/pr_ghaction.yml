@@ -17,8 +17,6 @@ jobs:
         ruby:
           - 2.7
           - 2.6
-          - 2.5
-          - 2.4
       fail-fast: false
     steps:
       - uses: actions/checkout@v2
