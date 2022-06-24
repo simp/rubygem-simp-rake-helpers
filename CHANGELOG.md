@@ -1,3 +1,8 @@
+### 5.16.0 / 2022-06-24
+- Added
+  - The `puppet-lint-optional_default-check` was added to prevent setting
+    `Optional` parameters with default values.
+
 ### 5.15.0 / 2022-06-03
 - Added
   - Users now have the ability to set version limits in the `dependencies.yaml`
