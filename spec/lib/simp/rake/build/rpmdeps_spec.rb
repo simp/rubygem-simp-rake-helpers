@@ -194,7 +194,7 @@ EOM
   context 'dependency from dependencies.yaml not found in metadata.json' do
     it 'should fail when dep in depedencies.yaml is not found in metadata.json' do
       mod_dir = File.join(@tmp_dir, 'files', 'unknown_dep_mod')
-      err_msg = "Could not find oops/unknown dependency in #{mod_dir}/metadata.json"
+      err_msg = "Could not find 'oops/unknown' dependency in #{mod_dir}/metadata.json"
       expect {
         Simp::Rake::Build::RpmDeps::generate_rpm_meta_files(mod_dir, rpm_metadata)
       }.to raise_error(err_msg)
@@ -204,7 +204,7 @@ EOM
   context 'malformed dependency version' do
     it 'should fail for managed component with invalid dep version in metadata.json' do
       mod_dir = File.join(@tmp_dir, 'files', 'malformed_dep_meta_mod')
-      err_msg = "Unable to parse foo1/bar1 dependency version '1.0.0.1' in #{mod_dir}/metadata.json"
+      err_msg = "Unable to parse 'foo1/bar1' dependency version '1.0.0.1' in #{mod_dir}/metadata.json"
       expect {
         Simp::Rake::Build::RpmDeps::generate_rpm_meta_files(mod_dir, rpm_metadata)
       }.to raise_error(err_msg)
@@ -214,7 +214,7 @@ EOM
       rpm_meta = rpm_metadata.dup
       rpm_meta ['malformed_dep_meta_mod'] = nil
       mod_dir = File.join(@tmp_dir, 'files', 'malformed_dep_meta_mod')
-      err_msg = "Unable to parse foo1/bar1 dependency version '1.0.0.1' in #{mod_dir}/metadata.json"
+      err_msg = "Unable to parse 'foo1/bar1' dependency version '1.0.0.1' in #{mod_dir}/metadata.json"
       expect {
         Simp::Rake::Build::RpmDeps::generate_rpm_meta_files(mod_dir, rpm_meta)
       }.to raise_error(err_msg)
