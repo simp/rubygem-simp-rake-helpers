@@ -1,3 +1,8 @@
+### 5.17.0 /2022-10-30
+- Added
+  - The RPM dependency file can now use `ignores` to remove items instead of
+    needing to redefine the entire dependency stack to remove deps
+
 ### 5.16.0 / 2022-06-24
 - Added
   - The `puppet-lint-optional_default-check` was added to prevent setting
