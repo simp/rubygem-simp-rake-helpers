@@ -326,6 +326,10 @@ module Simp::Rake::Build
 
                     cp(rpm,rpm_arch, :verbose => verbose)
                   end
+
+                  unless File.exist?('repodata/repomd.xml')
+                    fail("Error: Could not run createrepo in #{Dir.pwd}") unless system(%(#{mkrepo} .))
+                  end
                 end
 
                 if reposync_active
