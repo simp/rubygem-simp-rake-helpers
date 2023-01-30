@@ -1,3 +1,8 @@
+### 5.17.1 /2022-11-11
+- Fixed
+  - Fixed an edge case where the `SIMP` directory YUM metadata was not
+    present if you used `reposync` for everything but the `SIMP` directory
+
 ### 5.17.0 /2022-10-30
 - Added
   - The RPM dependency file can now use `ignores` to remove items instead of
