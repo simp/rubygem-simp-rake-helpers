@@ -361,9 +361,9 @@ module Simp::Rake::Build
               end
 
               target_data['isos'].each do |iso|
-                puts "---- rake unpack[#{iso},#{do_merge},#{Dir.pwd},isoinfo,#{target_data['os_version']}]"
+                puts "---- rake unpack[#{iso},#{do_merge},#{Dir.pwd},isoinfo,#{target_data['os_version']}#{reposync_only}]"
                 Rake::Task['unpack'].reenable
-                Rake::Task['unpack'].invoke(iso,do_merge,Dir.pwd,'isoinfo',target_data['os_version'])
+                Rake::Task['unpack'].invoke(iso,do_merge,Dir.pwd,'isoinfo',target_data['os_version'],reposync_only)
               end
             else
               puts

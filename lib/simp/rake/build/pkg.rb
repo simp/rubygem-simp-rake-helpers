@@ -544,7 +544,7 @@ module Simp::Rake::Build
 
             Finds all rpm files in the target dir and all of its subdirectories, then
             reports which packages have unresolved dependencies. This needs to be run
-            after rake tasks tar:build and unpack if operating on the base SIMP repo.
+            after rake tasks tar:build and unpack if operating on the basetest SIMP repo.
               * :target_dir  - The directory to assess. Default #{@build_dir}/SIMP.
               * :aux_dir     - Auxillary repo glob to use when assessing. Default #{@build_dir}/Ext_*.
                               Defaults to ''(empty) if :target_dir is not the system default.
@@ -594,14 +594,14 @@ module Simp::Rake::Build
 
           Dir.mktmpdir do |temp_pkg_dir|
             Dir.chdir(temp_pkg_dir) do
-              mkdir_p('repos/base')
+              mkdir_p('repos/basetest')
               mkdir_p('repos/lookaside')
               mkdir_p('repodata')
 
               Dir.glob(File.join(args[:target_dir], '**', '*.rpm'))
                 .delete_if{|x| x =~ /\.src\.rpm$/}
                 .each do |path|
-                  sym_path = "repos/base/#{File.basename(path)}"
+                  sym_path = "repos/basetest/#{File.basename(path)}"
                   ln_sf(path,sym_path, :verbose => @verbose) unless File.exists?(sym_path)
               end
 
@@ -637,9 +637,9 @@ module Simp::Rake::Build
 
               dnf_system = which('dnf')
               if dnf_system
-                cmd = 'repoclosure -c base.conf --disablerepo=* --enablerepo=base'
+                cmd = 'repoclosure -c basetest.conf --disablerepo=* --enablerepo=basetest'
               else
-                cmd = 'repoclosure -c repodata -n -t -r base -l lookaside -c yum.conf'
+                cmd = 'repoclosure -c repodata -n -t -r basetest -l lookaside -c yum.conf'
               end
 
               if ENV['SIMP_BUILD_verbose'] == 'yes'
