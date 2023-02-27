@@ -1,3 +1,12 @@
+### 5.18.0 /2023-02-27
+- Added
+  - `SIMP_BUILD_reposync_only` now excludes RPMs and yum repos from the ISO
+    `unpack` task
+- Fixed
+  - Change common repo name `base` to avoid repoclosure conflict warnings
+  - EL7 ISO unpack no longer interferes with reposync repos when
+    `SIMP_BUILD_reposync_only=yes`
+
 ### 5.17.1 /2022-11-11
 - Fixed
   - Fixed an edge case where the `SIMP` directory YUM metadata was not
