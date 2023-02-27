@@ -28,23 +28,26 @@ module Simp::Rake::Build
        * :isoinfo - The isoinfo executable to use to extract stuff from the ISO.
          Defaults to 'isoinfo'.
        * :version - optional override for the <version> number (e.g., '7.0' instead of '7')
+       * :exclude_repos - Don't unpack repos or packages when true
 
       "
 =end
-      task :unpack,[:iso_path, :merge, :targetdir, :isoinfo, :version] do |t,args|
+      task :unpack,[:iso_path, :merge, :targetdir, :isoinfo, :version, :exclude_repos] do |t,args|
         args.with_defaults(
-          :iso_path   => '',
-          :isoinfo    => 'isoinfo',
-          :targetdir  => Dir.pwd,
-          :merge      => false,
-          :version => false,
+          :iso_path      => '',
+          :isoinfo       => 'isoinfo',
+          :targetdir     => Dir.pwd,
+          :merge         => false,
+          :version       => false,
+          :exclude_repos => false,
         )
 
-        iso_path   = args.iso_path
-        iso_info   = which(args.isoinfo)
-        targetdir  = args.targetdir
-        merge      = args.merge
-        version = args.version
+        iso_path      = args.iso_path
+        iso_info      = which(args.isoinfo)
+        targetdir     = args.targetdir
+        merge         = args.merge
+        version       = args.version
+        exclude_repos = args.exclude_repos
 
         # Checking for valid arguments
         File.exist?(args.iso_path) or
@@ -102,6 +105,10 @@ module Simp::Rake::Build
         iso_toc.each do |iso_entry|
           target = "#{out_dir}#{iso_entry}"
           unless File.exist?(target)
+            if exclude_repos && target =~ %r{\.rpm$|repodata|repomd.xml}
+              puts "  [exclude_repos] SKIPPING repo/package file: #{target}"
+              next
+            end
             FileUtils.mkdir_p(File.dirname(target))
             system("#{iso_info} -R -x #{iso_entry} -i #{iso_path} > #{target}")
           end
