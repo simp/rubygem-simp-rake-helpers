@@ -1,0 +1,16 @@
+---
+HOSTS:
+  el9.beaker.test:
+    roles:
+    - linux
+    - default
+    platform: el-9-x86_64
+    box: almalinux/9
+    hypervisor: "<%= ENV.fetch('BEAKER_HYPERVISOR', 'vagrant') %>"
+    family: almalinux-cloud/almalinux-9
+    gce_machine_type: n1-standard-2
+CONFIG:
+  validate: false
+  log_level: verbose
+  type: aio
+  puppet_collection: "<%= ENV.fetch('BEAKER_PUPPET_COLLECTION', 'puppet7') %>"

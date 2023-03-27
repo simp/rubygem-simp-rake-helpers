@@ -1,0 +1,13 @@
+current directory: /home/chris/src/puppetsync/_repos/rubygem-simp-rake-helpers/.vendor/ruby/2.7.0/gems/json-2.6.3/ext/json
+/opt/puppetlabs/bolt/bin/ruby -I /opt/puppetlabs/bolt/lib/ruby/2.7.0 -r ./siteconf20230327-1738070-p1ka9q.rb extconf.rb
+creating Makefile
+
+current directory: /home/chris/src/puppetsync/_repos/rubygem-simp-rake-helpers/.vendor/ruby/2.7.0/gems/json-2.6.3/ext/json
+make "DESTDIR=" clean
+
+current directory: /home/chris/src/puppetsync/_repos/rubygem-simp-rake-helpers/.vendor/ruby/2.7.0/gems/json-2.6.3/ext/json
+make "DESTDIR="
+make: Nothing to be done for 'all'.
+
+current directory: /home/chris/src/puppetsync/_repos/rubygem-simp-rake-helpers/.vendor/ruby/2.7.0/gems/json-2.6.3/ext/json
+make "DESTDIR=" install

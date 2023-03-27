@@ -1,0 +1,914 @@
+Dynamic Environment Configuration
+=================================
+
+<!-- vim-markdown-toc GFM -->
+
+* [Config file location](#config-file-location)
+  * [Manual configuration](#manual-configuration)
+  * [Automatic configuration](#automatic-configuration)
+* [General options](#general-options)
+  * [cachedir](#cachedir)
+  * [proxy](#proxy)
+  * [pool_size](#pool_size)
+  * [git](#git)
+    * [provider](#provider)
+    * [proxy](#proxy-1)
+    * [username](#username)
+    * [private_key](#private_key)
+    * [oauth_token](#oauth_token)
+    * [repositories](#repositories)
+      * [private_key](#private_key-1)
+      * [oauth_token](#oauth_token-1)
+      * [proxy](#proxy-2)
+  * [forge](#forge)
+    * [proxy](#proxy-3)
+    * [baseurl](#baseurl)
+    * [authorization_token](#authorization_token)
+    * [allow_puppetfile_override](#allow_puppetfile_override)
+* [Deployment options](#deployment-options)
+  * [postrun](#postrun)
+  * [sources](#sources)
+  * [deploy](#deploy)
+    * [purge\_levels](#purge_levels)
+      * [deployment](#deployment)
+      * [environment](#environment)
+      * [puppetfile](#puppetfile)
+    * [purge\_allowlist](#purge_allowlist)
+    * [write\_lock](#write_lock)
+    * [generate\_types](#generate_types)
+    * [puppet\_path](#puppet_path)
+    * [puppet\_conf](#puppet_conf)
+    * [exclude_spec](#exclude_spec)
+* [Source options](#source-options)
+  * [remote](#remote)
+  * [basedir](#basedir)
+  * [prefix](#prefix)
+    * [prefix behaviour](#prefix-behaviour)
+  * [strip\_component](#strip_component)
+    * [strip\_component behaviour](#strip_component-behaviour)
+  * [ignore_branch_prefixes](#ignore_branch_prefixes)
+    * [ignore_branch_prefixes behaviour](#ignore_branch_prefixes-behaviour)
+  * [filter_command](#filter_command)
+* [Examples](#examples)
+  * [Minimal example](#minimal-example)
+  * [Separate hiera data](#separate-hiera-data)
+  * [Multiple tenancy](#multiple-tenancy)
+    * [Multiple tenancy with external hieradata](#multiple-tenancy-with-external-hieradata)
+* [Experimental Features](#experimental-features)
+  * [YAML Environment Source](#yaml-environment-source)
+  * [YAMLdir Environment Source](#yamldir-environment-source)
+  * [Exec environment Source](#exec-environment-source)
+  * [Environment Modules](#environment-modules)
+    * [Puppetfile module conflicts](#puppetfile-module-conflicts)
+  * [Plain Environment Type](#plain-environment-type)
+  * [Tarball Environment Type](#tarball-environment-type)
+
+<!-- vim-markdown-toc -->
+
+R10k uses a configuration file to determine how dynamic environments should be
+deployed.
+
+Config file location
+--------------------
+
+### Manual configuration
+
+An explicit configuration file location be specified by providing the `--config`
+option to `r10k deploy`, like so:
+
+    r10k deploy --config /srv/puppet/r10k.yaml [...]
+
+### Automatic configuration
+
+If an explicit configuration file is not given, r10k will search the following
+locations for a configuration file.
+
+  * `{current working directory}/r10k.yaml`
+  * `/etc/puppetlabs/r10k/r10k.yaml` (1.5.0 and later)
+  * `/etc/r10k.yaml` (deprecated in 1.5.0)
+
+In 1.5.0 r10k added `/etc/puppetlabs/r10k/r10k.yaml` to the configuration search
+path. The old location, `/etc/r10k.yaml` has been deprecated in favor of the new
+location. If both `/etc/puppetlabs/r10k/r10k.yaml` and `/etc/r10k.yaml` exist
+and explicit configuration file has not been given, r10k will log a warning and
+use `/etc/puppetlabs/r10k/r10.yaml`.
+
+General options
+---------------
+
+### cachedir
+
+The 'cachedir' setting specifies where r10k should keep cached information.
+Right now this is predominantly used for caching git repositories but will be
+expanded as other subsystems can take advantage of caching.
+
+For example:
+
+```yaml
+---
+# Store all cache information in /var/cache
+cachedir: '/var/cache/r10k'
+```
+
+
+The cachedir setting defaults to `~/.r10k`. If the HOME environment variable is
+unset r10k will assume that r10k is being run with the Puppet [`prerun_command`](https://puppet.com/docs/puppet/latest/configuration.html#preruncommand)
+setting and will set the cachedir default to `/root/.r10k`.
+
+### proxy
+
+The 'proxy' setting configures a proxy server to use for all operations which occur over
+an HTTP(S) transport. You can override this setting for Git or Forge operations only by
+setting the 'proxy' setting under the 'git' or 'forge' settings. You can also override
+for a specific Git repository by setting a proxy in the 'repositories' list of the 'git'
+setting. By default, r10k will look for and use the first environment variable it finds
+in this list: HTTPS\_PROXY, https\_proxy, HTTP\_PROXY, http\_proxy. If no proxy setting
+is found in the environment, this setting will default to use no proxy.
+
+```yaml
+proxy: 'http://proxy.example.com:3128'
+```
+
+r10k also supports using authenticated proxies with either Basic or Digest authentication:
+
+```yaml
+proxy: 'http://user:password@proxy.example.com:3128'
+```
+
+The proxy server being used will be logged at the "debug" level when r10k runs.
+
+### pool_size
+
+The pool_size setting is a number to determine how many threads should be spawn
+while updating modules. The default value is 4, which means modules will be updated
+in parallel. If this causes issues, change this setting to 1 to cause modules to be
+updated serially.
+
+### git
+
+The 'git' setting is a hash that contains Git specific settings.
+
+#### provider
+
+The provider option determines which Git provider should be used.
+
+```yaml
+git:
+  provider: rugged # one of shellgit, rugged
+```
+
+See the [git provider documentation](../git/providers.mkd) for more information
+regarding Git providers.
+
+#### proxy
+
+The 'proxy' setting allows you to set or override the global proxy setting specifically
+for Git operations that use an HTTP(S) transport. See the global proxy setting documentation
+for more information and examples.
+
+#### username
+
+The username setting is only used by the Rugged git provider.
+
+The username option sets the username for SSH remotes when the SSH URL does not provide
+a username. When used with a Git hosting service this is most sensibly set to 'git'.
+
+The username defaults to the username of the currently logged in user.
+
+```yaml
+git:
+  username: "git"
+```
+
+#### private_key
+
+The private_key setting is only used by the Rugged git provider.
+
+The private_key option specifies the path to the default Git SSH private key for Git SSH remotes.
+The private_key setting must be set if SSH remotes are used.
+
+```yaml
+git:
+  private_key: "/etc/puppetlabs/r10k/ssh/id_rsa"
+```
+
+#### oauth_token
+
+The oauth_token setting is only used by the Rugged git provider.
+
+The oauth_token option specifies the path to the default access token for Git HTTPS remotes.
+Public git repositories can be accessed via HTTPS without authentication, but the oauth_token setting may be set if any non-public HTTPS remotes are used.
+
+```yaml
+git:
+  oauth_token: "/etc/puppetlabs/r10k/token"
+```
+
+#### repositories
+
+The repositories option allows configuration to be set on a per-remote basis. Each entry is a map of
+the repository URL and per-repository configuration for that repo.
+
+##### private_key
+
+A repository specific private key to use for SSH connections for the given repository URL. This
+overrides the global private_key setting.
+
+```yaml
+git:
+  repositories:
+    - remote: "ssh://tessier-ashpool.freeside/protected-repo.git"
+      private_key: "/etc/puppetlabs/r10k/ssh/id_rsa-protected-repo-deploy-key"
+```
+
+##### oauth_token
+
+A repository specific access token to use for HTTPS connections for the given repository URL. This
+overrides the global oauth_token setting.
+
+```yaml
+git:
+  repositories:
+    - remote: "https://tessier-ashpool.freeside/protected-repo.git"
+      oauth_token: "/etc/puppetlabs/r10k/protected-repo-deploy-token"
+```
+
+##### proxy
+
+The 'proxy' setting allows you to set or override the global proxy setting for a single, specific
+repository. See the global proxy setting documentation for more information and examples.
+
+### forge
+
+The 'forge' setting is a hash that contains settings for downloading modules
+from the Puppet Forge.
+
+#### proxy
+
+The 'proxy' setting allows you to set or override the global proxy setting for all Forge
+interactions. See the global proxy setting documentation for more information and examples.
+
+#### baseurl
+
+The 'baseurl' setting indicates where Forge modules should be installed from.
+This defaults to 'https://forgeapi.puppetlabs.com'
+
+#### authorization_token
+
+The 'authorization_token' setting allows you to provide a token for authenticating to a Forge server.
+You will need to prepend your token with 'Bearer ' to authenticate to the Forge or when using your own Artifactory server.
+
+```yaml
+forge:
+  baseurl: 'https://private-forge.mysite'
+  authorization_token: 'Bearer mysupersecretauthtoken'
+```
+
+#### allow_puppetfile_override
+
+The `allow_puppetfile_override` setting causes r10k to respect [`forge` declarations](https://github.com/puppetlabs/r10k/blob/main/doc/puppetfile.mkd#forge)
+in Puppetfiles, overriding the `baseurl` setting and allowing per-environment configuration of the Forge URL.
+
+Deployment options
+------------------
+
+The following options configure how r10k deploys dynamic environments.
+
+### postrun
+
+The `postrun` setting specifies an arbitrary command to run after deploying all
+environments. The command must be an array of strings that will be used as an
+argument vector. The exit code of the command is not currently used, but the
+command should exit with a return code of 0 as the exit code may have semantics
+in the future.
+
+```yaml
+---
+postrun: ['/usr/bin/curl', '-F', 'deploy=done', 'http://my-app.site/endpoint']
+```
+
+The postrun setting can only be set once.
+
+Occurrences of the string `$modifiedenvs` in the postrun command will be
+replaced with the current environment(s) being deployed, space separated.
+
+### sources
+
+The `sources` setting specifies what repositories should be used for creating
+dynamic environments.  It is a hash where each key is the short name of a
+specific repository (for instance, "qa" or "web" or "ops") and the value is a
+hash of properties for that source.
+
+```yaml
+---
+sources:
+  main:
+    # Source settings follow
+```
+
+### deploy
+
+The `deploy` setting is a top level setting for controlling how r10k deploys
+behave. At this point only new settings are included under this setting, but in
+the long term the current top level deploy settings will be moved under
+`deploy`.
+
+#### purge\_levels
+
+The `purge_levels` setting controls how aggressively r10k will purge unmanaged
+content during a deployment. Given value must be a list of strings indicating at
+what levels unmanaged content should be purged. The valid string options for the
+list are 'deployment', 'environment', and 'puppetfile'.
+
+```yaml
+---
+deploy:
+  purge_levels: [ 'deployment', 'environment', 'puppetfile' ]
+```
+
+This setting currently only impacts the "deploy environment" action.
+
+The default value is `['deployment', 'puppetfile']` to maintain parity with
+existing behavior before this setting was added.
+
+The effect of enabling the various purge levels is as follows:
+
+##### deployment
+
+After each deploy, in the configured basedir, r10k will recursively remove any
+content found which is not managed by one of the sources declared in the r10k.yaml
+configuration. Note that disabling this level of purging may cause the number of
+deployed environments to grow without bound; deleting branches from a control
+repo would no longer cause the matching environment to be purged.
+
+##### environment
+
+After a given environment is deployed, r10k will recursively remove any content
+found which is neither committed to the control repo branch that maps to that
+environment, nor declared in a Puppetfile committed to that branch.
+
+Enabling this purge level will cause r10k to load and parse the Puppetfile for
+the environment even without the `--modules` flag being set. However,
+Puppetfile content will still only be deployed if the environment is new or
+the `--modules` flag is set. Additionally, no environment-level content
+will be purged if any errors are encountered while evaluating the Puppetfile
+or deploying its contents.
+
+Note that the .r10k-deploy.json file is exempt from this purging.
+
+##### puppetfile
+
+After Puppetfile content for a given environment is deployed, r10k will
+recursively remove any content found in a directory managed by the Puppetfile
+which is not also declared in that Puppetfile. Directories considered to be
+managed by a Puppetfile include the configured `moduledir` (which defaults to
+"modules") as well as alternate directories specified as an `install_path`
+option to any Puppetfile content declarations.
+
+#### purge\_allowlist
+
+The `purge_allowlist` setting exempts the specified filename patterns from
+being purged. This setting is currently only considered during `environment`
+level purging. (See above.) Given value must be a list of shell style filename
+patterns in string format.
+
+See the Ruby [documentation for the `fnmatch` method](http://ruby-doc.org/core-2.2.0/File.html#method-c-fnmatch)
+for more details on valid patterns. Note that the `FNM_PATHNAME` and
+`FNM_DOTMATCH` flags are in effect when r10k considers the allowlist.
+
+Patterns are relative to the root of the environment being purged and *do
+not match recursively* by default. For example, a allowlist value of
+`*myfile*` would only preserve a matching file at the root of the
+environment. To preserve the file throughout the deployed environment,
+a recursive pattern such as `**/*myfile*` would be required.
+
+Files matching a allowlist pattern may still be removed if they exist in
+a folder that is otherwise subject to purging. In this case, an additional
+allowlist rule to preserve the containing folder is required.
+
+```yaml
+---
+deploy:
+  purge_allowlist: [ 'custom.json', '**/*.xpp' ]
+```
+
+
+#### write\_lock
+
+The `write_lock` setting allows administrators to temporarily disallow r10k code
+deploys without having to remove the r10k configuration entirely. This can be
+useful to prevent r10k deploys at certain times or prevent r10k from interfering
+with a common set of code that may be touched by multiple r10k configurations.
+
+```yaml
+---
+deploy:
+  write_lock: "Deploying code is disallowed until the next maintenance window (2038-01-19)"
+```
+
+#### generate\_types
+
+The `generate_types` setting controls whether r10k should update generated types
+after a successful environment update. See [Environment isolation](https://puppet.com/docs/puppet/latest/environment\_isolation.html)
+for more information on generated types. Defaults to false.
+
+```yaml
+deploy:
+  generate_types: true
+```
+
+#### puppet\_path
+
+The path to the puppet executable used for generating types. Defaults to `/opt/puppetlabs/bin/puppet`.
+
+```yaml
+deploy:
+  puppet_path: '/usr/local/bin/puppet'
+```
+
+#### puppet\_conf
+
+The path to the puppet.conf file used for generating types. Defaults to `/etc/puppetlabs/puppet/puppet.conf`.
+
+```yaml
+deploy:
+  puppet_conf: '/opt/puppet/conf/puppet.conf'
+```
+
+#### exclude_spec
+
+During module deployment, r10k's default behavior is to deploy the spec directory. Setting
+`exclude_spec` to true will deploy modules without their spec directory. This behavior
+can be configured for all modules using the `exclude_spec` setting in the r10k config.
+It can also be passed as a CLI argument for `deploy environment/module`, overriding the
+r10k config. Setting this per module in a `Puppetfile` will override the default, r10k config,
+and cli flag for that module. The following example sets all modules to not deploy the spec
+dir via the r10k config.
+
+```yaml
+deploy:
+  exclude_spec: true
+```
+
+Source options
+--------------
+
+The following options are respected by all source implementations. Sources may
+implement other options in addition to the ones listed below; see the source
+specific documentation for more information.
+
+### remote
+
+The 'remote' setting specifies where the source repository should be fetched
+from. It may be any valid URL that the source may check out or clone. The remote
+must be able to be fetched without any interactive input, eg usernames or
+passwords cannot be prompted for in order to fetch the remote. We support the
+`git`, `ssh`, and `https` transport protocols. An SSH private key or access
+token must be provided for authentication. Only `https` may be used without
+authentication. See [GitHub's blog on protocol security](https://github.blog/2021-09-01-improving-git-protocol-security-github/) for more info.
+
+```yaml
+---
+sources:
+  mysource:
+    remote: 'https://git-server.site/my-org/main-modules'
+```
+
+### basedir
+
+The 'basedir' setting specifies where environments will be created for this
+source.  This directory will be entirely managed by r10k and any contents that
+r10k did not put there will be _removed_.
+
+```yaml
+---
+sources:
+  mysource:
+    basedir: '/etc/puppet/environments'
+```
+
+If two different sources have the same basedir, it's possible for them to create
+two separate environments with the same name and file path. If this occurs r10k
+will treat this as a fatal error and will abort. To avoid this, use prefixing on one
+or both of the sources to make sure that all environment names are unique. See
+also the [prefix](#prefix) setting.
+
+### prefix
+
+The prefix setting allows environment names to be prefixed with the short name
+of the given source. This prevents collisions when multiple sources are deployed
+into the same directory.
+
+```yaml
+---
+sources:
+  mysource:
+    basedir: '/etc/puppet/environments'
+    prefix: true # All environments will be prefixed with "mysource_"
+```
+#### prefix behaviour
+* if `true` environment folder will be prefixed with the name of the source.
+* if `false` (default) environment folder will not be prefixed
+* if `String` environment folder will be prefixed with the `prefix` value.
+
+### strip\_component
+
+The 'strip\_component' setting allows parts of environment names from a source to have a transformation applied, removing a part of the name before turning them into Puppet environments. This is primarily useful for VCS sources (e.g.  Git), because it allows branch names to use prefixes or organizing name components such as "env/production", "env/development", but deploy Puppet environments from these branches named without the leading "env/" component. E.g. "production", "development".
+
+```yaml
+---
+sources:
+  mysource:
+    basedir: '/etc/puppet/environments'
+    strip_component: 'env/'
+```
+
+#### strip\_component behaviour
+
+* if `string` environment names will have this prefix removed, if the prefix is present. Note that when string values are used, names can only have prefix components removed.
+* if `/regex/` the regex will be matched against environment names and if a match is found, the matching name component will be removed.
+
+### ignore_branch_prefixes
+
+The 'ignore_branch_prefixes' setting causes environments to be ignored which match in part or whole
+to any of the prefixes listed in the setting.
+The setting is a list of strings. Each branch in
+the 'git' repo will have its name tested against all prefixes and, if the prefix
+is found, then an environment will not be deployed for this branch.
+If no 'ignore_branch_prefixes' is specified, then all branches in the 'git' repo will
+be deployed (default behavior).
+
+#### ignore_branch_prefixes behaviour
+* if empty, deploy environments for all branches
+* for each branch in git repo
+** if `branch.name` has a prefix found in `ignore_branch_prefixes`, then do not deploy an environment for branch
+
+Example: do not deploy branches with names starting with (or completely named) 'test' or 'dev'.
+```yaml
+---
+sources:
+  mysource:
+    basedir: '/etc/puppet/environments'
+    ignore_branch_prefixes:
+      - 'test'
+      - 'dev'
+```
+
+### filter_command
+
+You can filter out any branch based on the result of the command specified as
+'filter_command'. Currently it only works with git repository. Non zero return
+status of the command results in a branch beeing removed. The command is passed
+additional environment variables
+
+* GIT_DIR – path to the cached git repository
+* R10K_BRANCH – branch which is being filtered
+* R10K_NAME – source name from r10k configuration
+
+This can be used for example for filtering out the branches with invalid gpg signature of their latest commit
+
+```yaml
+---
+sources:
+  mysource:
+    basedir: '/etc/puppet/environments'
+    filter_command: 'git verify-commit $R10K_BRANCH 2> /dev/null'
+```
+
+Beware that if the production branch of manifests is filtered out, you will end up with empty environment.
+
+Examples
+--------
+
+### Minimal example
+
+The majority of users will only have a single repository where all modules and
+hiera data files are kept. In this case you will specify a single source:
+
+```yaml
+---
+sources:
+  operations:
+    remote: 'https://git-server.site/my-org/org-modules'
+    basedir: '/etc/puppet/environments'
+```
+
+### Separate hiera data
+
+For more complex cases where you want to store hiera data in a different
+repository and your modules in another repository, you can specify two sources:
+
+```yaml
+---
+sources:
+  operations:
+    remote: 'https://git-server.site/my-org/org-modules'
+    basedir: '/etc/puppet/environments'
+  hiera:
+    remote: 'https://git-server.site/my-org/org-hiera-data'
+    basedir: '/etc/puppet/hiera-data'
+```
+
+### Multiple tenancy
+
+Alternately you may want to create separate environments from multiple
+repositories. This is useful when you want two groups to be able to deploy
+Puppet modules but they should only have write access to their own modules and
+not the modules of other groups.
+
+```yaml
+---
+sources:
+  main:
+    remote: 'https://git-server.site/my-org/main-modules'
+    basedir: '/etc/puppet/environments'
+    prefix: false # Prefix defaults to false so this is only here for clarity
+  qa:
+    remote: 'https://git-server.site/my-org/qa-puppet-modules'
+    basedir: '/etc/puppet/environments'
+    prefix: true
+  dev:
+    remote: 'https://git-server.site/my-org/dev-puppet-modules'
+    basedir: '/etc/puppet/environments'
+    prefix: true
+```
+
+This will create the following directory structure:
+
+```
+/etc/puppet/environments
+|-- production       # main-modules repository, production branch
+|-- upgrade_apache   # main-modules repository, upgrade_apache branch
+|-- qa_production    # qa repository, production branch
+|-- qa_jenkins_test  # qa repository, jenkins_test branch
+|-- dev_production   # dev repository, production branch
+`-- dev_loadtest     # dev repository, loadtest branch
+```
+
+#### Multiple tenancy with external hieradata
+
+If hiera data is in a separate repository from your control repository, you
+must override the `prefix` so environment folders line up in both directories:
+
+```yaml
+---
+sources:
+  app1_data:
+    remote: 'https://git-server.site/my-org/app1-hieradata'
+    basedir: '/etc/puppet/hieradata'
+    prefix: "app1"
+  app1_modules:
+    remote: 'https://git-server.site/my-org/app1-puppet-modules'
+    basedir: '/etc/puppet/environments'
+    prefix: "app1"
+```
+
+
+This will create the following directory structure:
+
+```
+/etc/puppet/environments
+|-- app1_production  # app1 modules repository, production branch
+|-- app1_develop     # app1 modules repository, develop branch
+
+/etc/puppet/hieradata
+|-- app1_production  # app1 data repository, production branch
+|-- app1_develop     # app1 data repository, develop branch
+```
+
+Experimental Features
+---------------------
+
+### YAML Environment Source
+
+Dynamically deploying Puppet content based on the state of version control repositories can be powerful and efficient for development workflows. The linkage however is not advantageous when trying to build precision controls over deployment of previously-developed and tested content.
+
+The YAML environment source type allows for a clear separation of tooling between development workflow, and deployment workflow. Development workflow creates new commits in the version control system. Deployment workflow consumes them.
+
+To use the YAML environment source, configure r10k's sources with at least one entry using the yaml type.
+
+```yaml
+# r10k.yaml
+---
+sources:
+  puppet:
+    type: yaml
+    basedir: /etc/puppetlabs/code/environments
+    config: /etc/puppetlabs/r10k/environments.yaml # default
+```
+
+When using the YAML source type, every environment is enumerated in a single yaml file. Each environment specifies a type, source, and version (typically a Git ref) to deploy. In the following example, two environments are defined, which are identical to each other.
+
+```yaml
+---
+production:
+  type: git
+  source: git@github.com:puppetlabs/control-repo.git
+  version: 8820892
+
+development:
+  type: git
+  source: git@github.com:puppetlabs/control-repo.git
+  version: 8820892
+```
+
+### YAMLdir Environment Source
+
+Like the YAML environment source, but implemented as a conf.d pattern.
+
+```yaml
+# r10k.yaml
+---
+sources:
+  puppet:
+    type: yamldir
+    basedir: /etc/puppetlabs/code/environments
+    config: /etc/puppetlabs/r10k/environments.d # default
+```
+
+Each environment is defined in a yaml file placed in the configuration directory. The filename, without the .yaml extension, will be the name of the environment.
+
+```
+/etc/puppetlabs/r10k/environments.d
+├── production.yaml
+└── development.yaml
+```
+
+The contents of the file should be a hash specifying the enviornment type, and all other applicable environment options.
+
+```yaml
+# production.yaml
+---
+type: git
+source: git@github.com:puppetlabs/control-repo.git
+version: 8820892
+```
+
+### Exec environment Source
+
+The exec environment source runs an external command which is expected to return on stdout content compatible with the YAML environment source data format. The command may return the data in JSON or YAML form. The exec environment source is similar in purpose to Puppet's exec node terminus, used to implement external node classifiers (ENCs). R10k's exec source type allows the the implementation of external environment sources.
+
+```yaml
+# r10k.yaml
+---
+sources:
+  puppet:
+    type: exec
+    basedir: /etc/puppetlabs/code/environments
+    command: /usr/local/bin/r10k-environments.sh
+```
+
+### Environment Modules
+
+The environment modules feature allows module content to be attached to an environment at environment definition time. This happens before modules specified in a Puppetfile are attached to an environment, which does not happen until deploy time. Environment module implementation depends on the environment source type.
+
+For the YAML environment source type, attach modules to an environment by specifying a modules key for the environment, and providing a hash of modules to attach. Each module accepts the same arguments accepted by the `mod` method in a Puppetfile. For ease of reading and consistency, however, it is perferred to use the generic type, source, and version options over implementation-specific formats and options such as "ref" and "git".
+
+The example below includes two Forge modules and one module sourced from a Git repository. The two environments are almost identical. However, a new version of the stdlib module has been deployed in development (6.2.0), that has not yet been deployed to production.
+
+```yaml
+---
+production:
+  type: git
+  source: git@github.com:puppetlabs/control-repo.git
+  version: 8820892
+  modules:
+    puppetlabs-stdlib:
+      type: forge
+      version: 6.0.0
+    puppetlabs-concat:
+      type: forge
+      version: 6.1.0
+    reidmv-xampl:
+      type: git
+      source: https://github.com/reidmv/reidmv-xampl.git
+      version: 62d07f2
+
+development:
+  type: git
+  source: git@github.com:puppetlabs/control-repo.git
+  version: 8820892
+  modules:
+    puppetlabs-stdlib:
+      type: forge
+      version: 6.2.0
+    puppetlabs-concat:
+      type: forge
+      version: 6.1.0
+    reidmv-xampl:
+      type: git
+      source: https://github.com/reidmv/reidmv-xampl.git
+      version: 62d07f2
+```
+
+An example of a single environment definition for the YAMLdir environment source type:
+
+```yaml
+# production.yaml
+---
+type: git
+source: git@github.com:puppetlabs/control-repo.git
+version: 8820892
+modules:
+  puppetlabs-stdlib:
+    type: forge
+    version: 6.0.0
+  puppetlabs-concat:
+    type: forge
+    version: 6.1.0
+  reidmv-xampl:
+    type: git
+    source: https://github.com/reidmv/reidmv-xampl.git
+    version: 62d07f2
+```
+
+#### Puppetfile module conflicts
+
+When a module is defined in an environment and also in a Puppetfile, the default behavior is for the environment definition of the module to take precedence, a warning to be logged, and the Puppetfile definition to be ignored. The behavior is configurable to optionally skip the warning, or allow a hard failure instead. Use the `module_conflicts` option in an environment definition to control this.
+
+Available `module_conflicts` options:
+
+* `override_and_warn` (default): the version of the module defined by the environment will be used, and the version defined in the Puppetfile will be ignored. A warning will be printed.
+* `override`: the version of the module defined by the environment will be used, and the version defined in the Puppetfile will be ignored.
+* `error`: an error will be raised alerting the user to the conflict. The environment will not be deployed.
+
+```yaml
+# production.yaml
+---
+type: git
+source: git@github.com:puppetlabs/control-repo.git
+version: 8820892
+module_conflicts: override_and_warn
+modules:
+  puppetlabs-stdlib:
+    type: forge
+    version: 6.0.0
+  puppetlabs-concat:
+    type: forge
+    version: 6.1.0
+  reidmv-xampl:
+    type: git
+    source: https://github.com/reidmv/reidmv-xampl.git
+    version: 62d07f2
+```
+
+### Plain Environment Type
+
+A "control repository" typically contains a hiera.yaml, an environment.conf, a manifests/site.pp file, and a few other things. However, none of these are strictly necessary for an environment to be functional if modules can be deployed to it.
+
+The plain environment type allows sources that support environment modules to operate without a control repo being required. Modules can be deployed directly.
+
+```yaml
+---
+production:
+  type: plain
+  modules:
+    puppetlabs-stdlib:
+      type: forge
+      version: 6.0.0
+    puppetlabs-concat:
+      type: forge
+      version: 6.1.0
+    reidmv-xampl:
+      type: git
+      source: https://github.com/reidmv/reidmv-xampl.git
+      version: 62d07f2
+
+development:
+  type: plain
+  modules:
+    puppetlabs-stdlib:
+      type: forge
+      version: 6.0.0
+    puppetlabs-concat:
+      type: forge
+      version: 6.1.0
+    reidmv-xampl:
+      type: git
+      source: https://github.com/reidmv/reidmv-xampl.git
+      version: 62d07f2
+```
+
+### Tarball Environment Type
+
+The tarball environment type allows an environment to be deployed from a tarball archive, rather than a Git repository. When using a tarball environment type, a source location for the tarball is required. Optionally, the tarball's sha256 checksum may be specified as the version. It is highly recommended to include a version specifier. If a version specifier is not included, r10k will never invalidate a cached copy of the tarball's source.
+
+Tarball environment sources will be unpacked directly into the environment root.
+
+```yaml
+---
+production:
+  type: tarball
+  source: https://repo.example.com/projects/puppet/env-2.36.1.tar.gz
+  version: 99a906c99c2f144de43f2ae500509a7474ed11c583fb623efa8e5b377a3157f0 # sha256digest
+
+development:
+  type: tarball
+  source: https://repo.example.com/projects/puppet/env-6128ada.tar.gz
+  version: 6128ada158622cd90f8e1360fb7c2c3830a812d1ec26ddf0db7eb16d61b7293f # sha256digest
+  modules:
+    reidmv-xampl:
+      type: git
+      source: https://github.com/reidmv/reidmv-xampl.git
+      version: 62d07f2
+```

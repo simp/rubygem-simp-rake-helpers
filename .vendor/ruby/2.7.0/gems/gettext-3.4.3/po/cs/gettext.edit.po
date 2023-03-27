@@ -1,0 +1,334 @@
+#
+# a po-file for gettext
+#
+# Copyright (C) 2004-2006 Masao Mutoh
+# This file is distributed under the same license as the gettext.
+#
+# Karel Miarka <kajism@yahoo.com>, 2005,2006.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: ruby-gettext 2.1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"PO-Revision-Date: 2013-09-20 22:58+0900\n"
+"Last-Translator: Karel Miarka <kajism@yahoo.com>\n"
+"Language-Team: Czech\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<="
+"4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+"X-Poedit-Language: Czech\n"
+"X-Poedit-Bookmarks: -1,-1,-1,-1,-1,-1,-1,-1,15,-1\n"
+
+#: ../lib/gettext/text_domain_manager.rb:149
+msgid "ngettext: 3rd parmeter is wrong: value = %{number}"
+msgstr ""
+
+#: ../lib/gettext/text_domain_manager.rb:155
+msgid "ngettext: 3rd parameter should be a number, not nil."
+msgstr ""
+
+#: ../lib/gettext/tools/msgcat.rb:242
+msgid "Usage: %s [OPTIONS] PO_FILE1 PO_FILE2 ..."
+msgstr ""
+
+#: ../lib/gettext/tools/msgcat.rb:244
+msgid "Concatenates and merges PO files."
+msgstr ""
+
+#: ../lib/gettext/tools/msgcat.rb:246 ../lib/gettext/tools/msgfmt.rb:86 ../lib/gettext/tools/msginit.rb:98 ../lib/gettext/tools/msgmerge.rb:369 ../lib/gettext/tools/xgettext.rb:248
+msgid "Specific options:"
+msgstr "Volby:"
+
+#: ../lib/gettext/tools/msgcat.rb:249 ../lib/gettext/tools/msgmerge.rb:377
+#, fuzzy
+msgid "Write output to specified file"
+msgstr "zapsat výstup od určeného souboru"
+
+#: ../lib/gettext/tools/msgcat.rb:250
+msgid "(default: the standard output)"
+msgstr ""
+
+#: ../lib/gettext/tools/msgcat.rb:255 ../lib/gettext/tools/msgcat.rb:272 ../lib/gettext/tools/msgmerge.rb:382 ../lib/gettext/tools/msgmerge.rb:401 ../lib/gettext/tools/xgettext.rb:302
+msgid "Sort output by msgid"
+msgstr ""
+
+#: ../lib/gettext/tools/msgcat.rb:260 ../lib/gettext/tools/msgcat.rb:265 ../lib/gettext/tools/msgmerge.rb:389 ../lib/gettext/tools/msgmerge.rb:396
+msgid "Sort output by location"
+msgstr ""
+
+#: ../lib/gettext/tools/msgcat.rb:266 ../lib/gettext/tools/msgmerge.rb:390
+msgid "It is same as --sort-by-location"
+msgstr ""
+
+#: ../lib/gettext/tools/msgcat.rb:267 ../lib/gettext/tools/msgcat.rb:274 ../lib/gettext/tools/msgmerge.rb:384 ../lib/gettext/tools/msgmerge.rb:391
+msgid "Just for GNU gettext's msgcat compatibility"
+msgstr ""
+
+#: ../lib/gettext/tools/msgcat.rb:273 ../lib/gettext/tools/msgmerge.rb:383
+msgid "It is same as --sort-by-msgid"
+msgstr ""
+
+#: ../lib/gettext/tools/msgcat.rb:279
+msgid "Remove location information"
+msgstr ""
+
+#: ../lib/gettext/tools/msgcat.rb:284
+msgid "Remove translator comment"
+msgstr ""
+
+#: ../lib/gettext/tools/msgcat.rb:289
+msgid "Remove extracted comment"
+msgstr ""
+
+#: ../lib/gettext/tools/msgcat.rb:294
+msgid "Remove flag comment"
+msgstr ""
+
+#: ../lib/gettext/tools/msgcat.rb:299
+msgid "Remove previous comment"
+msgstr ""
+
+#: ../lib/gettext/tools/msgcat.rb:304
+msgid "Remove all comments"
+msgstr ""
+
+#: ../lib/gettext/tools/msgcat.rb:309 ../lib/gettext/tools/msgmerge.rb:411 ../lib/gettext/tools/xgettext.rb:312
+msgid "Set output page width"
+msgstr ""
+
+#: ../lib/gettext/tools/msgcat.rb:315 ../lib/gettext/tools/msgmerge.rb:417 ../lib/gettext/tools/xgettext.rb:318
+msgid "Break long message lines, longer than the output page width, into several lines"
+msgstr ""
+
+#: ../lib/gettext/tools/msgcat.rb:326
+msgid "Ignore fuzzy entries"
+msgstr ""
+
+#: ../lib/gettext/tools/msgcat.rb:331 ../lib/gettext/tools/msgmerge.rb:434
+msgid "Don't report warning messages"
+msgstr ""
+
+#: ../lib/gettext/tools/msgcat.rb:336 ../lib/gettext/tools/msgmerge.rb:439
+msgid "Don't output obsolete entries"
+msgstr ""
+
+#: ../lib/gettext/tools/msgcat.rb:341
+msgid "Update PO-Revision-Date header field"
+msgstr ""
+
+#: ../lib/gettext/tools/msgcat.rb:346
+msgid "Remove FIELD from header"
+msgstr ""
+
+#: ../lib/gettext/tools/msgcat.rb:347
+msgid "Specify this option multiple times to remove multiple header fields"
+msgstr ""
+
+#: ../lib/gettext/tools/msgfmt.rb:65
+msgid "no input files specified."
+msgstr "vstupní soubory nenalezeny"
+
+#: ../lib/gettext/tools/msgfmt.rb:80
+msgid "Usage: %s input.po [-o output.mo]"
+msgstr "Použití: %s input.po [-o output.mo]"
+
+#: ../lib/gettext/tools/msgfmt.rb:82
+msgid "Generate binary message catalog from textual translation description."
+msgstr "Generovat binání katalog zpráv z textového popisu překladu."
+
+#: ../lib/gettext/tools/msgfmt.rb:89 ../lib/gettext/tools/xgettext.rb:251
+msgid "write output to specified file"
+msgstr "zapsat výstup od určeného souboru"
+
+#: ../lib/gettext/tools/msgfmt.rb:93 ../lib/gettext/tools/xgettext.rb:355
+msgid "display version information and exit"
+msgstr "zobrazit informaci o verzi a skončit"
+
+#: ../lib/gettext/tools/msginit.rb:94
+msgid "Create a new .po file from initializing .pot file with user's environment and input."
+msgstr ""
+
+#: ../lib/gettext/tools/msginit.rb:100
+msgid "Use INPUT as a .pot file. If INPUT is not specified, INPUT is a .pot file existing the current directory."
+msgstr ""
+
+#: ../lib/gettext/tools/msginit.rb:107
+msgid "Use OUTPUT as a created .po file. If OUTPUT is not specified, OUTPUT depend on LOCALE or the current locale on your environment."
+msgstr ""
+
+#: ../lib/gettext/tools/msginit.rb:114
+msgid "Use LOCALE as target locale. If LOCALE is not specified, LOCALE is the current locale on your environment."
+msgstr ""
+
+#: ../lib/gettext/tools/msginit.rb:122
+msgid "Whether set translator information or not"
+msgstr ""
+
+#: ../lib/gettext/tools/msginit.rb:123
+msgid "(set)"
+msgstr ""
+
+#: ../lib/gettext/tools/msginit.rb:128
+msgid "Use NAME as translator name"
+msgstr ""
+
+#: ../lib/gettext/tools/msginit.rb:133
+msgid "Use EMAIL as translator email address"
+msgstr ""
+
+#: ../lib/gettext/tools/msginit.rb:137 ../lib/gettext/tools/msgmerge.rb:443
+msgid "Display this help and exit"
+msgstr ""
+
+#: ../lib/gettext/tools/msginit.rb:142
+msgid "Display version and exit"
+msgstr "zobrazit informaci o verzi a skončit"
+
+#: ../lib/gettext/tools/msginit.rb:160
+msgid ".pot file does not exist in the current directory."
+msgstr ""
+
+#: ../lib/gettext/tools/msginit.rb:165
+msgid "file '%s' does not exist."
+msgstr "Soubor '%s' již existoval."
+
+#: ../lib/gettext/tools/msginit.rb:177
+msgid "Locale '%s' is invalid. Please check if your specified locale is usable."
+msgstr ""
+
+#: ../lib/gettext/tools/msginit.rb:187
+msgid "file '%s' has already existed."
+msgstr "Soubor '%s' již existoval."
+
+#: ../lib/gettext/tools/msginit.rb:229
+msgid "Please enter your full name"
+msgstr ""
+
+#: ../lib/gettext/tools/msginit.rb:258
+msgid "Please enter your email address"
+msgstr ""
+
+#: ../lib/gettext/tools/msgmerge.rb:358
+msgid "Usage: %s [OPTIONS] definition.po reference.pot"
+msgstr ""
+
+#: ../lib/gettext/tools/msgmerge.rb:361
+msgid "Merges two Uniforum style .po files together. The definition.po file is an existing PO file with translations. The reference.pot file is the last created PO file with up-to-date source references. The reference.pot is generally created by rxgettext."
+msgstr "Sloučí dohromady dva (Uniforum style) .po soubory. Soubor definition.po je existující PO soubor s překlady. Soubor reference.pot je naposledy vytvořený PO soubor s aktuálními zdrojovými referencemi. reference.pot je většinou vytvořen rgettextem."
+
+#: ../lib/gettext/tools/msgmerge.rb:372
+msgid "Update definition.po"
+msgstr ""
+
+#: ../lib/gettext/tools/msgmerge.rb:406 ../lib/gettext/tools/xgettext.rb:307
+msgid "Preserve '#: FILENAME:LINE' lines"
+msgstr ""
+
+#: ../lib/gettext/tools/msgmerge.rb:428
+msgid "Disable fuzzy matching"
+msgstr ""
+
+#: ../lib/gettext/tools/msgmerge.rb:429
+msgid "(enable)"
+msgstr ""
+
+#: ../lib/gettext/tools/msgmerge.rb:449
+#, fuzzy
+msgid "Display version information and exit"
+msgstr "zobrazit informaci o verzi a skončit"
+
+#: ../lib/gettext/tools/xgettext.rb:65
+msgid "'%{klass}' is ignored."
+msgstr "'%{klass}' je ignorován."
+
+#: ../lib/gettext/tools/xgettext.rb:170
+msgid "Error parsing %{path}"
+msgstr ""
+
+#: ../lib/gettext/tools/xgettext.rb:229
+msgid "no input files"
+msgstr "vstupní soubory nenalezeny"
+
+#: ../lib/gettext/tools/xgettext.rb:242
+msgid "Usage: %s input.rb [-r parser.rb] [-o output.pot]"
+msgstr "Použití: %s input.rb [-r parser.rb] [-o output.pot]"
+
+#: ../lib/gettext/tools/xgettext.rb:245
+msgid "Extract translatable strings from given input files."
+msgstr "Extrahuj přeložitelné texty ze zadaných vstupních souborů."
+
+#: ../lib/gettext/tools/xgettext.rb:256
+msgid "set package name in output"
+msgstr ""
+
+#: ../lib/gettext/tools/xgettext.rb:262
+msgid "set package version in output"
+msgstr ""
+
+#: ../lib/gettext/tools/xgettext.rb:268
+msgid "set report e-mail address for msgid bugs"
+msgstr ""
+
+#: ../lib/gettext/tools/xgettext.rb:274
+msgid "set copyright holder in output"
+msgstr ""
+
+#: ../lib/gettext/tools/xgettext.rb:280
+msgid "set copyright year in output"
+msgstr ""
+
+#: ../lib/gettext/tools/xgettext.rb:286
+msgid "set encoding for output"
+msgstr ""
+
+#: ../lib/gettext/tools/xgettext.rb:292
+msgid "Generate sorted output"
+msgstr ""
+
+#: ../lib/gettext/tools/xgettext.rb:297
+msgid "Sort output by file location"
+msgstr ""
+
+#: ../lib/gettext/tools/xgettext.rb:329
+#, fuzzy
+msgid "require the library before executing xgettext"
+msgstr "před spuštěním rgettext je vyžadován require knihovny"
+
+#: ../lib/gettext/tools/xgettext.rb:334
+msgid "Add PARSER to parser list for xgettext"
+msgstr ""
+
+#: ../lib/gettext/tools/xgettext.rb:340
+msgid "If TAG is specified, place comment blocks starting with TAG and precedding keyword lines in output file"
+msgstr ""
+
+#: ../lib/gettext/tools/xgettext.rb:341
+msgid "If TAG is not specified, place all comment blocks preceing keyword lines in output file"
+msgstr ""
+
+#: ../lib/gettext/tools/xgettext.rb:342
+msgid "(default: %s)"
+msgstr ""
+
+#: ../lib/gettext/tools/xgettext.rb:342
+msgid "no TAG"
+msgstr ""
+
+#: ../lib/gettext/tools/xgettext.rb:346
+msgid "run in debugging mode"
+msgstr "běh v debug módu"
+
+#: ../lib/gettext/tools/xgettext.rb:350
+#, fuzzy
+msgid "display this help and exit"
+msgstr "zobrazit informaci o verzi a skončit"
+
+#: ../lib/gettext/tools/xgettext.rb:381
+msgid "Warning: The empty \"\" msgid is reserved by gettext. So gettext(\"\") doesn't returns empty string but the header entry in po file."
+msgstr ""
+
+#~ msgid "`%{file}' is not glade-2.0 format."
+#~ msgstr "`%{file}' není ve formátu glade-2.0."

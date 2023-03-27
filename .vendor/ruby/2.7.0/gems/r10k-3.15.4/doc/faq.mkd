@@ -1,0 +1,164 @@
+Frequently Asked Questions
+==========================
+
+### How can run I `puppet generate types` for each changed environment during deployment?
+
+The command `puppet generate types` creates Puppet signatures for custom
+types circumventing the need to load their Ruby code during compilation.
+This prevents the type definitions from "leaking" across environments.
+
+Best practice currently is to run this command as part of your Puppet
+code deployment pipeline, and r10k's postrun command ability is a natural
+place to do so.
+
+The postrun command will have any occurance of "$modifiedenvs" replaced
+with a space-seperated list of environments the deploy was configured to
+modify. For example creating the script:
+
+```
+$ cat /usr/local/bin/generate-puppet-types.sh
+#!/bin/bash
+
+for environment in $1; do
+  /opt/puppetlabs/bin/puppet generate types --environment $environment
+done
+```
+
+And configuring r10k such:
+```
+$ tail -2 /etc/puppetlabs/r10k/r10k.yaml
+
+postrun: ["/usr/local/bin/generate-puppet-types.sh", "$modifiedenvs"]
+```
+
+Should provide you with the necessary generate type definitions for
+improved environment isolation.
+
+
+
+### The default Git branch is 'master', while the default Puppet environment is 'production'. How do I reconcile this?
+
+The default Git branch name is 'master', but this is a somewhat arbitrary name
+and doesn't necessarily map to every use case. In the case of R10K it's generally
+easiest to rename 'master' to 'production'. You can rename the master branch
+with the following:
+
+```
+git branch -m master production
+git push --set-upstream origin production
+```
+
+Note that this will only create a new branch called production with a copy of
+master - to change the default branch for all subsequent clones, read on.
+
+#### Changing the default branch for bare Git repositories
+
+When you clone a repository, Git checks out the [currently active branch][git-clone]
+on the remote repository. Changing this for a non-bare repository is simple - just
+check out a different branch and subsequent clones from that repository will
+use that branch.
+
+For bare repositories things are a bit more complex. Bare repositories do not
+have a working directory that can be checked out, but they do have a [symbolic
+ref][git-symbolic-ref] that serves the same role. To change this, run the
+following command:
+
+```
+git --git-dir /path/to/bare/repo symbolic-ref HEAD refs/heads/production
+```
+
+#### Changing the default branch for different Git services
+
+For Git hosting services where you may not cannot directly invoke commands,
+there are usually administrative tools to allow you to change the default branch
+on your remote repositories:
+
+  * [GitHub][github-default-branch]
+  * [Bitbucket][bitbucket-default-branch]
+  * [Gitolite v2][gitolite-v2-default-branch]
+  * [Gitolite v3][gitolite-v3-default-branch]
+
+[git-clone]: https://www.kernel.org/pub/software/scm/git/docs/git-clone.html "Man page for git-clone"
+[git-symbolic-ref]: https://www.kernel.org/pub/software/scm/git/docs/git-symbolic-ref.html "Man page for git-symbolic-ref"
+
+[github-default-branch]: https://help.github.com/articles/setting-the-default-branch "Changing the default branch on GitHub"
+[bitbucket-default-branch]: https://answers.atlassian.com/questions/280944/how-to-change-main-branch-in-bitbucket "Changing the default branch on Bitbucket"
+[gitolite-v2-default-branch]: http://stackoverflow.com/questions/7091599/git-default-remote-branch-with-gitolite "Changing the default branch on Gitolite v2"
+[gitolite-v3-default-branch]: http://stackoverflow.com/questions/13949093/git-change-default-branch-gitolite "Changing the default branch on Gitolite v3"
+
+### How do I prevent r10k from removing modules in the `/modules` directory of my Git repository?
+
+By default, r10k will install modules specified in the Puppetfile into the
+`/modules` directory of each environment, but if you already use that directory
+and keep modules in it, r10k may think those modules are not meant to exist and
+may remove them.
+
+There are three ways of fixing this: including your local modules in the
+Puppetfile, moving the directory where r10k install Puppetfile sourced modules,
+or moving your modules.
+
+#### Including your local modules in the Puppetfile
+
+The Puppetfile has a concept of a "local" module, otherwise known as a module
+that r10k did not directly placed there but should not be removed. If you want
+to continue keep your modules in the `/modules` directory and still install
+external modules from the Puppetfile into that directory, you can add a `mod`
+directive to the Puppetfile for each of your local modules.
+
+```
+
+mod 'my_ntp', :local => true
+mod 'roles', :local => true
+mod 'profiles', :local => true
+
+# Include your external modules as usual
+mod 'puppetlabs/stdlib'
+mod 'puppetlabs/apache'
+```
+
+#### Move where the Puppetfile installs external modules
+
+Instead of having to add a module entry for each of your local modules, you can
+simply move where the Puppetfile installs modules with the `moduledir` setting.
+
+```
+# The moduledir setting must be set before any modules are created
+moduledir "external-modules"
+
+mod 'puppetlabs/stdlib'
+mod 'puppetlabs/apache'
+```
+
+In Puppet 3.6 and later you can create an `environment.conf` in the root of your
+environment to indicate which directories contain modules:
+
+```
+# environment.conf
+modulepath = modules:external-modules
+```
+
+#### Move your local modules
+
+Lastly, you can simply move your locally versioned modules to a separate
+directory to avoid conflicting over the `/modules` directory entirely. With this
+example as well you can use the `environment.conf` file to tell Puppet which
+directories contain modules.
+
+```
+# environment.conf
+modulepath = internal-modules:modules
+```
+
+#### Does R10K support Local/Private Forge?
+
+Yes. Set the Forge to use _globally_ in `r10k.yaml`. see [Configuration](/doc/dynamic-environments/configuration.mkd#baseurl) for details.
+
+
+#### What does the name mean?
+
+It’s called R10K because I’m terrible at names. When I started working on R10K
+I couldn’t come up with a decent name. While trying to come up with something
+clever, I recalled that Randall Munroe wrote a bot for [controlling IRC chatter](http://blog.xkcd.com/2008/01/14/robot9000-and-xkcd-signal-attacking-noise-in-chat/),
+and gave it the most generic name he could think of - Robot 9000. Since I just
+needed a name, any name, I decided to go with an equally generic name by
+incrementing the robot index.

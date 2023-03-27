@@ -1,0 +1,38 @@
+HOSTS:
+  el7.test.net:
+    roles:
+      - default
+      - el7
+    platform:   el-7-x86_64
+    hypervisor: docker
+    image: simpproject/simp_beaker_el7
+    docker_cmd: '["/sbin/init"]'
+
+  el8.test.net:
+    roles:
+      - el8
+    platform:   el-8-x86_64
+    hypervisor: docker
+    image: simpproject/simp_beaker_el8
+    docker_cmd: '["/sbin/init"]'
+
+CONFIG:
+  log_level: verbose
+  type: aio
+<% if ENV['BEAKER_PUPPET_ENVIRONMENT'] -%>
+  puppet_environment: <%= ENV['BEAKER_PUPPET_ENVIRONMENT'] %>
+<% end -%>
+  ssh:
+    password: root
+    auth_methods:
+      - password
+    keepalive: true
+    keepalive_interval: 10
+    host_key:
+      - <%= Net::SSH::Transport::Algorithms::ALGORITHMS[:host_key].join("\n#{' '*6}- ") %>
+    kex:
+      - <%= Net::SSH::Transport::Algorithms::ALGORITHMS[:kex].join("\n#{' '*6}- ") %>
+    encryption:
+      - <%= Net::SSH::Transport::Algorithms::ALGORITHMS[:encryption].join("\n#{' '*6}- ") %>
+    hmac:
+      - <%= Net::SSH::Transport::Algorithms::ALGORITHMS[:hmac].join("\n#{' '*6}- ") %>

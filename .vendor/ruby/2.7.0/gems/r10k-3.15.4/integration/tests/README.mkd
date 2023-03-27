@@ -1,0 +1,4 @@
+Tests
+===========================
+
+This folder contains the [Beaker](https://github.com/puppetlabs/beaker) test files organized by suite.

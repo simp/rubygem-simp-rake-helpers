@@ -1,0 +1,355 @@
+Puppetfile
+==========
+
+Puppetfiles are a simple Ruby based DSL that specifies a list of modules to
+install, what version to install, and where to fetch them from. r10k can use a
+Puppetfile to install a set of Puppet modules for local development, or they can
+be used with r10k environment deployments to install additional modules into a
+given environment.
+
+Unlike librarian-puppet, the r10k implementation of Puppetfiles does not include
+dependency resolution, but it is on the roadmap.
+
+When directly working with Puppetfiles, you can use the `r10k puppetfile`
+subcommand to interact with a Puppetfile.
+
+When using r10k's deploy functionality, interacting with Puppetfiles is handled
+on a case by case basis.
+
+Because the Puppetfile format is actually implemented using a Ruby DSL any valid
+Ruby expression can be used. That being said, being a bit too creative in the
+DSL can lead to surprising (read: bad) things happening, so consider keeping it
+simple.
+
+Commands
+--------
+
+Puppetfile subcommands assume that the Puppetfile to operate on is in the
+current working directory and modules should be installed in the 'modules'
+directory relative to the current working directory.
+
+Install or update all modules in a given Puppetfile
+into ./modules)
+
+    r10k puppetfile install
+
+Verify the Puppetfile syntax
+
+    r10k puppetfile check
+
+Remove any modules in the 'modules' directory that are not specified in the
+Puppetfile:
+
+    r10k puppetfile purge
+
+Global settings
+---------------
+
+The following settings can be used to control how the Puppetfile installs and
+handles modules.
+
+### forge
+
+The `forge` setting specifies which server that Forge based modules are fetched
+from. This declaration is only respected if [`forge.allow_puppetfile_override`](/dynamic-environments/configuration.mkd#allow_puppetfile_override)
+is set to true in the main `r10k.yaml`. Otherwise, use [`forge.baseurl`](/doc/dynamic-environments/configuration.mkd#baseurl)
+to globally configure where modules should be downloaded from.
+
+### moduledir
+
+The `moduledir` setting specifies where modules from the Puppetfile will be
+installed. This defaults to the `modules` directory relative to the Puppetfile.
+If the path is absolute then the modules will be installed to that absolute
+path, otherwise it's assumed that the `moduledir` setting should be relative and
+the modules will be installed in that directory relative to the Puppetfile.
+
+The moduledir setting should be placed before any modules are declared.
+
+Install modules to an absolute path:
+
+```ruby
+moduledir '/etc/puppet/modules'
+
+mod 'branan/eight_hundred' # will be installed into '/etc/puppet/modules/eight_hundred'
+```
+
+Install modules to a relative path:
+
+```ruby
+moduledir 'thirdparty'
+
+mod 'branan/eight_hundred' # will be installed into `dirname /path/to/Puppetfile`/thirdparty/eight_hundred
+```
+
+**Note**: support for a relative moduledir was added in r10k 1.4.0; the behavior
+of a relative moduledir path is undefined on earlier versions of r10k.
+
+Module types
+------------
+
+r10k can install Puppet modules from a number of different sources. Right now
+modules can be installed from the Puppet Forge, Git, or SVN.
+
+### Puppet Forge
+
+Modules can be installed from the Puppet Forge.
+
+If no version is specified the latest version available at the time will be
+installed, and will be kept at that version.
+
+    mod 'puppetlabs/apache'
+
+If a version is specified then that version will be installed.
+
+    mod 'puppetlabs/apache', '0.10.0'
+
+If the version is set to :latest then the module will be always updated to the
+latest version available.
+
+    mod 'puppetlabs/apache', :latest
+
+An explicit type and/or version can be specified using the standard interface,
+`:type` and `:version`. The `:source` parameter is not supported for individual
+forge modules and will be ignored.
+
+    mod 'puppetlabs/apache',
+      type:    'forge',
+      version: '6.0.0'
+
+### Git
+
+Git repositories that contain a Puppet module can be cloned and used as modules.
+When Git is used, the module version can be specified by using `:ref`, `:tag`,
+`:commit`, `:branch`, or the standard interface parameter `:version`.
+
+When a module is installed using `:ref`, r10k uses some simple heuristics to
+determine the type of Git object that should be checked out. This can be used
+with a git commit, branch reference, or a tag.
+
+When a module is installed using `:tag` or `:commit`, r10k assumes that the
+given object is a tag or commit and can do some optimizations around fetching
+the object. If the tag or commit is already available r10k will skip network
+operations when updating the repo, which can speed up install times. When
+`:ref` is set to track `HEAD`, it will synchronize the module on each run.
+
+Module versions can also be specified using `:branch` to track a specific
+branch reference.
+
+#### Examples
+
+```ruby
+# Install puppetlabs/apache and keep it up to date with 'master'
+mod 'apache',
+  :git => 'https://github.com/puppetlabs/puppetlabs-apache'
+
+# Install puppetlabs/apache and track the 'docs_experiment' branch
+mod 'apache',
+  :git => 'https://github.com/puppetlabs/puppetlabs-apache',
+  :ref => 'docs_experiment'
+
+# Install puppetlabs/apache and pin to the '0.9.0' tag
+mod 'apache',
+  :git => 'https://github.com/puppetlabs/puppetlabs-apache',
+  :tag => '0.9.0'
+
+# Install puppetlabs/apache and pin to the '83401079' commit
+mod 'apache',
+  :git    => 'https://github.com/puppetlabs/puppetlabs-apache',
+  :commit => '83401079053dca11d61945bd9beef9ecf7576cbf'
+
+# Install puppetlabs/apache and track the 'docs_experiment' branch
+mod 'apache',
+  :git    => 'https://github.com/puppetlabs/puppetlabs-apache',
+  :branch => 'docs_experiment'
+
+# Install puppetlabs/apache and use standard interface parameters pinned to the
+# '2098a17' commit.
+mod 'puppetlabs-apache',
+  type:    'git',
+  source:  'https://github.com/puppetlabs/puppetlabs-apache',
+  version: '2098a17'
+```
+
+#### Control Repo Branch Tracking
+
+Since r10k 2.4.0, the `:branch` option can be set to the special value
+`:control_branch` to indicate that the content should track a branch
+reference matching the containing control repo branch. For example, if a
+Puppetfile containing a Git content declaration is in the "testing" branch
+of a control repo, a setting of `:control_branch` will attempt to deploy that
+content from a "testing" branch of the content repo.
+
+Additionally, you can specify a `:default_branch` option which is the branch
+reference that content will be deployed from if the the given `:ref`, `:tag`,
+`:commit`, or `:branch` option cannot be resolved and deployed. If the desired
+content cannot be resolved and no default branch is given, or if the default
+branch can also not be resolved, an error will be logged and the content will
+not be deployed or updated.
+
+#### :control\_branch Examples
+
+```ruby
+# Deploy content from branch matching control repo branch.
+mod 'hieradata',
+  :git => 'git@git.example.com:organization/hieradata.git',
+  :branch => :control_branch
+
+# Track control branch and fall-back to master if no matching branch.
+mod 'hieradata',
+  :git => 'git@git.example.com:organization/hieradata.git',
+  :branch => :control_branch,
+  :default_branch => 'master'
+```
+
+
+### SVN
+
+Modules can be installed via SVN. If no version is given, the module will track
+the latest version available in the main SVN repository.
+
+    mod 'apache',
+      :svn => 'https://github.com/puppetlabs/puppetlabs-apache/trunk'
+
+If an SVN revision number is specified with `:rev`, `:revision`, or `:version`,
+that SVN revision will be kept checked out.
+
+    mod 'apache',
+      :svn => 'https://github.com/puppetlabs/puppetlabs-apache/trunk',
+      :rev => '154'
+
+    mod 'apache',
+      :svn      => 'https://github.com/puppetlabs/puppetlabs-apache/trunk',
+      :revision => '154'
+
+    mod 'apache',
+      type:    'svn',
+      source:  'https://github.com/puppetlabs/puppetlabs-apache/trunk',
+      version: '154'
+
+If the SVN repository requires credentials, you can supply the `:username` and
+`:password` options.
+
+    mod 'apache',
+      :svn      => 'https://github.com/puppetlabs/puppetlabs-apache/trunk',
+      :username => 'azurediamond',
+      :password => 'hunter2'
+
+**Note**: SVN credentials are passed as command line options, so the SVN
+credentials may be visible in the process table when r10k is running. If you
+choose to supply SVN credentials make sure that the system running r10k is
+appropriately secured.
+
+### Tarball
+
+Modules can be installed from tarball archives. A tarball module must specify a source URL to retreive the tarball content from. A tarball module may optionally specify a sha256 checksum as the module version.
+
+    mod 'puppetlabs-apache',
+      type: 'tarball',
+      source: 'https://repo.example.com/puppet/modules/puppetlabs-apache-7.0.0.tar.gz',
+      version: 'aedd6dc1a5136c6a1a1ec2f285df2a70b0fe4c9effb254b5a1f58116e4c1659e' # sha256 digest
+
+If no version is specified, a tarball will be downloaded from the given source and cached. The cache will not be invalidated until the source URL is changed, or a sha256 checksum version is provided.
+
+Tarball module content will be unpacked directly into an appropriately named module directory. For example, the puppetlabs-apache-7.0.0.tar.gz archive in the example above will be unpacked into `<environment-dir>/modules/apache/`.
+
+### Local
+
+In the event you want to store locally written modules in your r10k-managed
+repository in the Puppetfile managed path, you can use the `:local` type.
+
+For instance, if you have a Git repository with the following structure:
+
+```
+# tree -L 2
+.
+├── environment.conf
+├── modules
+│   └── local_module
+└── Puppetfile
+
+4 directories, 2 files
+```
+
+And you want to prevent `local_module` from being removed, you can add a 'local'
+module in your Puppetfile:
+
+```
+mod 'local_module', :local => true
+
+# Include your other modules as normal
+mod 'branan/eight_hundred'
+mod 'puppetlabs/apache'
+```
+
+If you run r10k against this Git branch, you'll get the following:
+
+```
+# tree -L 2
+.
+├── environment.conf
+├── modules
+│   ├── apache
+│   ├── eight_hundred
+│   └── local_module
+└── Puppetfile
+
+4 directories, 2 files
+```
+
+#### Caveats
+
+This is a workaround for r10k not being able to determine that modules
+created via VCS should not be purged, but is not meant to be a long term
+solution. The general practice around having local and remote modules in the
+same Git repository is to move modules versioned into a separate directory, like
+so:
+
+```
+# tree -L 2
+.
+├── environment.conf
+├── site-modules
+│   └── local_module
+├── modules
+│   ├── apache
+│   └── eight_hundred
+└── Puppetfile
+
+4 directories, 2 files
+```
+
+Moving modules stored in the Git repository into a separate directory will
+remove the need to have Puppetfile entries for every locally versioned Puppet
+module.
+
+For more information see the [FAQ entry](faq.mkd#how-do-i-prevent-r10k-from-removing-modules-in-the-modules-directory-of-my-git-repository)
+on managing internal and external modules in the same directory.
+
+### Per-Item spec dir deployment
+
+During deployment, r10k's default behavior is to deploy the spec directory. The
+Puppetfile can modify this per module, overriding settings from the default
+r10k config. The following example sets the module to not deploy the spec
+directory.
+
+```
+mod 'apache',
+  :git => 'git@github.com:puppetlabs/puppetlabs-apache.git',
+  :exclude_spec => true
+```
+
+### Per-Item Install Path
+
+Git and SVN content types support installing into an alternate path without changing
+the value of moduledir by specifying an 'install\_path' option:
+
+```
+# This will install the 'apache' module into 'external/apache'.
+mod 'apache',
+  :git => 'git@github.com:puppetlabs/puppetlabs-apache.git',
+  :install_path => 'external'
+```
+
+The given 'install\_path' can be an absolute path or a path relative to the base of
+the environment. Note that r10k will exit with an error if you attempt to set the
+'path' option to a directory outside of the environment.

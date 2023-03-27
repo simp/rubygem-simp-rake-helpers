@@ -1,0 +1,53 @@
+---
+fqdn: foo.example.com
+hostname: foo
+defaultgateway: 10.0.2.2
+dhcp_servers:
+  eth0: 10.0.2.2
+  system: 10.0.2.2
+domain: example.com
+gce:
+  instance:
+    networkInterfaces:
+      ip: 10.0.2.15
+ipaddress: 10.0.2.15
+ipaddress_eth0: 10.0.2.15
+network: 10.0.2.0
+network_eth0: 10.0.2.0
+netmask: 255.255.255.0
+netmask_eth0: 255.255.255.0
+networking:
+  dhcp: 10.0.2.2
+  domain: example.com
+  fqdn: foo.example.com
+  hostname: foo
+  interfaces:
+    eth0:
+      bindings:
+      - address: 10.0.2.15
+        netmask: 255.255.255.0
+        network: 10.0.2.0
+      dhcp: 10.0.2.2
+      ip: 10.0.2.15
+      netmask: 255.255.255.0
+      network: 10.0.2.0
+  ip: 10.0.2.15
+  netmask: 255.255.255.0
+  network: 10.0.2.0
+  primary: eth0
+puppet_settings:
+  main:
+    certname: foo.example.com
+    hostcsr: "/etc/puppetlabs/puppet/ssl/csr_foo.example.com.pem"
+    hostcert: "/etc/puppetlabs/puppet/ssl/certs/foo.example.com.pem"
+    hostprivkey: "/etc/puppetlabs/puppet/ssl/private_keys/foo.example.com.pem"
+    hostpubkey: "/etc/puppetlabs/puppet/ssl/public_keys/foo.example.com.pem"
+  ca:
+    ca_name: 'Puppet CA: foo.example.com'
+  agent:
+    node_name_value: foo.example.com
+    srv_domain: example.com
+  tagmail:
+    reportfrom: foo.example.com
+    smtphelo: foo.example.com
+clientcert: foo.example.com

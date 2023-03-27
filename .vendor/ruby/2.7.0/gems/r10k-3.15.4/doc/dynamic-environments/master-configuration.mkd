@@ -1,0 +1,40 @@
+Puppet master configuration
+===========================
+
+In order to use environments, your Puppet masters will need to be
+configured to load manifests and modules relative to the requested environment.
+
+This is the default behavior in Puppet 4+
+
+This behavior is controled by the following settings
+(listed with their default values):
+
+```
+codedir = /etc/puppetlabs/code
+environmentpath = $codedir/environments
+basemodulepath = $codedir/modules:/opt/puppetlabs/puppet/share/modules
+```
+
+The environment requested by the agent or assigned to it by an ENC is looked
+for at `$environmentpath/$environment`.
+
+That environment may have an environment.conf file in its base directory that
+specifies its own modulepath. If not, the default computed modulepath for that
+environment is `$environmentpath/$environment/modules:$basemodulepath`.
+
+These configuration variables are documented at
+[Puppet Configuration Reference](https://puppet.com/docs/puppet/latest/configuration.html)
+and their interaction in forming the modulepath is documented at
+[Directories and the Modulepath](https://puppet.com/docs/puppet/latest/dirs_modulepath.html).
+More information can be found about environments in general at
+[Creating Environmnets](https://puppet.com/docs/puppet/latest/environments_creating.html).
+
+The evolution to using environments in this way was a gradual one from community
+conventions to supported feature and there were several intermediate stages that
+had different configuration requirements within the puppet.conf. Some Puppet
+documentation from the 3.x and 4.x series may no longer be applicable to the
+above which solidified in Puppet 4.x.
+
+If you need to upgrade away from any intermediate setup see
+[Environments in Puppet 3.8](https://puppet.com/docs/puppet/3.8/environments.html)
+for examples that may help.

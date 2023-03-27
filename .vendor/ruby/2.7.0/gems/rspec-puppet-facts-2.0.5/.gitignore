@@ -1,0 +1,11 @@
+*.gem
+*.swp
+Gemfile.lock
+.vagrant/
+.bundle/
+coverage/
+.idea
+doc
+.yardoc
+vendor/
+.vendor/

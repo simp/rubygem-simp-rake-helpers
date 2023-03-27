@@ -1,0 +1,42 @@
+<%
+  if ENV['BEAKER_HYPERVISOR']
+    hypervisor = ENV['BEAKER_HYPERVISOR']
+  else
+    hypervisor = 'vagrant'
+  end
+-%>
+HOSTS:
+  el7:
+    roles:
+      - default
+      - el7
+    platform: el-7-x86_64
+    box: centos/7
+    hypervisor: <%= hypervisor %>
+
+  el8:
+    roles:
+      - el8
+    platform: el-8-x86_64
+    box: centos/stream8
+    hypervisor: <%= hypervisor %>
+
+CONFIG:
+  multi_node: <%= ['yes','true'].include?(ENV['BEAKER_multi_node']) ? true : false %>
+  log_level: verbose
+  type: aio
+  vagrant_cpus: 2
+<% if ENV['BEAKER_PUPPET_COLLECTION'] -%>
+  puppet_collection: <%= ENV['BEAKER_PUPPET_COLLECTION'] %>
+<% end -%>
+  ssh:
+    keepalive: true
+    keepalive_interval: 10
+    host_key:
+      - <%= Net::SSH::Transport::Algorithms::ALGORITHMS[:host_key].join("\n#{' '*6}- ") %>
+    kex:
+      - <%= Net::SSH::Transport::Algorithms::ALGORITHMS[:kex].join("\n#{' '*6}- ") %>
+    encryption:
+      - <%= Net::SSH::Transport::Algorithms::ALGORITHMS[:encryption].join("\n#{' '*6}- ") %>
+    hmac:
+      - <%= Net::SSH::Transport::Algorithms::ALGORITHMS[:hmac].join("\n#{' '*6}- ") %>

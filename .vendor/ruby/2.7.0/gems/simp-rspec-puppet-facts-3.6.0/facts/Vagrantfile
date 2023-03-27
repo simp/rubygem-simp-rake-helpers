@@ -1,0 +1,236 @@
+# Vagrantfile API/syntax version. Don't touch unless you know what you're doing!
+VAGRANTFILE_API_VERSION = '2'
+
+# Used with google provider unless ENV['GOOGLE_ZONE'] is set
+DEFAULT_GOOGLE_ZONE = 'us-east1-b'
+
+VM_FQDN = 'foo.example.com'
+
+GOOGLE_PROJECT_ID = ENV.fetch('GOOGLE_CLOUD_PROJECT_ID', nil)
+
+unless GOOGLE_PROJECT_ID
+  $stderr.puts("Warning: GOOGLE_CLOUD_PROJECT_ID not set, will not use GCE")
+end
+
+VALID_OS_TYPES = [
+  'CENTOS',
+  'OEL',
+  'RHEL'
+]
+
+found_os = false
+
+VALID_OS_TYPES.each do |os|
+  if ENV.fetch(os, nil)
+    found_os = true
+    break
+  end
+end
+
+unless found_os
+  $stderr.puts("Error: You must set one of ['#{VALID_OS_TYPES.join(', ')}'] as an environment variable to 'yes'")
+  exit 1
+end
+
+if Dir.glob('modules/*').empty?
+  $stderr.puts('No modules found in the "modules" directory. Hit ^C to exit or Enter to proceed.')
+  $stdin.gets
+end
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  config.vm.hostname = VM_FQDN
+
+  config.vm.provider 'virtualbox' do |vb|
+    # centos/* boxes don't install vbox guest additions
+    unless Vagrant.has_plugin?('vagrant-vbguest')
+      msg = 'ERROR: plugin `vagrant-vbguest` is missing.  To fix, run:' +
+            "\n\n\tvagrant plugin install vagrant-vbguest\n\n"
+      warn msg unless @_msg
+      @_msg = msg
+      exit 99
+    end
+  end
+
+  if GOOGLE_PROJECT_ID
+    # Reference: https://github.com/mitchellh/vagrant-google#configuration
+    config.vm.provider 'google' do |google, override|
+
+      # The Client Email address for your Service Account
+      google.google_project_id = ENV.fetch('GOOGLE_CLOUD_PROJECT_ID')
+
+      # The Client Email address for your Service Account
+      #  (it should end with gserviceaccount.com)
+      google.google_client_email = ENV.fetch('GOOGLE_CLIENT_EMAIL')
+
+      if ENV.key? 'GOOGLE_KEY_LOCATION'
+        # The location of the P12 private key file matching your Service Account.
+        google.google__key_location = ENV['GOOGLE_KEY_LOCATION']
+      else
+        # The location of the JSON private key file matching your Service Account.
+        # "/path/to/your/private-key.json"
+        google.google_json_key_location = ENV.fetch('GOOGLE_JSON_KEY_LOCATION')
+      end
+
+      # The zone name where the instance will be created.
+      # Make sure to set this to trigger the zone_config
+      google.zone = _zone = ENV.fetch('GOOGLE_ZONE', DEFAULT_GOOGLE_ZONE)
+
+      google.zone_config _zone do |zone|
+      #    zone.name = 'vagrant-rspec-puppet-facts'
+          zone.machine_type = ENV['GOOGLE_MACHINE_TYPE'] || 'g1-small'
+          zone.zone = _zone
+          zone.metadata = {'custom' => 'metadata', 'testing' => 'foobarbaz'}
+          zone.scopes = ['monitoring', 'https://www.googleapis.com/auth/compute']
+          zone.tags = ['vagrant', 'simp-rspec-puppet-facts', 'temporary']
+      end
+
+      override.ssh.username = ENV.fetch('GOOGLE_SSH_USERNAME')
+      override.ssh.private_key_path = ENV.fetch('GOOGLE_SSH_KEY', '~/.ssh/id_rsa')
+      override.vm.box = 'google/gce'
+    end
+  end
+
+  # Optional: RHEL subscription information
+  #
+  # A licensed RHEL subscription is required to use yum to configure VMs, and
+  # yum is needed to sey up the environment to collect most SIMP facter facts.
+  #
+  # Some providers' images (e.g., Google) already have RHEL subscriptions.
+  # However, if yours doesn't (ex: virtualbox), you can install the vagrant
+  # plugin `vagrant-registration` and set the RHEL_SUB_* environment variables
+  # below:
+  if Vagrant.has_plugin?('vagrant-registration')
+    if ENV['RHEL_SUB_USERNAME'] && ENV['RHEL_SUB_PASSWORD']
+      ENV['RHEL'] = 'yes'
+      config.registration.username = ENV['RHEL_SUB_USERNAME']
+      config.registration.password = ENV['RHEL_SUB_PASSWORD']
+    elsif ENV['RHEL_SUB_ORG'] && ENV['RHEL_SUB_ACTIVATIONKEY']
+      ENV['RHEL'] = 'yes'
+      config.registration.org = ENV['RHEL_SUB_ORG']
+      config.registration.activationkey = ENV['RHEL_SUB_ACTIVATIONKEY']
+    end
+  end
+
+  # The centos/* machines won't support vboxsf
+  # config.vm.synced_folder ".", "/vagrant", type: "rsync", rsync__exclude: ['.git/']
+  config.vm.synced_folder ".", "/vagrant", type: "virtualbox"
+
+  if ENV['CENTOS'] == 'yes'
+    config.vm.define "centos-6-x86_64" do |host|
+      host.vm.provider 'virtualbox' do |vb,override|
+        override.vm.box = "centos/6"
+      end
+
+      if GOOGLE_PROJECT_ID
+        host.vm.provider 'google' do |google,override|
+          google.name = 'foo-centos6-64'
+          google.zone = ENV.fetch('GOOGLE_ZONE', DEFAULT_GOOGLE_ZONE)
+          google.zone_config ENV.fetch('GOOGLE_ZONE', DEFAULT_GOOGLE_ZONE) do |zone|
+            zone.image = 'centos-6-v20170717'
+          end
+        end
+      end
+
+      host.vm.provision "file", source: "Gemfile", destination: "Gemfile"
+      host.vm.provision "shell", path: "scripts/get_facts_for_each_facter.sh", args: "'centos 6'"
+      host.vm.provision "shell", inline: "/sbin/shutdown -h now" unless ENV['SHUTDOWN'] == 'no'
+    end
+
+    config.vm.define "centos-7-x86_64" do |host|
+      host.vm.provider 'virtualbox' do |vb,override|
+        override.vm.box = "centos/7"
+      end
+
+      if GOOGLE_PROJECT_ID
+        host.vm.provider 'google' do |google,override|
+          google.name = 'foo-centos7-64'
+          google.zone = ENV.fetch('GOOGLE_ZONE', DEFAULT_GOOGLE_ZONE)
+          google.zone_config ENV.fetch('GOOGLE_ZONE', DEFAULT_GOOGLE_ZONE) do |zone|
+            zone.image = 'centos-7-v20170719'
+          end
+        end
+      end
+
+      host.vm.provision "file", source: "Gemfile", destination: "Gemfile"
+      host.vm.provision "shell", path: "scripts/get_facts_for_each_facter.sh", args: "'centos 7'"
+      host.vm.provision "shell", inline: "/sbin/shutdown -h now" unless ENV['SHUTDOWN'] == 'no'
+    end
+  end
+
+  if ENV['OEL'] == 'yes'
+    config.vm.define "oel-6-x86_64" do |host|
+      host.vm.provider 'virtualbox' do |vb,override|
+        override.vm.box = "elastic/oel-6-x86_64"
+      end
+      host.vm.provision "file", source: "Gemfile", destination: "Gemfile"
+      host.vm.provision "shell", path: "scripts/get_facts_for_each_facter.sh", args: "'centos 6'"
+      host.vm.provision "shell", inline: "/sbin/shutdown -h now" unless ENV['SHUTDOWN'] == 'no'
+    end
+
+    config.vm.define "oel-7-x86_64" do |host|
+      host.vm.provider 'virtualbox' do |vb,override|
+        override.vm.box = "elastic/oel-7-x86_64"
+      end
+      host.vm.provision "file", source: "Gemfile", destination: "Gemfile"
+      host.vm.provision "shell", path: "scripts/get_facts_for_each_facter.sh", args: "'centos 7'"
+      host.vm.provision "shell", inline: "/sbin/shutdown -h now" unless ENV['SHUTDOWN'] == 'no'
+    end
+  end
+
+  if ENV['RHEL'] == 'yes'
+    config.vm.define "redhat-6-x86_64" do |host|
+      os = 'redhat'
+      ver = '6'
+      if Vagrant.has_plugin?('vagrant-rsync-back')
+        config.vm.synced_folder ".", "/vagrant", type: "rsync", rsync__exclude: [".git/", ".idea/"], args: ['--verbose', '--archive', '--delete', '-z', '--prune-empty-dirs', "--include='*/'",  "--include='#{os}-#{ver}-x86_64.facts'", "--exclude='*'"]
+      end
+
+      config.vm.provider 'virtualbox' do |vb,override|
+        override.vm.box = "anandbitra/redhat-6.5"
+      end
+
+      if GOOGLE_PROJECT_ID
+        host.vm.provider 'google' do |google,override|
+          google.zone = ENV.fetch('GOOGLE_ZONE', DEFAULT_GOOGLE_ZONE)
+          google.zone_config ENV.fetch('GOOGLE_ZONE', DEFAULT_GOOGLE_ZONE) do |zone|
+            zone.image = 'rhel-6-v20170717'
+          end
+        end
+      end
+
+      host.vm.provision "file", source: "Gemfile", destination: "Gemfile"
+      host.vm.provision "shell", path: "scripts/get_facts_for_each_facter.sh", args: "'#{os} #{ver}'"
+      host.vm.provision "shell", inline: "/sbin/shutdown -h now" unless ENV['SHUTDOWN'] == 'no'
+    end
+
+     config.vm.define "redhat-7-x86_64" do |host|
+       os = 'redhat'
+       ver = '7'
+       # host.vm.hostname = 'redhat-7-x86_64'
+       if Vagrant.has_plugin?('vagrant-rsync-back')
+         config.vm.synced_folder ".", "/vagrant", type: "rsync", rsync__exclude: [".git/", ".idea/"], args: ['--verbose', '--archive', '--delete', '-z', '--prune-empty-dirs', "--include='*/'",  "--include='#{os}-#{ver}-x86_64.facts'", "--exclude='*'"]
+       end
+
+       host.vm.provider 'virtualbox' do |vb,override|
+         override.vm.box = "mrlesmithjr/rhel-7"
+       end
+
+       if GOOGLE_PROJECT_ID
+         host.vm.provider 'google' do |google,override|
+           # google.name = 'foo'
+           google.zone = ENV.fetch('GOOGLE_ZONE', DEFAULT_GOOGLE_ZONE)
+           google.zone_config ENV.fetch('GOOGLE_ZONE', DEFAULT_GOOGLE_ZONE) do |zone|
+             zone.image = 'rhel-7-v20170719'
+           end
+         end
+       end
+
+       host.vm.provision "file", source: "Gemfile", destination: "Gemfile"
+       host.vm.provision "shell", path: "scripts/get_facts_for_each_facter.sh", args: "'#{os} #{ver}'"
+       host.vm.provision "shell", inline: "/sbin/shutdown -h now" unless ENV['SHUTDOWN'] == 'no'
+     end
+  end
+end
+
+# -*- mode: ruby -*-
+# vi: set ft=ruby :

@@ -1,0 +1,16 @@
+---
+HOSTS:
+  el7.beaker.test:
+    roles:
+    - linux
+    - default
+    platform: el-7-x86_64
+    box: centos/7
+    hypervisor: "<%= ENV.fetch('BEAKER_HYPERVISOR', 'vagrant') %>"
+    family: centos-cloud/centos-7
+    gce_machine_type: n1-standard-2
+CONFIG:
+  validate: false
+  log_level: verbose
+  type: aio
+  puppet_collection: "<%= ENV.fetch('BEAKER_PUPPET_COLLECTION', 'puppet7') %>"

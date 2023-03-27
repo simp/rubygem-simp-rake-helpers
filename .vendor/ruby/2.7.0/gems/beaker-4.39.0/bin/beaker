@@ -1,0 +1,13 @@
+#!/usr/bin/env ruby
+
+require 'rubygems' unless defined?(Gem)
+require 'beaker'
+
+if Beaker::Subcommands::SubcommandUtil.execute_subcommand?(ARGV[0])
+  Beaker::Subcommand.start(ARGV)
+else
+  Beaker::CLI.new.parse_options.provision.execute!
+  puts "Beaker completed successfully, thanks."
+end
+
+exit 0

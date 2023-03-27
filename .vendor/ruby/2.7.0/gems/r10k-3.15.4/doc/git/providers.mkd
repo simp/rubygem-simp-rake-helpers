@@ -1,0 +1,133 @@
+Git Providers
+=============
+
+As of 1.5.0, r10k can interact with Git repositories using multiple Git
+providers.
+
+Shellgit
+--------
+
+The shellgit provider is the original Git provider that is based on shelling out
+to the `git` binary. It relies on the standard set of Git userland executables
+in order to work.
+
+The shellgit provider is the default Git provider in order to maintain
+compatibility with existing r10k installations.
+
+### Requirements
+
+The shellgit provider requires that `git` can be found on the `PATH` environment
+variable. This can be done by installing the git package via the system package
+manager.
+
+### SSH Configuration
+
+Because the shellgit provider relies on the `git` command which in turn uses the
+`ssh` binary as the SSH transport layer, configuring access to Git repositories
+over SSH is done by configuring the underlying `ssh` command.
+
+Rugged
+------
+
+The rugged provider is based on the [libgit2](https://github.com/libgit2/libgit2)
+library and the Ruby [rugged gem](https://github.com/libgit2/rugged).
+
+### SSH Configuration
+
+Since the rugged provider does not read ~/.ssh if using SSH based Git
+repositories, the 'private_key' option must be provided. An optional 'username'
+field can be provided when the Git remote URL does not provide a username.
+
+```yaml
+git:
+  private_key: '/root/.ssh/id_rsa'
+  username: 'git'
+```
+
+If you have per repository private keys you can add them with the repositories list.
+
+```yaml
+git:
+  # default private key
+  private_key: '/root/.ssh/id_rsa'
+  repositories:
+    - remote: "git@github.com:my_org/private_repo"
+      # private key for this repo only
+      private_key: '/root/.ssh/private_repo_id'
+```
+
+### HTTPS Configuration
+
+Public HTTPS based Git repositories can be accessed with no additional settings.
+For repos that do require authentication, the 'oauth_token' option may be provided.
+
+```yaml
+git:
+  oauth_token: '/etc/puppetlabs/r10k/token'
+```
+
+If you have per repository access tokens you can add them with the repositories list.
+
+```yaml
+git:
+  # default access token
+  oauth_token: '/etc/puppetlabs/r10k/token'
+  repositories:
+    - remote: "https://github.com/my_org/private_repo.git"
+      # access token for this repo only
+      oauth_token: '/etc/puppetlabs/r10k/private_repo_token'
+```
+
+#### Supported transports with Rugged
+
+Rugged compiles libgit2 and and the Ruby bindings when the gem is installed. You
+may need libraries installed before you install the gem to use certain protocols
+to access git remote repositories.
+
+For ssh support, you need to have libssh2 installed (along with the relevant dev
+package/headers) before you install the Rugged gem.
+
+For https support on Linux, you need to have OpenSSL installed (along with the
+relevant dev package/headers) before you install the Rugged gem. OS X and
+Windows support should automatically include https support.
+
+You can check whether https or ssh support is included in your Rugged
+installation by using the following in irb and making sure the required feature
+is listed:
+
+```ruby
+irb(main):001:0> require('rugged')
+=> true
+irb(main):002:0> Rugged.features
+=> [:threads, :https, :ssh]
+irb(main):003:0>
+```
+You will require the ':https' or ':ssh' features to use the respective protocols
+in your Puppetfile module references or in r10k.yaml. R10K 2.0.0 and later will
+automatically issue a warning if either feature is missing.
+
+libssh2 on Debian and Ubuntu is compiled against libgcrypto instead of OpenSSL
+[due to licensing reasons](https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=668271), and
+unfortunately libgcrypto does not support a number of required operations,
+including reading from a private key file. You will need to either use shellgit
+or recompile your own libssh2-1 package to use OpenSSL on these distributions.
+If you see the following error message, this is the likely cause:
+
+    Failed to authenticate SSH session: Unable to extract public key from private key file: Method unimplemented in libgcrypt backend at /var/cache/r10k/ssh---git@git.example.com-sys-puppet.git
+
+Configuration
+-------------
+
+R10K will attempt to use the shellgit provider, then fall back to the rugged
+provider, and then hard fail if no Git provider is available.
+
+The Git provider in use can be manually specified by specifying the desired
+provider in r10k.yaml.
+
+```yaml
+git:
+  provider: 'rugged'
+```
+
+Valid values are 'rugged' and 'shellgit'. If an invalid value is used r10k will
+raise an error.

@@ -1,0 +1,32 @@
+#!/usr/bin/env ruby
+
+require 'rubygems' unless defined?(Gem)
+require 'beaker-vagrant'
+
+VERSION_STRING =
+"
+                                 _ .--.
+                                ( `    )
+        beaker-vagrant        .-'      `--,
+                  _..----.. (             )`-.
+                .'_|` _|` _|(  .__,           )
+               /_|  _|  _|  _(        (_,  .-'
+              ;|  _|  _|  _|  '-'__,--'`--'
+              | _|  _|  _|  _| |
+          _   ||  _|  _|  _|  _| %s
+        _( `--.\\_|  _|  _|  _|/
+     .-'       )--,|  _|  _|.`
+    (__, (_      ) )_|  _| /
+      `-.__.\\ _,--'\\|__|__/
+                    ;____;
+                     \\YT/
+                      ||
+                     |\"\"|
+                     '=='
+"
+
+
+
+puts BeakerVagrant::Version
+
+exit 0

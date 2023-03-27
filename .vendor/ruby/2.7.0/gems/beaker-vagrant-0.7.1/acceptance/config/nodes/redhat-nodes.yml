@@ -1,0 +1,25 @@
+HOSTS:
+  redhat7-64-1:
+    roles:
+      - master
+      - agent
+      - dashboard
+      - databse
+      - classifier
+      - default
+    platform: el-7-x86_64
+    template: redhat-7-x86_64
+    box: centos/7
+    box_url: https://app.vagrantup.com/centos/boxes/7
+    hypervisor: vagrant
+  redhat7-64-2:
+    roles:
+      - agent
+    platform: el-7-x86_64
+    template: redhat-7-x86_64
+    box: centos/7
+    box_url: https://app.vagrantup.com/centos/boxes/7
+    hypervisor: vagrant
+CONFIG:
+  nfs_server: none
+  consoleport: 443

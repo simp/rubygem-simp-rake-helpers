@@ -1,0 +1,140 @@
+---
+# This example configuration details the most commonly used configuration
+# options for the `r10k deploy` command.
+#
+
+# The 'cachedir' setting controls where cached content, such as mirrored Git
+# repositories, are stored on the local machine. This location should be
+# persistent, as environments and modules may rely on these files in order to
+# be updated.
+#
+# The default value is "~/.r10k"
+#cachedir: '/var/cache/r10k'
+
+# The 'proxy' setting configures an HTTP proxy to use for all HTTP/HTTPS
+# operations performed by r10k. This includes requests to the Puppet Forge
+# as well as any Git operations performed against an HTTP/HTTPS remote.
+# You can also configure specific proxies for only Git or Forge operations
+# using settings below. Authenticated proxies can be configured by providing
+# credentials in the URL, e.g. 'https://username:password@proxy.example.com:8888'
+#proxy: 'https://proxy.example.com:8888'
+
+# The 'sources' setting determines what repositories r10k will use when creating
+# Puppet environments.
+sources:
+  # Each source should have a unique name, and preferrably should only use
+  # alphanumeric characters and underscores.
+  #operations:
+    # The 'remote' setting determines the location of the VCS repository used
+    # for creating environments.
+    #remote: 'git@github.com:my-org/org-operations-modules'
+
+    # The 'basedir' setting specifies where environments will be created for
+    # this source. This setting should match the Puppet 'environmentpath'
+    # setting in puppet.conf.
+    #
+    # See http://docs.puppetlabs.com/references/latest/configuration.html#environmentpath
+    # for more information about the Puppet 'environmentpath' setting.
+    #basedir: '/etc/puppetlabs/puppet/environments'
+
+    # The Puppetfile filename in the repo, defaults to 'Puppetfile'. This
+    # setting can be used, to allow custom Puppetfile names to allow hybrid
+    # use of librarian-puppet (transitive dependency resolution) and r10k
+    # (code management on the server).
+    #puppetfile_name: 'Puppetfile.r10k'
+
+  # One or more sources can be specified; each source is simple another entry
+  # in the sources map.
+  #qa:
+    #remote: 'git@github.com:my-org/org-qa-modules'
+
+    # Multiple sources can have the same 'basedir' setting, in case there is a
+    # reason to push different sets of environments to the same Puppet master.
+    # If two different sources have the same basedir care should be exercised
+    # to make sure that two sources don't try create multiple environments with
+    # the same name. See the 'prefix' setting for more information.
+    #basedir: '/etc/puppetlabs/puppet/environments'
+
+    # Sources can use the 'prefix' setting to avoid collisions between multiple
+    # sources being created in the same directory. Setting prefix to true
+    # prepends the source name and an underscore to each environment, so for
+    # the qa source the "production" branch will create the "qa_production"
+    # branch.
+    #
+    # The default value is 'false'.
+    #prefix: true
+
+# Additional configuration can be supplied to configure how r10k uses Git
+# and what version of Git it uses.
+git:
+
+  # As of 1.5.0 r10k can interact with Git repositories in two ways - by
+  # shelling out to the 'git' executable, and by using libgit2 through the
+  # 'rugged' library.
+  #provider: 'shellgit' # Either 'shellgit' or 'rugged', defaults to 'shellgit'
+
+  # The 'private_key' setting sets the the SSH private key to use for remote
+  # Git repositories accessed over SSH.
+  #
+  # The 'private_key' setting is only used by the 'rugged' Git provider.
+  #private_key: '/root/.ssh/id_rsa'
+
+  # The 'username' setting sets the SSH username for remote Git repositories
+  # when a username is not provided in the URL. The username defaults to the
+  # current user.
+  #
+  # The 'username' setting is only used by the 'rugged' Git provider.
+  #username: 'git'
+
+  # The 'proxy' setting configures an HTTP proxy to use for all Git sources
+  # that have an HTTP/HTTPS remote URL. This can be overridden on a
+  # per-repository basis using the 'repositories' setting below.
+  #proxy: 'https://proxy.example.com:8888'
+
+  # The 'repositories' setting allows other git related settings to be
+  # configured for each remote repository individually. The value of
+  # this setting should be a list of repositories with a 'remote' key
+  # to identify the specific repository to be configured.
+  #repositories:
+  # - remote: "ssh://tessier-ashpool.freeside/protected-repo.git"
+  #   private_key: "/etc/puppetlabs/r10k/ssh/id_rsa-protected-repo-deploy-key"
+  #   proxy: 'https://proxy.example.com:8888'
+
+# Configuration options for downloading modules from the Puppet Forge
+forge:
+  # The 'proxy' setting specifies an optional HTTP proxy to use when making
+  # requests to the Puppet Forge. This will override the top level 'proxy'
+  # option or any proxy related environment variables when configured.
+  #proxy: 'https://proxy.example.com:8888'
+
+  # The 'baseurl' setting indicates where Forge modules should be installed
+  # from. This defaults to 'https://forgeapi.puppetlabs.com'
+  #baseurl: 'https://forgemirror.example.com'
+
+# Configuration options on how R10k should log its actions
+logging:
+  # The 'level' setting sets the default log level to run R10k actions at.
+  # This value will be overridden by any value set through the command line.
+  #level: warn
+
+  # Specify additional log outputs here, any log4r outputter can be used.
+  # If no log level is specified then the output will use the global level.
+  #outputs:
+  # - type: file
+  #   level: debug
+  #   parameters:
+  #     filename: /var/log/r10k.log
+  #     trunc: true
+  # - type: syslog
+  # - type: email
+  #   only_at: [fatal]
+  #   parameters:
+  #     from: r10k@example.com
+  #     to: sysadmins@example.com
+  #     server: smtp.example.com
+  #     subject: Fatal R10k error occurred
+
+  # The 'disable_default_stderr' setting specifies if the default output on
+  # stderr should be active or not, in case R10k is to be run entirely
+  # through scripts or cronjobs where console output is unwelcome.
+  #disable_default_stderr: false

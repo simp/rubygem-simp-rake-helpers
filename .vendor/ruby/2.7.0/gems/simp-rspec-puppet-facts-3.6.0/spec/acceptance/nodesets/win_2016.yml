@@ -1,0 +1,30 @@
+---
+HOSTS:
+  win:
+    roles:
+    - windows
+    platform: windows-server-amd64
+    box: peru/windows-server-2016-standard-x64-eval
+    hypervisor: "<%= ENV.fetch('BEAKER_HYPERVISOR', 'vagrant') %>"
+    vagrant_memsize: 2048
+    vagrant_cpus: 2
+    user: vagrant
+    communicator: winrm
+    is_cygwin: false
+    family: windows-cloud/windows-2016
+    gce_machine_type: n1-standard-2
+CONFIG:
+  log_level: verbose
+  type: aio
+  ssh:
+    keepalive: true
+    keepalive_interval: 10
+    host_key:
+      - <%= Net::SSH::Transport::Algorithms::ALGORITHMS[:host_key].join("\n#{' '*6}- ") %>
+    kex:
+      - <%= Net::SSH::Transport::Algorithms::ALGORITHMS[:kex].join("\n#{' '*6}- ") %>
+    encryption:
+      - <%= Net::SSH::Transport::Algorithms::ALGORITHMS[:encryption].join("\n#{' '*6}- ") %>
+    hmac:
+      - <%= Net::SSH::Transport::Algorithms::ALGORITHMS[:hmac].join("\n#{' '*6}- ") %>
+  puppet_collection: "<%= ENV.fetch('BEAKER_PUPPET_COLLECTION', 'puppet7') %>"

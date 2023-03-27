@@ -1,0 +1,12 @@
+#! /usr/bin/env ruby
+
+lib_dir = File.expand_path(File.dirname(File.dirname(__FILE__)), 'lib')
+$LOAD_PATH.unshift(lib_dir)
+
+require 'beaker-hostgenerator'
+
+begin
+  cli = BeakerHostGenerator::CLI.new
+  cli.execute!
+rescue BeakerHostGenerator::Exceptions::SafeEarlyExit
+end
