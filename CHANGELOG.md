@@ -1,3 +1,12 @@
+### 5.19.0 /2023-03-20
+- Added
+  - `pkg:single` will skip the `require_rebuild?` logic
+    when `SIMP_BUILD_PKG_require_rebuild=yes`
+- Fixed
+  - It was impossible to build simp-doc if RPM was published to yum repos; can
+    now use `SIMP_BUILD_PKG_require_rebuild=yes`
+
+
 ### 5.18.0 /2023-02-27
 - Added
   - `SIMP_BUILD_reposync_only` now excludes RPMs and yum repos from the ISO
