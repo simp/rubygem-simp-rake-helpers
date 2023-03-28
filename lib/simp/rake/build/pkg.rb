@@ -754,7 +754,10 @@ module Simp::Rake::Build
           check_git:         false,
           prefix:            ''
         })
-          return true if ENV['SIMP_BUILD_PKG_require_rebuild'] =~ /\A(yes|always)\Z/i
+          always_require_rebuild = ENV.select{|x| x =~ /SIMP_BUILD_PKG_require_rebuild/i }
+          unless always_require_rebuild.empty?
+            return true if always_require_rebuild =~ /\A(yes|always)\Z/i
+          end
           result = false
           rpm_metadata = File.exist?(@rpm_dependency_file) ? YAML.load(File.read(@rpm_dependency_file)) : {}
           dir_relpath = Pathname.new(dir).relative_path_from(Pathname.new(Dir.pwd)).to_path
