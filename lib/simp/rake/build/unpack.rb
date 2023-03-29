@@ -118,6 +118,9 @@ module Simp::Rake::Build
             print "#"
           end
         end
+
+        # The repodata directory needs to exist (but not be copied) for el7 distros
+        FileUtils.mkdir("#{out_dir}/repodata") if version.start_with?('7')
       end
     end
   end
