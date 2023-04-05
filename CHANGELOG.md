@@ -1,3 +1,8 @@
+### 5.19.1 /2023-03-27
+- Added
+  - Allow `SIMP_BUILD_PKG_require_rebuild` to be case-insensitive to
+    accommodate GHA
+
 ### 5.19.0 /2023-03-20
 - Added
   - `pkg:single` will skip the `require_rebuild?` logic
