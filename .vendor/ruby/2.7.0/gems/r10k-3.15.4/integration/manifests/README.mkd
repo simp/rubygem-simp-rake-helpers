@@ -1,4 +1,0 @@
-Manifests
-===========================
-
-This folder contains manifests used for testing the r10k project. The manifests are organized by test suite.

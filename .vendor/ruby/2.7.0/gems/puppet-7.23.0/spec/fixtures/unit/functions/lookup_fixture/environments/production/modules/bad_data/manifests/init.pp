@@ -1,2 +1,0 @@
-class bad_data {
-}

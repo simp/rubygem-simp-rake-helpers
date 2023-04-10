@@ -1,3 +1,0 @@
-
-# this shell script always succeeds, and produces output
-echo "output"

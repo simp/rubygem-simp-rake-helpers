@@ -1,4 +1,0 @@
-Lib
-===========================
-
-This folder contains Ruby files that extends Beaker.

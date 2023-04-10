@@ -1,3 +1,0 @@
-application test_app {
-
-}

@@ -1,6 +1,0 @@
-:backends:
-  - json
-
-:hierarchy:
-  - role
-  - "%{hiera('role')}"
