@@ -9,11 +9,17 @@ stages:
   - acceptance
   - deploy
 
-image: 'ruby:2.5'
+image: 'ruby:2.7'
 
 variables:
+  # PUPPET_VERSION is a canary variable!
+  #
+  # The value `UNDEFINED` will (intentionally) cause `bundler install|update` to
+  # fail.  The intended value for PUPPET_VERSION is provided by the `pup_#` YAML
+  # anchors.  If it is still `UNDEFINED`, all the other setting from the job's
+  # anchor are also missing.
   PUPPET_VERSION:    'UNDEFINED' # <- Matrixed jobs MUST override this (or fail)
-  BUNDLER_VERSION:   '1.17.1'
+  BUNDLER_VERSION:   '2.2.19'
 
   # Force dependencies into a path the gitlab-runner user can write to.
   # (This avoids some failures on Runners with misconfigured ruby environments.)
@@ -23,6 +29,55 @@ variables:
   BUNDLE_BIN:        .vendor/gem_install/bin
   BUNDLE_NO_PRUNE:   'true'
 
+.snippets:
+  before_beaker_google:
+    # Logic for beaker-google environments
+    - echo -e "\e[0Ksection_start:`date +%s`:before_script05[collapsed=true]\r\e[0KGCP environment checks"
+    - "if [ \"$BEAKER_HYPERVISOR\" ==  google ]; then mkdir -p ~/.ssh; chmod 700 ~/.ssh; test -f ~/.ssh/google_compute_engine || ssh-keygen -f ~/.ssh/google_compute_engine < /dev/null; echo 'gem \"beaker-google\"' >> Gemfile.local ; fi"
+    - echo -e "\e[0Ksection_end:`date +%s`:before_script05\r\e[0K"
+
+  before:
+    # Print important environment variables that may affect this job
+    - 'ruby -e "puts %(\n\n), %q(=)*80, %(\nSIMP-relevant Environment Variables:\n\n#{e=ENV.keys.grep(/^PUPPET|^SIMP|^BEAKER|MATRIX|GOOGLE/); pad=((e.map{|x| x.size}.max||0)+1); e.map{|v| %(    * #{%(#{v}:).ljust(pad)} #{39.chr + ENV[v] + 39.chr}\n)}.join}\n),  %q(=)*80, %(\n\n)" || :'
+
+    - echo -e "\e[0Ksection_start:`date +%s`:before_script10[collapsed=true]\r\e[0KDiagnostic ruby & gem information"
+    # Diagnostic ruby & gem information
+    - 'which ruby && ruby --version || :'
+    - "[[ $- == *i* ]] && echo 'Interactive shell session' || echo 'Non-interactive shell session'"
+    - "shopt -q login_shell && echo 'Login shell' || echo 'Not a login shell'"
+    - 'rvm ls || :'
+    - echo -e "\e[0Ksection_end:`date +%s`:before_script10\r\e[0K"
+
+    # If RVM is available, make SURE it's using the right Ruby:
+    #   * Source rvm (to run in non-login shells)
+    #   * Use $MATRIX_RUBY_VERSION ruby, install if not present
+    - echo -e "\e[0Ksection_start:`date +%s`:before_script20[collapsed=true]\r\e[0KEnsure RVM & ruby is installed"
+    - "if command -v rvm; then if declare -p rvm_path &> /dev/null; then source \"${rvm_path}/scripts/rvm\"; else source \"$HOME/.rvm/scripts/rvm\" || source /etc/profile.d/rvm.sh; fi; fi"
+    - "if command -v rvm && ! grep rvm_install_on_use_flag=1 ~/.rvmrc; then echo rvm_install_on_use_flag=1 >> ~/.rvmrc || echo '== WARNING: ~/.rvmrc is missing rvm_install_on_use_flag=1 and I failed to add it'; fi"
+    - "if command -v rvm; then rvm use \"$MATRIX_RUBY_VERSION\"; else echo \"rvm not detected; skipping 'rvm use'\"; fi"
+    - 'ruby --version || :'
+    - 'gem list sync || :'
+    - echo -e "\e[0Ksection_end:`date +%s`:before_script20\r\e[0K"
+
+    # Bundle gems (preferring cached > local > downloaded resources)
+    #   * Try to use cached and local resources before downloading dependencies
+    - echo -e "\e[0Ksection_start:`date +%s`:before_script30[collapsed=true]\r\e[0KBundle gems (preferring cached > local > downloaded resources)"
+    - 'declare GEM_BUNDLER_VER=(-v "~> ${BUNDLER_VERSION:-2.2.6}")'
+    - 'declare GEM_INSTALL_CMD=(gem install --no-document)'
+    - 'declare BUNDLER_INSTALL_CMD=(bundle install --no-binstubs --jobs $(nproc) "${FLAGS[@]}")'
+    - 'mkdir -p ${GEM_HOME} ${BUNDLER_BIN}'
+    - 'gem list -ie "${GEM_BUNDLER_VER[@]}" --silent bundler || "${GEM_INSTALL_CMD[@]}" --local "${GEM_BUNDLER_VER[@]}" bundler || "${GEM_INSTALL_CMD[@]}" "${GEM_BUNDLER_VER[@]}" bundler'
+    - 'rm -rf pkg/ || :'
+    - 'bundle check || rm -f Gemfile.lock && ("${BUNDLER_INSTALL_CMD[@]}" --local || "${BUNDLER_INSTALL_CMD[@]}" || bundle pristine ||  "${BUNDLER_INSTALL_CMD[@]}") || { echo "PIPELINE: Bundler could not install everything (see log output above)" && exit 99 ; }'
+    - echo -e "\e[0Ksection_end:`date +%s`:before_script30\r\e[0K"
+
+    # Diagnostic bundler, ruby, and gem checks:
+    - echo -e "\e[0Ksection_start:`date +%s`:before_script40[collapsed=true]\r\e[0KDiagnostic bundler, ruby, and gem checks"
+    - 'bundle exec rvm ls || :'
+    - 'bundle exec which ruby || :'
+    - 'bundle show sync || :'
+    - 'bundle exec gem list sync || :'
+    - echo -e "\e[0Ksection_end:`date +%s`:before_script40\r\e[0K"
 
 # bundler dependencies and caching
 #
@@ -36,14 +91,7 @@ variables:
     paths:
       - '.vendor'
   before_script:
-    - 'ruby -e "puts %(Environment Variables:\n  * #{ENV.keys.grep(/PUPPET|SIMP|BEAKER|MATRIX/).map{|v| %(#{v} = #{ENV[v]})}.join(%(\n  * ))})"'
-    - 'declare GEM_BUNDLER_VER=(-v "~> ${BUNDLER_VERSION:-1.16.0}")'
-    - 'declare GEM_INSTALL_CMD=(gem install --no-document)'
-    - 'declare BUNDLER_INSTALL_CMD=(bundle install --no-binstubs --jobs $(nproc) "${FLAGS[@]}")'
-    - 'mkdir -p ${GEM_HOME} ${BUNDLER_BIN}'
-    - 'gem list -ie "${GEM_BUNDLER_VER[@]}" --silent bundler || "${GEM_INSTALL_CMD[@]}" --local "${GEM_BUNDLER_VER[@]}" bundler || "${GEM_INSTALL_CMD[@]}" "${GEM_BUNDLER_VER[@]}" bundler'
-    - 'rm -rf pkg/ || :'
-    - 'bundle check || rm -f Gemfile.lock && ("${BUNDLER_INSTALL_CMD[@]}" --local || "${BUNDLER_INSTALL_CMD[@]}" || bundle pristine ||  "${BUNDLER_INSTALL_CMD[@]}") || { echo "PIPELINE: Bundler could not install everything (see log output above)" && exit 99 ; }'
+    !reference [.snippets, before]
 
 
 # To avoid running a prohibitive number of tests every commit,
@@ -55,13 +103,6 @@ variables:
 
 # Puppet Versions
 #-----------------------------------------------------------------------
-
-.pup_5_pe: &pup_5_pe
-  image: 'ruby:2.4'
-  variables:
-    PUPPET_VERSION: '5.5.20'
-    BEAKER_PUPPET_COLLECTION: 'puppet5'
-    MATRIX_RUBY_VERSION: '2.4'
 
 .pup_6_18: &pup_6_18
   image: 'ruby:2.5'
@@ -99,11 +140,6 @@ variables:
   stage: 'acceptance'
   tags: ['beaker']
   <<: *setup_bundler_env
-
-
-# Puppet 5.5 for PE 2018.1 support
-# See: https://puppet.com/misc/puppet-enterprise-lifecycle
-# --------------------------------------
 
 
 pup6.18-validation:
