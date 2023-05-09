@@ -162,7 +162,6 @@ jobs:
         run: |
           echo "${RELEASE_MESSAGE}" > /tmp/.commit-msg.txt
           args=(--file /tmp/.commit-msg.txt)
-          [[ ${{ steps.tag-check.outputs.prerelease }} == yes ]] && args+=(--prerelease)
           [[ $IS_PRERELASE == yes ]] && args+=(--prerelease)
 
   deploy-rubygem:
