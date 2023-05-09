@@ -1,6 +1,9 @@
 ### 5.19.2 /2023-05-09
-- Added
+- Fixed
   - Bumped required puppet version to < 9.0
+  - The base repo for the el7 ISO was unusable because the repodata for it
+    was being excluded on the unpack of the distribution ISO; In the case
+    of building an el7 iso, we now ensure the repodata directory exists.
 
 ### 5.19.1 /2023-03-27
 - Added
