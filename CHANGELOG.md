@@ -1,3 +1,7 @@
+### 5.19.2 /2023-05-09
+- Added
+  - Bumped required puppet version to < 9.0
+
 ### 5.19.1 /2023-03-27
 - Added
   - Allow `SIMP_BUILD_PKG_require_rebuild` to be case-insensitive to
