@@ -80,7 +80,7 @@ class Simp::Ci::Gitlab
     return @gitlab_yaml if @gitlab_yaml
 
     begin
-      @gitlab_yaml = YAML.load_file(@gitlab_config_file)
+      @gitlab_yaml = YAML.load_file(@gitlab_config_file, aliases: true)
     rescue Psych::SyntaxError => e
       msg = "ERROR: Malformed YAML: #{e.message}"
       raise LintError.new(msg)
