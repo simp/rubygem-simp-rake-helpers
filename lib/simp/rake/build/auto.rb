@@ -241,7 +241,7 @@ module Simp::Rake::Build
               fail SIMPBuildException, "ERROR: Mixing `SIMP_BUILD_rm_staging_dir=yes` and `SIMP_BUILD_unpack=no` is silly."
             end
 
-            if File.exists?(output_dir) && !File.directory?(output_dir)
+            if File.exist?(output_dir) && !File.directory?(output_dir)
               fail SIMPBuildException, "ERROR: ISO output dir exists but is not a directory:\n\n" +
                                        "    '#{output_dir}'\n\n"
             end
@@ -521,7 +521,7 @@ module Simp::Rake::Build
           puts '-'*80
 
           FileUtils.rm_rf staging_dir, :verbose => verbose
-        elsif File.exists? staging_dir
+        elsif File.exist? staging_dir
           warn ''
           warn '!'*80
           warn '#### WARNING: staging dir already exists at:'

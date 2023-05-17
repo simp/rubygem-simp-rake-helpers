@@ -5,7 +5,7 @@ require 'yaml'
 
 
 def gitlab_ci_lint( gitlab_ci_url, gitlab_ci_yml_path )
-  unless File.exists? gitlab_ci_yml_path
+  unless File.exist? gitlab_ci_yml_path
     warn "WARNING: no GitLab CI config found at '#{gitlab_ci_yml_path}'"
     warn '(skipping)'
     return
@@ -76,7 +76,7 @@ namespace :gitlab_ci do
     unless(gitlab_url && project_id)
       warn 'WARNING: no gitlab_url or project_id given via task arg or env var' if $VERBOSE
       warn 'Checking for .gitlab-project-api.yaml...' if $VERBOSE
-      unless File.exists? '.gitlab-project-api.yaml'
+      unless File.exist? '.gitlab-project-api.yaml'
         fail( [
           "\nERROR: no gitlab_url or project_id given via task arg or env va
 r",

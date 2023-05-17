@@ -107,7 +107,7 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
     def metadata( file_path = nil )
       require 'json'
       _file = file_path || File.join(@base_dir, 'metadata.json')
-      fail "ERROR: file not found: '#{_file}'" unless File.exists? _file
+      fail "ERROR: file not found: '#{_file}'" unless File.exist? _file
       @metadata ||= JSON.parse( File.read(_file) )
     end
 
