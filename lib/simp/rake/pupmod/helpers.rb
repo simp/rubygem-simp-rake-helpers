@@ -100,7 +100,7 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
     end
 
     desc 'lint metadata.json'
-    Rake::Task[:metadata].clear
+    Rake::Task[:metadata].clear if Rake::Task.tasks.any?{ |x| x.name == 'metadata' }
     task :metadata => :metadata_lint
 
     # Read the metadata.json as a data structure

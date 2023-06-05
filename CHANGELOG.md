@@ -1,16 +1,20 @@
-### 5.19.2 /2023-05-09
+### 5.21.0 /2023-05-09
+- Added
+  - Support for `puppetlabs-spec-helper` 6.x and `puppet-lint`
+
+### 5.19.1 / 2023-05-15
 - Fixed
   - Bumped required puppet version to < 9.0
   - The base repo for the el7 ISO was unusable because the repodata for it
     was being excluded on the unpack of the distribution ISO; In the case
     of building an el7 iso, we now ensure the repodata directory exists.
 
-### 5.19.1 /2023-03-27
+### 5.19.1 / 2023-03-27
 - Added
   - Allow `SIMP_BUILD_PKG_require_rebuild` to be case-insensitive to
     accommodate GHA
 
-### 5.19.0 /2023-03-20
+### 5.19.0 / 2023-03-20
 - Added
   - `pkg:single` will skip the `require_rebuild?` logic
     when `SIMP_BUILD_PKG_require_rebuild=yes`
@@ -19,7 +23,7 @@
     now use `SIMP_BUILD_PKG_require_rebuild=yes`
 
 
-### 5.18.0 /2023-02-27
+### 5.18.0 / 2023-02-27
 - Added
   - `SIMP_BUILD_reposync_only` now excludes RPMs and yum repos from the ISO
     `unpack` task
@@ -28,12 +32,12 @@
   - EL7 ISO unpack no longer interferes with reposync repos when
     `SIMP_BUILD_reposync_only=yes`
 
-### 5.17.1 /2022-11-11
+### 5.17.1 / 2022-11-11
 - Fixed
   - Fixed an edge case where the `SIMP` directory YUM metadata was not
     present if you used `reposync` for everything but the `SIMP` directory
 
-### 5.17.0 /2022-10-30
+### 5.17.0 / 2022-10-30
 - Added
   - The RPM dependency file can now use `ignores` to remove items instead of
     needing to redefine the entire dependency stack to remove deps
@@ -179,7 +183,7 @@
   pkg:check_published.  Attempt as many checks as possible and then
   report all failures.
 
-### 5.10.0 /2019-08-30
+### 5.10.0 / 2019-08-30
 * Add initial linting tasks for CI configuration (simp:ci_lint and
   simp:gitlab_ci_lint).  The only checks currently being done are
   as follows:
@@ -189,7 +193,7 @@
     specifies the suite and nodeset to be used and that the specified
     suite and nodeset exist.
 
-### 5.9.1 /2019-08-06
+### 5.9.1 / 2019-08-06
 Fixed 2 bugs in the SIMP Puppet module generated RPM spec files
 * When SIMP Puppet module RPMs were installed, they created the wrong
   state directory, '/%{_localstatedir}/lib/rpm-state/simp-adapter'.
