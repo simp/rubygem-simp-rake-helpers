@@ -26,7 +26,7 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'simp-beaker-helpers',                '~> 1.24'
   s.add_runtime_dependency 'bundler',                            '>= 1.14', '< 3.0'
   s.add_runtime_dependency 'rake',                               '>= 10.0', '< 13.0'
-  s.add_runtime_dependency 'puppet',                             '>= 3.0', '< 8.0'
+  s.add_runtime_dependency 'puppet',                             '>= 3.0', '< 9.0'
   s.add_runtime_dependency 'puppet-lint',                        '>= 1.0', '< 5.0'
   s.add_runtime_dependency 'puppet-lint-optional_default-check', '>= 1.0', '< 2.0'
   s.add_runtime_dependency 'puppet-lint-params_empty_string-check', '>= 1.0', '<3.0'
