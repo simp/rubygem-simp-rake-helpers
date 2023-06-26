@@ -1,0 +1,56 @@
+# Run all tests as GitHub Actions
+name: Acceptance Tests
+on:
+  push:
+    branches:
+      # A test branch for seeing if your tests will pass in your personal fork
+      - test_me_github
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+  acceptance:
+    runs-on:
+      - ubuntu-latest
+    strategy:
+      matrix:
+        puppet:
+          - label: 'Puppet 7.x [SIMP 6.6/PE 2021.7'
+            puppet_version: '~> 7.0'
+            ruby_version: '2.7'
+            experimental: false
+          - label: 'Puppet 8.x'
+            puppet_version: '~> 8.0'
+            ruby_version: 3.1
+            experimental: true
+    fail-fast: false
+    continue-on-error: ${{matrix.puppet.experimental}}
+    env:
+      PUPPET_VERSION: '${{matrix.puppet.puppet_version}}'
+    steps:
+      - uses: actions/checkout@v2
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{matrix.puppet.ruby_version}}
+      - name: ensure entropy
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y rng-tools
+          sudo systemctl start rng-tools
+      - name: install bundler
+        run: |
+          gem install bundler
+          bundle update
+      - name: install docker
+        run: |
+          set -x
+          sudo apt-get remove -y docker docker-engine docker.io containerd runc ||:
+          sudo apt-get update -y
+          sudo apt-get install -y apt-transport-https ca-certificates curl gnupg-agent software-properties-common
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+          sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+          sudo apt-get update -y
+          sudo apt-cache gencaches
+          sudo apt-get install -y docker-ce
+          sudo systemctl start docker
+      - name: beaker
+        run: bundle exec rake acceptance
