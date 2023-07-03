@@ -19,10 +19,12 @@ jobs:
             puppet_version: '~> 7.0'
             ruby_version: '2.7'
             experimental: false
+            nodeset: default
           - label: 'Puppet 8.x'
             puppet_version: '~> 8.0'
             ruby_version: 3.1
             experimental: true
+            nodeset: default_ruby3_1
       fail-fast: false
     env:
       PUPPET_VERSION: '${{matrix.puppet.puppet_version}}'
@@ -53,5 +55,7 @@ jobs:
           sudo apt-get install -y docker-ce
           sudo systemctl start docker
       - name: beaker
-        run: bundle exec rake acceptance
+        env:
+          NODESET: ${{matrix.puppet.nodeset}}
+        run: bundle exec rake beaker:suite[default,$NODESET]acceptance
         continue-on-error: ${{matrix.puppet.experimental}}

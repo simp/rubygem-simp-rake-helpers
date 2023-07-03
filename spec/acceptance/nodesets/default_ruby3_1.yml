@@ -1,0 +1,46 @@
+HOSTS:
+#  el7-build-server:
+#    roles:
+#      - default
+#      - build_server
+#    platform: el-7-x86_64
+#    hypervisor: docker
+#    image: simpproject/simp_build_centos7_ruby3_1
+#    docker_cmd: '/usr/sbin/sshd -D -E /var/log/sshd.log'
+
+  el7-build-server:
+    roles:
+      - default
+      - build_server
+    platform: el-8-x86_64
+    hypervisor: docker
+    image: simpproject/simp_build_centos8_ruby3_1
+    docker_cmd: '["/sbin/init"]'
+    docker_preserve_image: true
+
+  el8-build-server:
+    roles:
+      - build_server
+    platform: el-8-x86_64
+    hypervisor: docker
+    image: simpproject/simp_build_centos8_ruby3_1
+    docker_cmd: '["/sbin/init"]'
+    docker_preserve_image: true
+
+CONFIG:
+  log_level: verbose
+  type:      aio
+<% if ENV['BEAKER_PUPPET_COLLECTION'] -%>
+  puppet_collection: <%= ENV['BEAKER_PUPPET_COLLECTION'] %>
+<% else -%>
+  puppet_collection: puppet6
+<% end -%>
+  ssh:
+    password: root
+    auth_methods:
+      - password
+  docker_preserve_image: true
+  mount_folders:
+    host_files:
+      host_path: ./
+      container_path: /host_files
