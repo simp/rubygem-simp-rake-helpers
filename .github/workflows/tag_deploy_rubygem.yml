@@ -164,7 +164,7 @@ jobs:
           args=(--file /tmp/.commit-msg.txt)
           [[ $IS_PRERELEASE == yes ]] && args+=(--prerelease)
 
-          hub release create ${args[@]} "TARGET_TAG"
+          hub release create ${args[@]} "$TARGET_TAG"
 
   deploy-rubygem:
     name: Deploy RubyGem Release
