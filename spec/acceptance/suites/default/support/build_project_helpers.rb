@@ -48,7 +48,7 @@ module Simp::BeakerHelpers::SimpRakeHelpers::BuildProjectHelpers
     maj_rel = facts['operatingsystemmajrelease'] ||
               facts.fetch('os', {}).fetch('release', {})['major'] ||
               facts['operatingsystemrelease'].split('.').first
-    architecture = facts['architecture']
+    architecture = facts['architecture'] || facts.dig('os','architecture')
 
     dir = "#{proj_dir}/build/distributions/#{name}/#{maj_rel}/#{architecture}"
     @distribution_dirs[host.to_s] = dir
