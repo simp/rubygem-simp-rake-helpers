@@ -57,5 +57,5 @@ jobs:
       - name: beaker
         env:
           NODESET: ${{matrix.puppet.nodeset}}
-        run: bundle exec rake beaker:suite[default,$NODESET]acceptance
+        run: bundle exec rake beaker:suite[default,$NODESET]
         continue-on-error: ${{matrix.puppet.experimental}}
