@@ -35,6 +35,7 @@ jobs:
           bundler-cache: true
       - run: 'command -v rpm || if command -v apt-get; then sudo apt-get update; sudo apt-get install -y rpm; fi ||:'
       - run: 'bundle exec rake spec'
+        continue-on-error: ${{matrix.puppet.experimental}}
       - name: gem build
         run: bundle exec rake pkg:install_gem
         continue-on-error: ${{matrix.puppet.experimental}}
