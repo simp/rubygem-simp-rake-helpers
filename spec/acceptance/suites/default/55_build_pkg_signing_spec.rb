@@ -135,7 +135,10 @@ describe 'rake pkg:signrpms and pkg:checksig' do
     it 'creates GPG dev signing key and signs packages' do
       hosts.each do |host|
         # NOTE: pkg:signrpms will not actually fail if it can't sign a RPM
-        on(hosts, %(#{run_cmd} "cd '#{test_dir}'; #{signrpm_cmd}"), run_opts)
+        # FIXME: remove SIMP_PKG_verbose=yes?
+        on(hosts, %(#{run_cmd} "cd '#{test_dir}'; SIMP_PKG_verbose=yes #{signrpm_cmd}"), run_opts)
+
+        #on(hosts, %(#{run_cmd} "cd '#{test_dir}'; #{signrpm_cmd}"), run_opts)
 
         expect(file_exists_on(host,"#{dirs[host][:dvd_dir]}/RPM-GPG-KEY-SIMP-Dev")).to be true
 
