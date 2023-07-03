@@ -183,12 +183,12 @@ module Simp::Rake::Build
                 end
 
                 rpm_build_keys.each do |gpgkey|
-                  cp(gpgkey, dvd_dir, :verbose => @verbose)
+                  FileUtils.cp(gpgkey, dvd_dir, :verbose => @verbose)
                 end
               # Otherwise, make sure it isn't present for the build
               else
                 Dir[File.join(dvd_dir,'RPM-GPG-KEY-SIMP*')].each do |to_del|
-                  rm(to_del)
+                  FileUtils.rm(to_del)
                 end
               end
             end
