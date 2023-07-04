@@ -1,6 +1,18 @@
-### 5.21.0 /2023-05-09
+### 5.20.0 /2023-07-03
 - Added
   - Support for `puppetlabs-spec-helper` 6.x and `puppet-lint`
+    - New gem dependencies:
+      - `metadata-json-lint`
+      - `puppet-lint-params_empty_string-check`
+  - Acceptance test/nodeset support for Puppet 8
+  - Modernized GHA PR test matrix
+- Changed
+  - Default Puppet = 7.x
+  - Default Ruby = 2.7
+- Fixed
+  - Don't fail when `metadata` task is not present
+  - Untangled non-standard GHA workflows
+  - Release workflow bug
 
 ### 5.19.1 / 2023-05-15
 - Fixed
