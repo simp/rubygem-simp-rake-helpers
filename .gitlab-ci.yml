@@ -132,7 +132,7 @@ variables:
     - bundle exec rake clean
     - bundle exec rake pkg:gem
 
-.uni:_tests: &unit_tests
+.unit_tests: &unit_tests
   stage: validation
   tags: ['docker']
   <<: *setup_bundler_env
