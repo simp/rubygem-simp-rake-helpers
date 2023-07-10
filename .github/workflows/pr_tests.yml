@@ -1,0 +1,42 @@
+# Run all tests as GitHub Actions
+name: Unit Tests
+on:
+  push:
+    branches:
+      # A test branch for seeing if your tests will pass in your personal fork
+      - test_me_github
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+jobs:
+  spec:
+    runs-on:
+      - ubuntu-latest
+    strategy:
+      matrix:
+        puppet:
+          - label: 'Puppet 7.x [SIMP 6.6/PE 2021.7]'
+            puppet_version: '~> 7.0'
+            ruby_version: '2.7'
+            experimental: false
+          - label: 'Puppet 8.x'
+            puppet_version: '~> 8.0'
+            ruby_version: 3.1
+            experimental: true
+      fail-fast: false
+    env:
+      PUPPET_VERSION: '${{matrix.puppet.puppet_version}}'
+    steps:
+      - uses: actions/checkout@v2
+      - name: 'Install Ruby ${{matrix.puppet.ruby_version}}'
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{matrix.puppet.ruby_version}}
+          bundler-cache: true
+      - run: 'command -v rpm || if command -v apt-get; then sudo apt-get update; sudo apt-get install -y rpm; fi ||:'
+      - run: 'bundle exec rake spec'
+        continue-on-error: ${{matrix.puppet.experimental}}
+      - name: gem build
+        run: bundle exec rake pkg:install_gem
+        continue-on-error: ${{matrix.puppet.experimental}}
+

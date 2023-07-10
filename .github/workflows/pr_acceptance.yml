@@ -1,5 +1,5 @@
 # Run all tests as GitHub Actions
-name: Unit Tests
+name: Acceptance Tests
 on:
   push:
     branches:
@@ -9,40 +9,30 @@ on:
     types: [opened, reopened, synchronize]
 
 jobs:
-  spec:
-    runs-on:
-      - ubuntu-latest
-    strategy:
-      matrix:
-        ruby:
-          - 2.7
-          - 2.6
-          - 2.5
-      fail-fast: false
-    steps:
-      - uses: actions/checkout@v2
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: ${{ matrix.ruby }}
-          bundler-cache: true
-      - name: rspec
-        run: bundle exec rake spec
-      - name: gem build
-        run: bundle exec rake pkg:install_gem
-
   acceptance:
     runs-on:
       - ubuntu-latest
     strategy:
       matrix:
-        ruby:
-          - 2.6
+        puppet:
+          - label: 'Puppet 7.x [SIMP 6.6/PE 2021.7]'
+            puppet_version: '~> 7.0'
+            ruby_version: '2.7'
+            experimental: false
+            nodeset: default
+          - label: 'Puppet 8.x'
+            puppet_version: '~> 8.0'
+            ruby_version: 3.1
+            experimental: true
+            nodeset: default_ruby3_1
       fail-fast: false
+    env:
+      PUPPET_VERSION: '${{matrix.puppet.puppet_version}}'
     steps:
       - uses: actions/checkout@v2
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: ${{ matrix.ruby }}
+          ruby-version: ${{matrix.puppet.ruby_version}}
       - name: ensure entropy
         run: |
           sudo apt-get update -y
@@ -65,4 +55,7 @@ jobs:
           sudo apt-get install -y docker-ce
           sudo systemctl start docker
       - name: beaker
-        run: bundle exec rake acceptance
+        env:
+          NODESET: ${{matrix.puppet.nodeset}}
+        run: bundle exec rake beaker:suites[default,$NODESET]
+        continue-on-error: ${{matrix.puppet.experimental}}
