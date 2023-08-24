@@ -1,3 +1,4 @@
+---
 HOSTS:
   el7-build-server:
     roles:
@@ -6,7 +7,7 @@ HOSTS:
     platform: el-7-x86_64
     hypervisor: docker
     image: simpproject/simp_build_centos7_ruby3_1
-    docker_cmd: '/usr/sbin/sshd -D -E /var/log/sshd.log'
+    docker_cmd: "/usr/sbin/sshd -D -E /var/log/sshd.log"
 
   el8-build-server:
     roles:
@@ -19,12 +20,8 @@ HOSTS:
 
 CONFIG:
   log_level: verbose
-  type:      aio
-<% if ENV['BEAKER_PUPPET_COLLECTION'] -%>
-  puppet_collection: <%= ENV['BEAKER_PUPPET_COLLECTION'] %>
-<% else -%>
-  puppet_collection: puppet6
-<% end -%>
+  type: aio
+  puppet_collection: "<%= ENV.fetch('BEAKER_PUPPET_COLLECTION', 'puppet8') %>"
   ssh:
     password: root
     auth_methods:

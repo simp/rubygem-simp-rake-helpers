@@ -85,7 +85,7 @@ class Simp::ComponentInfo
   def initialize(component_dir, latest_version_only = false, verbose = true)
     @component_dir = component_dir
 
-    if File.exists?(File.join(@component_dir, 'metadata.json'))
+    if File.exist?(File.join(@component_dir, 'metadata.json'))
       @type = :module
       load_module_info(latest_version_only, verbose)
     else
@@ -107,7 +107,7 @@ class Simp::ComponentInfo
 
 
     changelog_file = File.join(component_dir, 'CHANGELOG')
-    unless File.exists?(changelog_file)
+    unless File.exist?(changelog_file)
       fail("ERROR: No CHANGELOG file found in #{component_dir}")
     end
     @changelog = parse_changelog(IO.read(changelog_file), latest_version_only, verbose)

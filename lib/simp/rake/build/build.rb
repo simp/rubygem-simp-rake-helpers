@@ -64,7 +64,7 @@ module Simp::Rake::Build
 
             fail("Could not find directory #{mod}") unless Dir.exist?(mod)
 
-            next unless File.exists?(File.join(mod,'Gemfile'))
+            next unless File.exist?(File.join(mod,'Gemfile'))
             puts "\n#{mod}\n" if verbose
             Dir.chdir(mod) do
               if File.exist?('Gemfile.lock')
@@ -515,7 +515,7 @@ module Simp::Rake::Build
 
             # Create example packages.yaml
             packages_yaml_path = File.join(target_dir, 'packages.yaml')
-            unless File.exists? packages_yaml_path
+            unless File.exist? packages_yaml_path
               pkg = 'example-package-name'
               pkg_file = "#{pkg}-1.0.0-1.el#{major_os_ver}.#{args[:arch]}.rpm"
               yum_url = "https://yum.server/#{args[:os]}/#{major_os_ver}/#{args[:arch]}"
