@@ -1,3 +1,8 @@
+### 5.21.0 / 2023-08-24
+- Fixed
+  - Support for Ruby 3 and Puppet 8
+  - Update gem dependencies
+
 ### 5.20.0 /2023-07-03
 - Added
   - Support for `puppetlabs-spec-helper` 6.x and `puppet-lint`
