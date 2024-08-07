@@ -1,4 +1,8 @@
 ### 5.21.0 / 2023-08-24
+- Added
+  - `iso:build` now skips repoclosure unless `SIMP_BUILD_repoclosure=yes`
+
+### 5.21.0 / 2023-08-24
 - Fixed
   - Support for Ruby 3 and Puppet 8
   - Update gem dependencies
