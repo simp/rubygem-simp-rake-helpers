@@ -18,11 +18,13 @@ jobs:
           - label: 'Puppet 7.x [SIMP 6.6/PE 2021.7]'
             puppet_version: '~> 7.0'
             ruby_version: '2.7'
+            gem_install_bundler_flags: '-v 2.4.22'
             experimental: false
             nodeset: default
           - label: 'Puppet 8.x'
             puppet_version: '~> 8.0'
             ruby_version: 3.1
+            gem_install_bundler_flags: ''
             experimental: true
             nodeset: default_ruby3_1
       fail-fast: false
@@ -40,7 +42,7 @@ jobs:
           sudo systemctl start rng-tools
       - name: install bundler
         run: |
-          gem install bundler
+          gem install bundler ${{matrix.puppet.gem_install_bundler_flags}}
           bundle update
       - name: install docker
         run: |

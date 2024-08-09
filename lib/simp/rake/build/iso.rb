@@ -410,8 +410,20 @@ module Simp::Rake::Build
                 end
               end
 
-              # Make sure we have all of the necessary RPMs!
-              Rake::Task['pkg:repoclosure'].invoke(File.expand_path(dir))
+
+              # NOTE: repoclosure doesn't work with modular repos, and probably
+              # never can:
+              #
+              #    https://bugzilla.redhat.com/show_bug.cgi?id=1547041
+              #
+              # If an ISO somehow has *NO* modular repos/packages, than running
+              # with SIMP_BUILD_repoclosure=yes is safe.  Otherwise, it will
+              # probably fail even if all the packages depsolve cleanly in real
+              # life
+              if ENV.fetch('SIMP_BUILD_repoclosure', 'no') == 'yes'
+                # Make sure we have all of the necessary RPMs!
+                Rake::Task['pkg:repoclosure'].invoke(File.expand_path(dir))
+              end
 
               # Do some sane chmod'ing and build ISO
               system("chmod -fR u+rwX,g+rX,o=g #{dir}")
