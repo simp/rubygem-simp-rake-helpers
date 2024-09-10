@@ -1,4 +1,8 @@
-### 5.21.0 / 2023-08-24
+### 5.22.1 / 2024-09-10
+- Fixed
+  - Update gem dependencies to allow puppetlabs_spec_helper 7.x
+
+### 5.22.0 / 2023-08-24
 - Added
   - `iso:build` now skips repoclosure unless `SIMP_BUILD_repoclosure=yes`
 
