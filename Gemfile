@@ -11,6 +11,7 @@ gemspec
 
 gem 'simp-build-helpers'
 gem 'simp-beaker-helpers'
+gem 'beaker_puppet_helpers'
 gem 'rake', '>= 12.3.3'
 gem 'beaker-docker'
 
