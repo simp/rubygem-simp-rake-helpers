@@ -23,7 +23,7 @@ Gem::Specification.new do |s|
   #   for the published gem
   # ensure the gem is built out of versioned files
 
-  s.add_runtime_dependency 'simp-beaker-helpers',                '~> 1.24'
+  s.add_runtime_dependency 'simp-beaker-helpers',                '~> 2.0'
   s.add_runtime_dependency 'bundler',                            '>= 1.14', '< 3.0'
   s.add_runtime_dependency 'rake',                               '>= 10.0', '< 14.0'
   s.add_runtime_dependency 'puppet',                             '>= 3.0', '< 9.0'
