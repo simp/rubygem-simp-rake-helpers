@@ -1,3 +1,7 @@
+### 5.22.2 / 2025-08-13
+- Fixed
+  - Update gem dependencies to allow simp-beaker-helpers 2.x
+
 ### 5.22.1 / 2024-09-10
 - Fixed
   - Update gem dependencies to allow puppetlabs_spec_helper 7.x
