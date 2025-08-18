@@ -25,7 +25,7 @@ jobs:
             puppet_version: '~> 8.0'
             ruby_version: 3.1
             gem_install_bundler_flags: ''
-            experimental: true
+            experimental: false
             nodeset: default_ruby3_1
       fail-fast: false
     env:

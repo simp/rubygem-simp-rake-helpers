@@ -1,3 +1,7 @@
+### 5.23.0 / 2025-08-18
+- Fixed
+  - Adding renovate.json should not require a version bump (#225)
+
 ### 5.22.2 / 2025-08-13
 - Fixed
   - Update gem dependencies to allow simp-beaker-helpers 2.x
