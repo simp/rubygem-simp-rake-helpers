@@ -87,7 +87,7 @@ class Simp::RelChecks
         # determine mission-impacting files that have changed
         files_changed = `git diff tags/#{last_tag} --name-only`.strip.split("\n")
         files_changed.delete_if do |file|
-          file[0] ==  '.' or file == 'Rakefile' or file =~ /^Gemfile|^spec\/|^doc\/|^rakelib\/|.*\.md\Z/
+          file[0] ==  '.' or file == 'Rakefile' or file =~ /^Gemfile|^spec\/|^doc\/|^rakelib\/|.*\.md\Z/ or file == 'renovate.json'
         end
 
         if files_changed.empty?

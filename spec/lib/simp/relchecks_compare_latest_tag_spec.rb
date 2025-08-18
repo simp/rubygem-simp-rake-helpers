@@ -31,7 +31,7 @@ describe 'Simp::RelChecks.compare_latest_tag' do
       expect(Simp::RelChecks).to receive(:`).with('git fetch -t origin 2>/dev/null').and_return("\n")
       expect(Simp::RelChecks).to receive(:`).with('git tag -l').and_return("1.0.0\nv1.0.1\n1.1.0\n")
       expect(Simp::RelChecks).to receive(:`).with('git diff tags/1.1.0 --name-only').and_return(
-        ".travis.yml\nRakefile\nREFERENCE.md\nGemfile.lock\nspec/some_spec.rb\ndoc/index.html\nrakelib/mytasks.rake\n")
+        ".travis.yml\nRakefile\nREFERENCE.md\nGemfile.lock\nspec/some_spec.rb\ndoc/index.html\nrakelib/mytasks.rake\nrenovate.json\n")
 
       msg = "  No new tag required: No significant files have changed since '1.1.0' tag\n"
       expect{ Simp::RelChecks.compare_latest_tag(component_dir) }.
