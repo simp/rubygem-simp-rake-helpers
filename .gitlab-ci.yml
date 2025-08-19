@@ -109,14 +109,14 @@ variables:
 #-----------------------------------------------------------------------
 
 .pup_7_x: &pup_7_x
-  image: 'ruby:2.7'
+  image: 'ruby:3.4'
   variables:
     PUPPET_VERSION: '7.21.0'
     BEAKER_PUPPET_COLLECTION: 'puppet7'
     MATRIX_RUBY_VERSION: '2.7'
 
 .pup_8_x: &pup_8_x
-  image: 'ruby:3.2'
+  image: 'ruby:3.4'
   variables:
     PUPPET_VERSION: '~> 8.0'
     BEAKER_PUPPET_COLLECTION: 'puppet8'
