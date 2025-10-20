@@ -1,3 +1,7 @@
+### 5.24.0 / 2025-10-20
+- Fixed
+  - Update gem dependencies to allow simp-rspec-puppet-facts 4.x
+
 ### 5.23.0 / 2025-08-18
 - Fixed
   - Adding renovate.json should not require a version bump (#225)
