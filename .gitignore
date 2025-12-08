@@ -8,4 +8,5 @@ Gemfile.lock
 *.swp
 *.sw[pnoqst]
 .vagrant
-.vendor
+/.vendor
+/vendor
