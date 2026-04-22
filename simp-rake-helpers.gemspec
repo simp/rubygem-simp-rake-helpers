@@ -24,7 +24,7 @@ Gem::Specification.new do |s|
   # ensure the gem is built out of versioned files
 
   s.add_runtime_dependency 'simp-beaker-helpers',                '~> 2.0'
-  s.add_runtime_dependency 'bundler',                            '>= 1.14', '< 3.0'
+  s.add_runtime_dependency 'bundler',                            '>= 1.14', '< 5.0'
   s.add_runtime_dependency 'rake',                               '>= 10.0', '< 14.0'
   s.add_runtime_dependency 'openvox',                            '>= 3.0', '< 9.0'
   s.add_runtime_dependency 'puppet-lint',                        '>= 1.0', '< 6.0'
@@ -33,7 +33,7 @@ Gem::Specification.new do |s|
 
   s.add_runtime_dependency 'puppetlabs_spec_helper',             '>= 6.0', '< 9.0'
   s.add_runtime_dependency 'metadata-json-lint',                 '>= 1.2', '< 6.0'
-  s.add_runtime_dependency 'parallel',                           '~> 1.0'
+  s.add_runtime_dependency 'parallel',                           '>= 1.0', '< 3.0'
   s.add_runtime_dependency 'simp-rspec-puppet-facts',            '>= 2.4.1', '< 5.0'
   s.add_runtime_dependency 'puppet-blacksmith',                  '>= 3.3.0', '< 10.0'
   s.add_runtime_dependency 'parallel_tests',                     '> 2.4', '< 6.0'
