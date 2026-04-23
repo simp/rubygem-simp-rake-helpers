@@ -1,13 +1,15 @@
+# frozen_string_literal: true
+
 require 'simp/packer/iso_vars_json'
 require 'spec_helper'
 require 'tmpdir'
 require 'json'
 
 describe Simp::Packer::IsoVarsJson do
-  DUMMY_CONTENT = 'Dummy text with known checksum'.freeze
-  DUMMY_CHECKSUM = 'bd6eae40b2b18359f33332dd5b1a3dd5c9e885240c3d4907d6a1208cdafa0003'.freeze
+  DUMMY_CONTENT = 'Dummy text with known checksum'
+  DUMMY_CHECKSUM = 'bd6eae40b2b18359f33332dd5b1a3dd5c9e885240c3d4907d6a1208cdafa0003'
 
-  before do
+  before(:each) do
     @tmp_dir = Dir.mktmpdir(File.basename(__FILE__))
     @iso = File.expand_path('fixture.iso', @tmp_dir)
     File.open(@iso, 'w') { |f| f.puts DUMMY_CONTENT }
@@ -21,7 +23,7 @@ describe Simp::Packer::IsoVarsJson do
     @var_json = described_class.new(@iso, target_release, target_data, :silent => true)
   end
 
-  after do
+  after(:each) do
     FileUtils.remove_entry_secure @tmp_dir
   end
 
@@ -31,22 +33,22 @@ describe Simp::Packer::IsoVarsJson do
     it 'returns expected information for v1.0.0 format' do
       expect(@var_json.data).to include(
         'simp_vars_version' => '1.0.0',
-        'box_distro_release'  => 'SIMP-6.3.0-Beta1-CentOS-6.10',
-        'box_simp_release'    => '6.3.0-Beta1',
-        'iso_checksum'        => DUMMY_CHECKSUM,
-        'iso_checksum_type'   => 'sha256',
-        'dist_os_flavor'      => 'CentOS',
+        'box_distro_release' => 'SIMP-6.3.0-Beta1-CentOS-6.10',
+        'box_simp_release' => '6.3.0-Beta1',
+        'iso_checksum' => DUMMY_CHECKSUM,
+        'iso_checksum_type' => 'sha256',
+        'dist_os_flavor' => 'CentOS',
         'dist_os_maj_version' => '6',
-        'dist_os_version'     => '6.10',
-        'dist_source_isos'    => 'CentOS-6.10-x86_64-bin-DVD1.iso:CentOS-6.10-x86_64-bin-DVD2.iso',
-        'packer_src_type'     => 'simp-iso',
-        'iso_builder'         => 'rubygem-simp-rake-helpers'
+        'dist_os_version' => '6.10',
+        'dist_source_isos' => 'CentOS-6.10-x86_64-bin-DVD1.iso:CentOS-6.10-x86_64-bin-DVD2.iso',
+        'packer_src_type' => 'simp-iso',
+        'iso_builder' => 'rubygem-simp-rake-helpers',
       )
     end
   end
 
   describe '#write' do
-    before (:each) { @var_json.write }
+    before(:each) { @var_json.write }
 
     let(:json_file) { "#{File.basename(@iso, '.iso')}.json" }
 

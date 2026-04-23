@@ -1,13 +1,16 @@
+# frozen_string_literal: true
+
 require 'rake/tasklib'
 
 module Simp::Rake; end
 module Simp::Rake::Build; end
+
 module Simp::Rake::Build::Constants
   def distro_build_dir(build_dir, build_distro, build_version, build_arch)
     File.join(build_dir, 'distributions', build_distro, build_version, build_arch)
   end
 
-  def init_member_vars( base_dir )
+  def init_member_vars(base_dir)
     return if @member_vars_initialized
 
     require 'facter'
@@ -16,7 +19,7 @@ module Simp::Rake::Build::Constants
     $simp6_clean_dirs = []
 
     if ENV['SIMP_BUILD_distro']
-      distro, version, arch = ENV['SIMP_BUILD_distro'].split(/,|\//)
+      distro, version, arch = ENV['SIMP_BUILD_distro'].split(%r{,|/})
     end
 
     @build_distro = distro || Facter.fact('operatingsystem').value
@@ -24,7 +27,7 @@ module Simp::Rake::Build::Constants
     @build_arch = arch || Facter.fact('architecture').value
 
     # Working around the SIMP::RPM.system_dist workaround
-    if ENV['SIMP_RPM_dist'].nil? && @build_distro =~ /CentOS|RedHat/i
+    if ENV['SIMP_RPM_dist'].nil? && @build_distro =~ %r{CentOS|RedHat}i
       @build_rpm_dist = ".el#{@build_version}"
       ENV['SIMP_RPM_dist'] = @build_rpm_dist
     end
@@ -37,7 +40,7 @@ module Simp::Rake::Build::Constants
     @spec_dir          = File.join(@src_dir, 'build')
     @spec_file         = FileList[File.join(@spec_dir, '*.spec')]
     @simp_version      = Simp::RPM.new(File.join(@src_dir, 'assets', 'simp', 'build', 'simp.spec')).full_version
-    @simp_dvd_dirs     = ["SIMP","ks","Config"]
+    @simp_dvd_dirs     = ['SIMP', 'ks', 'Config']
     @member_vars_initialized = true
 
     @distro_build_dir  = distro_build_dir(@build_dir, @build_distro, @build_version, @build_arch)

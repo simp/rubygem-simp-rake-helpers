@@ -1,3 +1,6 @@
+# frozen_string_literal: true
+
+require 'English'
 require 'bundler'
 require 'simp/yum'
 require 'simp/rake'
@@ -5,6 +8,7 @@ require 'simp/rake/build/constants'
 
 module Simp; end
 module Simp::Rake; end
+
 module Simp::Rake::Build
   class SIMPBuildException < StandardError
   end
@@ -14,8 +18,8 @@ module Simp::Rake::Build
   class Build < ::Rake::TaskLib
     include Simp::Rake::Build::Constants
 
-    def initialize( base_dir )
-      init_member_vars( base_dir )
+    def initialize(base_dir)
+      init_member_vars(base_dir)
 
       define_tasks
     end
@@ -46,7 +50,7 @@ module Simp::Rake::Build
           args.with_defaults(:verbose => 'false')
           args.with_defaults(:method => 'tracking')
 
-          verbose = args[:verbose] == 'false' ? false : true
+          verbose = args[:verbose] != 'false'
 
           load_puppetfile(args[:method])
 
@@ -57,14 +61,14 @@ module Simp::Rake::Build
           Parallel.map(
             module_paths,
             :in_processes => 1,
-            :progress => t.name
+            :progress => t.name,
           ) do |mod|
-
             status = true
 
-            fail("Could not find directory #{mod}") unless Dir.exist?(mod)
+            raise("Could not find directory #{mod}") unless Dir.exist?(mod)
 
-            next unless File.exist?(File.join(mod,'Gemfile'))
+            next unless File.exist?(File.join(mod, 'Gemfile'))
+
             puts "\n#{mod}\n" if verbose
             Dir.chdir(mod) do
               if File.exist?('Gemfile.lock')
@@ -78,8 +82,8 @@ module Simp::Rake::Build
               # Bundler is activated.
               clean_env_method = Bundler.respond_to?(:with_unbundled_env) ? :with_unbundled_env : :with_clean_env
               ::Bundler.send(clean_env_method) do
-                out = %x(bundle #{args[:action]} 2>&1)
-                status = $?.success?
+                out = `bundle #{args[:action]} 2>&1`
+                status = $CHILD_STATUS.success?
                 puts out if verbose
                 failed_mod_lock.synchronize do
                   failed_mods << mod unless status
@@ -89,7 +93,7 @@ module Simp::Rake::Build
           end
 
           failed_mods.compact!
-          fail(%(The following modules failed bundle #{args[:action]}:\n  * #{failed_mods.sort.join("\n  *")})) unless failed_mods.empty?
+          raise(%(The following modules failed bundle #{args[:action]}:\n  * #{failed_mods.sort.join("\n  *")})) unless failed_mods.empty?
         end
 
         namespace :yum do
@@ -98,16 +102,14 @@ module Simp::Rake::Build
               # `$simp6_build_dir` is set by the build:auto task
               @build_dir = $simp6_build_dir || @distro_build_dir
 
-              unless @build_dir
-                if ENV['SIMP_BUILD_yum_dir'] && File.exist?(File.join(ENV['SIMP_BUILD_yum_dir'], 'yum_data'))
-                  @build_dir = ENV['SIMP_BUILD_yum_dir']
-                end
+              if !@build_dir && ENV.fetch('SIMP_BUILD_yum_dir', nil) && File.exist?(File.join(ENV.fetch('SIMP_BUILD_yum_dir', nil), 'yum_data'))
+                @build_dir = ENV.fetch('SIMP_BUILD_yum_dir', nil)
               end
 
               raise('Error: For SIMP 6+ builds, you need to set SIMP_BUILD_yum_dir to the directory holding the "yum_data" directory that you wish to sync') unless @build_dir
             end
 
-            @build_base_dir = File.join(@build_dir,'yum_data')
+            @build_base_dir = File.join(@build_dir, 'yum_data')
             @build_arch = 'x86_64'
           end
 
@@ -119,21 +121,21 @@ module Simp::Rake::Build
           # Expects one argument which is the 'arguments' hash to one of the tasks.
           def get_target_dir(args)
             if $simp6
-              return @build_base_dir
+              @build_base_dir
             else
-              fail("Error: You must specify 'os'") unless args[:os]
-              fail("Error: You must specify 'os_version'") unless args[:os_version]
-              fail("Error: You must specify both major and minor version for the OS") unless args[:os_version] =~ /^.+\..+$/
-              fail("Error: You must specify 'simp_version'") unless args[:simp_version]
-              fail("Error: You must specify 'arch'") unless args[:arch]
+              raise("Error: You must specify 'os'") unless args[:os]
+              raise("Error: You must specify 'os_version'") unless args[:os_version]
+              raise('Error: You must specify both major and minor version for the OS') unless %r{^.+\..+$}.match?(args[:os_version])
+              raise("Error: You must specify 'simp_version'") unless args[:simp_version]
+              raise("Error: You must specify 'arch'") unless args[:arch]
 
               # Yes, this is a kluge but the amount of variable passing that would need
               # to be done to support this is silly.
               @build_arch = args[:arch]
 
-              return File.join(
+              File.join(
                 @build_base_dir,
-                "SIMP#{args[:simp_version]}_#{args[:os]}#{args[:os_version]}_#{args[:arch]}"
+                "SIMP#{args[:simp_version]}_#{args[:os]}#{args[:os_version]}_#{args[:arch]}",
               )
             end
           end
@@ -143,92 +145,90 @@ module Simp::Rake::Build
             puts("Looking up: #{rpm}")
             yum_helper = Simp::YUM.new(yum_conf)
 
-            return yum_helper.get_source(rpm, @build_arch)
+            yum_helper.get_source(rpm, @build_arch)
           end
 
           # Snag an RPM via YUM.
           # Returns where the tool got the file from.
           #
           # If passed a source, simply downloads the file into the packages directory
-          def download_rpm(rpm, yum_conf, source=nil, distro_dir=Dir.pwd)
+          def download_rpm(rpm, yum_conf, source = nil, _distro_dir = Dir.pwd)
             yum_helper = Simp::YUM.new(yum_conf)
 
             # We're doing this so that we can be 100% sure that we're pulling the RPM
             # from where the last command indicated. YUM can choose multiple sources
             # and we definitely want the one that we actually state!
-            source = yum_helper.get_source(rpm) unless source
+            source ||= yum_helper.get_source(rpm)
 
             Dir.chdir('packages') do
               unless File.exist?(rpm)
                 puts("Downloading: #{rpm}")
                 downloaded_rpm = yum_helper.download(source)
 
-                raise(SIMPBuildException,"#{rpm} could not be downloaded") unless downloaded_rpm
+                raise(SIMPBuildException, "#{rpm} could not be downloaded") unless downloaded_rpm
 
                 begin
                   validate_rpm(downloaded_rpm)
                 rescue SIMPBuildException
                   rm(rpm) if File.exist?(rpm)
-                  raise(SIMPBuildException,"#{rpm} could not be downloaded")
+                  raise(SIMPBuildException, "#{rpm} could not be downloaded")
                 end
               end
             end
 
-            return source
+            source
           end
 
           # Check to see if an RPM is actually a valid RPM
           # Optionally remove any invalid RPMS.
           #
           # Returns true if the rpm is valid raises a SIMPBuildException otherwise
-          def validate_rpm(rpm, clean=true)
+          def validate_rpm(rpm, clean = true)
             # Check to see if what we got is actually valid
-            %x(rpm -K --nosignature "#{rpm}" 2>&1 > /dev/null)
+            `rpm -K --nosignature "#{rpm}" 2>&1 > /dev/null`
 
-            unless $?.success?
+            unless $CHILD_STATUS.success?
               errmsg = "RPM '#{rpm}' is invalid"
 
               if clean
                 errmsg += ', removing'
-                FileUtils.rm(rpm) if File.exist?(rpm)
+                FileUtils.rm_f(rpm)
               end
 
-              raise(SIMPBuildException,errmsg)
+              raise(SIMPBuildException, errmsg)
             end
 
             true
           end
 
-          def get_known_packages(target_dir=Dir.pwd)
+          def get_known_packages(target_dir = Dir.pwd)
             known_package_hash = {}
 
             Dir.chdir(target_dir) do
               if File.exist?('packages.yaml')
                 # The empty YAML file returns 'false'
-                known_package_hash = YAML::load_file('packages.yaml') || {}
+                known_package_hash = YAML.load_file('packages.yaml') || {}
               end
             end
 
-            unless known_package_hash.empty?
-              unless known_package_hash.first.last[:rpm_name]
-                # Convert from Legacy
-                # This is imperfect since we can't accurately determine the RPM sort
-                # name but the code should straighten everything out since we rewrite
-                # the entire file based on what has been downloaded.
-                new_package_hash = known_package_hash.dup
+            if !known_package_hash.empty? && !known_package_hash.first.last[:rpm_name]
+              # Convert from Legacy
+              # This is imperfect since we can't accurately determine the RPM sort
+              # name but the code should straighten everything out since we rewrite
+              # the entire file based on what has been downloaded.
+              new_package_hash = known_package_hash.dup
 
-                known_package_hash.each_key { |k|
-                  new_package_hash[k][:rpm_name] = k
-                }
-
-                known_package_hash = new_package_hash
+              known_package_hash.each_key do |k|
+                new_package_hash[k][:rpm_name] = k
               end
+
+              known_package_hash = new_package_hash
             end
 
-            return known_package_hash
+            known_package_hash
           end
 
-          def get_downloaded_packages(target_dir=Dir.pwd)
+          def get_downloaded_packages(target_dir = Dir.pwd)
             downloaded_packages = {}
 
             Dir.chdir(target_dir) do
@@ -237,16 +237,16 @@ module Simp::Rake::Build
               end
             end
 
-            return downloaded_packages
+            downloaded_packages
           end
 
           # Update the packages.yaml and packages/ directories
           #   * target_dir => The actual distribution directory where packages.yaml and
           #                   packages/ reside.
-          def update_packages(target_dir, bootstrap=false)
+          def update_packages(target_dir, _bootstrap = false)
             # This really should never happen....
             unless File.directory?(target_dir)
-              fail <<-EOM
+              raise <<-EOM
         Error: Could not update packages.
 
         Target directory '#{target_dir}' does not exist!
@@ -255,7 +255,7 @@ module Simp::Rake::Build
 
             Dir.chdir(target_dir) do
               unless File.exist?('packages.yaml') || File.directory?('packages')
-                fail <<-EOM
+                raise <<-EOM
         Error: Either 'packages.yaml' or the 'packages/' directory need to exist under '#{target_dir}
                 EOM
               end
@@ -269,16 +269,16 @@ module Simp::Rake::Build
               # This holds packages for which we could not find a source.
               unknown_package_hash = {}
 
-              known_packages = known_package_hash.keys.collect{ |pkg|
-                pkg = known_package_hash[pkg][:rpm_name]
-              }.compact
+              known_packages = known_package_hash.keys.filter_map do |pkg|
+                known_package_hash[pkg][:rpm_name]
+              end
 
-              downloaded_packages = downloaded_package_hash.keys.collect{ |pkg|
-                pkg = downloaded_package_hash[pkg][:rpm_name]
-              }.compact
+              downloaded_packages = downloaded_package_hash.keys.filter_map do |pkg|
+                downloaded_package_hash[pkg][:rpm_name]
+              end
 
               if known_packages.empty? && downloaded_packages.empty? && Dir.glob('reposync/**/repomd.xml').empty?
-                fail <<-EOM
+                raise <<-EOM
         Error: Could not find anything to do!
 
         In #{target_dir}:
@@ -303,23 +303,19 @@ module Simp::Rake::Build
               (known_packages - downloaded_packages).sort.each do |package_to_download|
                 begin
                   # Do we have a valid external source?
-                  package_source = known_package_hash.find{|k,h| h[:rpm_name] == package_to_download}.last[:source]
-                  if package_source && (package_source =~ %r(^[a-z]+://))
+                  package_source = known_package_hash.find { |_k, h| h[:rpm_name] == package_to_download }.last[:source]
+                  if package_source && (package_source =~ %r{^[a-z]+://})
                     begin
                       download_rpm(package_to_download, yum_conf, package_source)
-                    rescue => e
-                      if ['yes','true'].include?(ENV['SIMP_BUILD_update_packages'])
-                        pkg_shortname = known_package_hash.find {|k,v| v[:rpm_name] == package_to_download }
+                    rescue StandardError => e
+                      raise(e) unless ['yes', 'true'].include?(ENV['SIMP_BUILD_update_packages'])
 
-                        if pkg_shortname
-                          pkg_shortname = pkg_shortname.first
-                          download_rpm(pkg_shortname, yum_conf)
-                        else
-                          raise(e)
-                        end
-                      else
-                        raise(e)
-                      end
+                      pkg_shortname = known_package_hash.find { |_k, v| v[:rpm_name] == package_to_download }
+
+                      raise(e) unless pkg_shortname
+
+                      pkg_shortname = pkg_shortname.first
+                      download_rpm(pkg_shortname, yum_conf)
                     end
                   else
                     # If you get here, then you'll need to have an internal mirror of the
@@ -328,8 +324,8 @@ module Simp::Rake::Build
                     download_rpm(package_to_download, yum_conf)
                   end
                 rescue SIMPBuildException => e
-                  base_package_name = known_package_hash.find{|k,h| h[:rpm_name] == package_to_download}.first
-                  updated_package = update_rpm(base_package_name,yum_conf,true)
+                  base_package_name = known_package_hash.find { |_k, h| h[:rpm_name] == package_to_download }.first
+                  updated_package = update_rpm(base_package_name, yum_conf, true)
 
                   if updated_package
                     updated_package_rpm_name = updated_package[base_package_name][:rpm_name]
@@ -351,34 +347,34 @@ module Simp::Rake::Build
               # Now, let's update the known_packages data structure for anything that's
               # new!
               (downloaded_packages - known_packages).each do |package|
-                downloaded_package_hash.keys.each do |key|
-                  if downloaded_package_hash[key][:rpm_name] == package
-                    begin
-                      rpm_source = yum_helper.get_source(package)
-                      #rpm_source = get_rpm_source(package,yum_conf)
-                      known_package_hash[key] = downloaded_package_hash[key]
-                      known_package_hash[key][:source] = rpm_source
-                    rescue SIMPBuildException => e
-                      unknown_package_hash[key] = {} unless unknown_package_hash[key]
-                      unknown_package_hash[key][:rpm_name] = package
-                      failed_updates[package] = e
-                    end
-                    break
+                downloaded_package_hash.each_key do |key|
+                  next unless downloaded_package_hash[key][:rpm_name] == package
+
+                  begin
+                    rpm_source = yum_helper.get_source(package)
+                    # rpm_source = get_rpm_source(package,yum_conf)
+                    known_package_hash[key] = downloaded_package_hash[key]
+                    known_package_hash[key][:source] = rpm_source
+                  rescue SIMPBuildException => e
+                    unknown_package_hash[key] = {} unless unknown_package_hash[key]
+                    unknown_package_hash[key][:rpm_name] = package
+                    failed_updates[package] = e
                   end
+                  break
                 end
               end
 
               # OK! In theory, we're done with all of this nonsense! Let's update the
               # YAML file.
-              File.open('packages.yaml','w') do |fh|
+              File.open('packages.yaml', 'w') do |fh|
                 sorted_packages = {}
                 known_package_hash.keys.sort.each do |k|
                   # Make sure we don't capture any legacy malformed info
-                  if known_package_hash[k][:rpm_name][-4..-1] == '.rpm'
-                    sorted_packages[k] ||= {}
-                    known_package_hash[k].keys.sort.each do |subk|
-                      sorted_packages[k][subk] = known_package_hash[k][subk]
-                    end
+                  next unless known_package_hash[k][:rpm_name][-4..] == '.rpm'
+
+                  sorted_packages[k] ||= {}
+                  known_package_hash[k].keys.sort.each do |subk|
+                    sorted_packages[k][subk] = known_package_hash[k][subk]
                   end
                 end
 
@@ -389,7 +385,7 @@ module Simp::Rake::Build
                 rm('unknown_packages.yaml') if File.exist?('unknown_packages.yaml')
               else
                 # Next, let's freshen up the unknown packages reference file
-                File.open('unknown_packages.yaml','w') do |fh|
+                File.open('unknown_packages.yaml', 'w') do |fh|
                   sorted_packages = {}
                   unknown_package_hash.keys.sort.each do |k|
                     sorted_packages[k] ||= {}
@@ -404,10 +400,10 @@ module Simp::Rake::Build
 
               # Now, let's tell the user what went wrong.
               unless failed_updates.empty?
-                $stderr.puts("Warning: There were errors updating some files:")
+                warn('Warning: There were errors updating some files:')
 
                 failed_updates.keys.sort.each do |k|
-                  $stderr.puts("  * #{k} => #{failed_updates[k]}")
+                  warn("  * #{k} => #{failed_updates[k]}")
                 end
 
                 raise('Could not update all packages')
@@ -427,7 +423,7 @@ module Simp::Rake::Build
           #
           # Returns a hash of the new package information if found.
           #
-          def update_rpm(pkg,yum_conf,verbose=false)
+          def update_rpm(pkg, yum_conf, verbose = false)
             updated_pkg = nil
 
             begin
@@ -443,14 +439,13 @@ module Simp::Rake::Build
                   # Don't obsolete yourself!
                   next unless new_pkg_info.basename == old_pkg_info.basename
 
+                  next unless new_pkg_info.newer?(old_pkg_info.rpm_name)
 
-                  if new_pkg_info.newer?(old_pkg_info.rpm_name)
-                    mkdir('obsolete') unless File.directory?('obsolete')
+                  mkdir('obsolete') unless File.directory?('obsolete')
 
-                    puts("Retiring #{old_pkg}") if verbose
+                  puts("Retiring #{old_pkg}") if verbose
 
-                    mv(old_pkg,'obsolete')
-                  end
+                  mv(old_pkg, 'obsolete')
                 end
 
                 updated_pkg = {
@@ -490,27 +485,27 @@ module Simp::Rake::Build
 
           Will not overwrite existing directories or package.yaml files
           EOM
-          task :scaffold,[:os,:os_version,:simp_version,:arch] do |t,args|
+          task :scaffold, [:os, :os_version, :simp_version, :arch] do |_t, args|
             # @simp_version is set in the main Rakefile
             args.with_defaults(:simp_version => @simp_version.split('-').first)
             args.with_defaults(:arch => @build_arch)
 
             major_os_ver = args[:os_version].split('.').first
             build_dir = distro_build_dir(
-              File.join(@base_dir,'build'), args[:os], major_os_ver, args[:arch]
+              File.join(@base_dir, 'build'), args[:os], major_os_ver, args[:arch]
             )
-            build_dir = ENV['SIMP_BUILD_yum_dir'] if File.directory?(ENV['SIMP_BUILD_yum_dir'].to_s)
-            ENV['SIMP_BUILD_yum_dir'] ||= build_dir  # <-- for hacky :prep task
+            build_dir = ENV.fetch('SIMP_BUILD_yum_dir', nil) if File.directory?(ENV['SIMP_BUILD_yum_dir'].to_s)
+            ENV['SIMP_BUILD_yum_dir'] ||= build_dir # <-- for hacky :prep task
 
-            target_dir = File.join(build_dir,'yum_data')
+            target_dir = File.join(build_dir, 'yum_data')
 
             # Create directories
             my_repos = $simp6 ? '../my_repos' : 'my_repos'
             [
               target_dir,
-              File.join(target_dir,'repos'),
-              File.join(target_dir,'packages'),
-              File.expand_path(my_repos,target_dir)
+              File.join(target_dir, 'repos'),
+              File.join(target_dir, 'packages'),
+              File.expand_path(my_repos, target_dir),
             ].each { |dir| mkdir_p(dir, verbose: false) }
 
             # Create example packages.yaml
@@ -521,7 +516,7 @@ module Simp::Rake::Build
               yum_url = "https://yum.server/#{args[:os]}/#{major_os_ver}/#{args[:arch]}"
               pkg_url = "#{yum_url}/#{pkg_file}"
               yaml = { pkg => { rpm_name: pkg_file, source: pkg_url } }.to_yaml
-              File.open(packages_yaml_path,'w'){|f| f.puts yaml.gsub(/^/,'# ') }
+              File.open(packages_yaml_path, 'w') { |f| f.puts yaml.gsub(%r{^}, '# ') }
               puts "Created #{target_dir}"
               puts "Created example file at #{packages_yaml_path}"
             end
@@ -542,7 +537,7 @@ module Simp::Rake::Build
 
           * :arch         - The architecture that you support. Default: x86_64
           EOM
-          task :sync,[:os,:os_version,:simp_version,:arch] => [:scaffold, :prep] do |t,args|
+          task :sync, [:os, :os_version, :simp_version, :arch] => [:scaffold, :prep] do |_t, args|
             # @simp_version is set in the main Rakefile
             args.with_defaults(:simp_version => @simp_version.split('-').first)
             args.with_defaults(:arch => @build_arch)
@@ -567,7 +562,7 @@ module Simp::Rake::Build
 
           * :arch         - The architecture that you support. Default: x86_64
           EOM
-          task :diff,[:os,:os_version,:simp_version,:arch] => [:scaffold, :prep] do |t,args|
+          task :diff, [:os, :os_version, :simp_version, :arch] => [:scaffold, :prep] do |_t, args|
             args.with_defaults(:simp_version => @simp_version.split('-').first)
             args.with_defaults(:arch => @build_arch)
 
@@ -585,7 +580,7 @@ module Simp::Rake::Build
             unless known_not_downloaded.empty?
               differences_found = true
 
-              puts("=== Packages Not Downloaded ===")
+              puts('=== Packages Not Downloaded ===')
               known_not_downloaded.each do |package|
                 puts "  - #{package}"
               end
@@ -595,7 +590,7 @@ module Simp::Rake::Build
             unless downloaded_not_known.empty?
               differences_found = true
 
-              puts ("=== Pacakges Downloaded not Recorded ===")
+              puts('=== Pacakges Downloaded not Recorded ===')
               downloaded_not_known.each do |package|
                 puts "  ~ #{downloaded_package_hash[package][:rpm_name]}"
               end
@@ -604,7 +599,7 @@ module Simp::Rake::Build
             if differences_found
               exit 1
             else
-              puts("=== No Differences Found ===")
+              puts('=== No Differences Found ===')
               exit 0
             end
           end
@@ -633,18 +628,18 @@ module Simp::Rake::Build
 
           * :arch         - The architecture that you support. Default: x86_64
           EOM
-          task :fetch,[:pkg,:os,:os_version,:simp_version,:arch] => [:scaffold, :prep] do |t,args|
+          task :fetch, [:pkg, :os, :os_version, :simp_version, :arch] => [:scaffold, :prep] do |_t, args|
             args.with_defaults(:simp_version => @simp_version.split('-').first)
             args.with_defaults(:arch => @build_arch)
 
-            fail("Error: You must specify 'pkg'") unless args[:pkg]
+            raise("Error: You must specify 'pkg'") unless args[:pkg]
 
             pkgs = []
             # Handle the output of build:yum_diff
             if File.readable?(args[:pkg])
               File.read(args[:pkg]).each_line do |line|
-                if line =~ /\s+~\s+(.*)/
-                  pkgs << $1.split(/-\d+/).first
+                if line =~ %r{\s+~\s+(.*)}
+                  pkgs << ::Regexp.last_match(1).split(%r{-\d+}).first
                 end
               end
             else

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Simp; end
 module Simp::Rake; end
 

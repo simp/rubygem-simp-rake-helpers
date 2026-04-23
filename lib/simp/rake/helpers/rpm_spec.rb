@@ -1,25 +1,26 @@
+# frozen_string_literal: true
+
 module Simp; end
 module Simp::Rake; end
-class Simp::Rake::Helpers
-  module Simp::Rake::Helpers::RPMSpec
-    require 'simp/rake/build/constants'
 
-    include Simp::Rake::Build::Constants
+module Simp::Rake::Helpers::Simp::Rake::Helpers::RPMSpec
+  require 'simp/rake/build/constants'
 
-    def rpm_template(simp_version=nil)
-      simp_version = ENV.fetch('SIMP_BUILD_version', simp_version)
+  include Simp::Rake::Build::Constants
 
-      if simp_version
-        simp_main_version = simp_version.split('.').first
-      else
-        simp_main_version = 'default'
-      end
+  def rpm_template(simp_version = nil)
+    simp_version = ENV.fetch('SIMP_BUILD_version', simp_version)
 
-      template_file = File.join(File.dirname(__FILE__), 'assets', 'rpm_spec', "simp#{simp_main_version}.spec")
+    simp_main_version = if simp_version
+                          simp_version.split('.').first
+                        else
+                          'default'
+                        end
 
-      raise "Error: Could not find template for SIMP version #{simp_version}" unless File.exist?(template_file)
+    template_file = File.join(File.dirname(__FILE__), 'assets', 'rpm_spec', "simp#{simp_main_version}.spec")
 
-      return File.read(template_file)
-    end
+    raise "Error: Could not find template for SIMP version #{simp_version}" unless File.exist?(template_file)
+
+    File.read(template_file)
   end
 end

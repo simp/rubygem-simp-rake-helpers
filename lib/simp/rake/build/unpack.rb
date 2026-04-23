@@ -1,127 +1,125 @@
+# frozen_string_literal: true
+
 require 'ruby-progressbar'
 require 'simp/rake/build/constants'
 
 module Simp; end
 module Simp::Rake; end
-module Simp::Rake::Build
 
-  class Unpack < ::Rake::TaskLib
-    include Simp::Rake::Build::Constants
+class Simp::Rake::Build::Unpack < Rake::TaskLib
+  include Simp::Rake::Build::Constants
 
-    def initialize( base_dir )
-      init_member_vars( base_dir )
+  def initialize(base_dir)
+    init_member_vars(base_dir)
 
-      define_tasks
-    end
+    define_tasks
+  end
 
-    def define_tasks
-      #!/usr/bin/rake -T
+  def define_tasks
+    # !/usr/bin/rake -T
 
-=begin
-      desc "Unpack an ISO. Unpacks either a RHEL or CentOS ISO into
-      <targetdir>/<RHEL|CentOS><version>-<arch>.
-       * :iso_path - Full path to the ISO image to unpack.
-       * :merge - If true, then automatically merge any existing
-         directories. Defaults to prompting.
-       * :targetdir - The parent directory for the to-be-created directory
-         containing the unpacked ISO. Defaults to the current directory.
-       * :isoinfo - The isoinfo executable to use to extract stuff from the ISO.
-         Defaults to 'isoinfo'.
-       * :version - optional override for the <version> number (e.g., '7.0' instead of '7')
-       * :exclude_repos - Don't unpack repos or packages when true
+    #       desc "Unpack an ISO. Unpacks either a RHEL or CentOS ISO into
+    #       <targetdir>/<RHEL|CentOS><version>-<arch>.
+    #        * :iso_path - Full path to the ISO image to unpack.
+    #        * :merge - If true, then automatically merge any existing
+    #          directories. Defaults to prompting.
+    #        * :targetdir - The parent directory for the to-be-created directory
+    #          containing the unpacked ISO. Defaults to the current directory.
+    #        * :isoinfo - The isoinfo executable to use to extract stuff from the ISO.
+    #          Defaults to 'isoinfo'.
+    #        * :version - optional override for the <version> number (e.g., '7.0' instead of '7')
+    #        * :exclude_repos - Don't unpack repos or packages when true
+    #
+    #       "
+    task :unpack, [:iso_path, :merge, :targetdir, :isoinfo, :version, :exclude_repos] do |_t, args|
+      args.with_defaults(
+        :iso_path => '',
+        :isoinfo => 'isoinfo',
+        :targetdir => Dir.pwd,
+        :merge => false,
+        :version => false,
+        :exclude_repos => false,
+      )
 
-      "
-=end
-      task :unpack,[:iso_path, :merge, :targetdir, :isoinfo, :version, :exclude_repos] do |t,args|
-        args.with_defaults(
-          :iso_path      => '',
-          :isoinfo       => 'isoinfo',
-          :targetdir     => Dir.pwd,
-          :merge         => false,
-          :version       => false,
-          :exclude_repos => false,
-        )
+      iso_path      = args.iso_path
+      iso_info      = which(args.isoinfo)
+      targetdir     = args.targetdir
+      merge         = args.merge
+      version       = args.version
+      exclude_repos = args.exclude_repos
 
-        iso_path      = args.iso_path
-        iso_info      = which(args.isoinfo)
-        targetdir     = args.targetdir
-        merge         = args.merge
-        version       = args.version
-        exclude_repos = args.exclude_repos
+      # Checking for valid arguments
+      File.exist?(args.iso_path) or
+        raise 'Error: You must provide the full path and filename of the ISO image.'
 
-        # Checking for valid arguments
-        File.exist?(args.iso_path) or
-          fail "Error: You must provide the full path and filename of the ISO image."
+      `file --keep-going '#{iso_path}'`.split(':')[1..].to_s.include?('ISO') or
+        raise 'Error: The file provided is not a valid ISO.'
 
-        %x{file --keep-going '#{iso_path}'}.split(":")[1..-1].to_s =~ /ISO/ or
-          fail "Error: The file provided is not a valid ISO."
+      pieces = File.basename(iso_path, '.iso').split('-')
 
-        pieces = File.basename(iso_path,'.iso').split('-')
-
-        # Mappings of ISO name to target directory name.
-        # This is a hash of hashes to provide room for growth.
-        dvd_map = {
-          # RHEL structure as provided from RHN:
-          #   rhel-server-<version>-<arch>-<whatever>
-          'rhel' => {
-            'baseos'  => 'RedHat',
-            'version' => version || pieces[2],
-            'arch'    => pieces[3]
-          },
-          # CentOS structure as provided from the CentOS website:
-          #   CentOS-<version>-<arch>-<whatever>
-          'CentOS' => {
-            'baseos'  => 'CentOS',
-            'version' => version || pieces[1],
-            'arch'    => pieces[2]
-          }
+      # Mappings of ISO name to target directory name.
+      # This is a hash of hashes to provide room for growth.
+      dvd_map = {
+        # RHEL structure as provided from RHN:
+        #   rhel-server-<version>-<arch>-<whatever>
+        'rhel' => {
+          'baseos' => 'RedHat',
+          'version' => version || pieces[2],
+          'arch' => pieces[3]
+        },
+        # CentOS structure as provided from the CentOS website:
+        #   CentOS-<version>-<arch>-<whatever>
+        'CentOS' => {
+          'baseos' => 'CentOS',
+          'version' => version || pieces[1],
+          'arch' => pieces[2]
         }
+      }
 
-        # Determine the target directory
-        map = dvd_map[pieces[0]]
-        map.nil? and fail "Error: Could not find a mapping for '#{iso_path}'."
-        out_dir = "#{File.expand_path(targetdir)}/#{map['baseos']}#{map['version']}-#{map['arch']}"
+      # Determine the target directory
+      map = dvd_map[pieces[0]]
+      map.nil? and raise "Error: Could not find a mapping for '#{iso_path}'."
+      out_dir = "#{File.expand_path(targetdir)}/#{map['baseos']}#{map['version']}-#{map['arch']}"
 
-        # Attempt a merge
-        if File.exist?(out_dir) and merge.to_s.strip == 'false'
-          puts "Directory '#{out_dir}' already exists! Would you like to merge? [Yn]?"
-          unless $stdin.gets.strip.match(/^(y.*|$)/i)
-            puts "Skipping #{iso_path}"
+      # Attempt a merge
+      if File.exist?(out_dir) && (merge.to_s.strip == 'false')
+        puts "Directory '#{out_dir}' already exists! Would you like to merge? [Yn]?"
+        unless $stdin.gets.strip.match?(%r{^(y.*|$)}i)
+          puts "Skipping #{iso_path}"
+          next
+        end
+      end
+
+      puts "Target dir: #{out_dir}"
+      mkdir_p(out_dir)
+
+      # Unpack the ISO
+      iso_toc = `#{iso_info} -Rf -i #{iso_path}`.split("\n")
+      iso_toc.each do |iso_entry|
+        iso_toc.delete(File.dirname(iso_entry))
+      end
+
+      progress = ProgressBar.create(:title => 'Unpacking', :total => iso_toc.size)
+
+      iso_toc.each do |iso_entry|
+        target = "#{out_dir}#{iso_entry}"
+        unless File.exist?(target)
+          if exclude_repos && target =~ %r{\.rpm$|repodata|repomd.xml}
+            puts "  [exclude_repos] SKIPPING repo/package file: #{target}"
             next
           end
+          FileUtils.mkdir_p(File.dirname(target))
+          system("#{iso_info} -R -x #{iso_entry} -i #{iso_path} > #{target}")
         end
-
-        puts "Target dir: #{out_dir}"
-        mkdir_p(out_dir)
-
-        # Unpack the ISO
-        iso_toc = %x{#{iso_info} -Rf -i #{iso_path}}.split("\n")
-        iso_toc.each do |iso_entry|
-          iso_toc.delete(File.dirname(iso_entry))
+        if progress
+          progress.increment
+        else
+          print '#'
         end
-
-        progress = ProgressBar.create(:title => 'Unpacking', :total => iso_toc.size)
-
-        iso_toc.each do |iso_entry|
-          target = "#{out_dir}#{iso_entry}"
-          unless File.exist?(target)
-            if exclude_repos && target =~ %r{\.rpm$|repodata|repomd.xml}
-              puts "  [exclude_repos] SKIPPING repo/package file: #{target}"
-              next
-            end
-            FileUtils.mkdir_p(File.dirname(target))
-            system("#{iso_info} -R -x #{iso_entry} -i #{iso_path} > #{target}")
-          end
-          if progress
-            progress.increment
-          else
-            print "#"
-          end
-        end
-
-        # The repodata directory needs to exist (but not be copied) for el7 distros
-        FileUtils.mkdir("#{out_dir}/repodata") if version.start_with?('7')
       end
+
+      # The repodata directory needs to exist (but not be copied) for el7 distros
+      FileUtils.mkdir("#{out_dir}/repodata") if version.start_with?('7')
     end
   end
 end

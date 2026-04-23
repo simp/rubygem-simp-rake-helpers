@@ -1,14 +1,16 @@
+# frozen_string_literal: true
+
 require 'simp/componentinfo'
 require 'spec_helper'
 
 describe Simp::ComponentInfo do
-  let(:files_dir) {
-    File.join( File.dirname(__FILE__), 'files', File.basename(__FILE__, '.rb'))
-  }
+  let(:files_dir) do
+    File.join(File.dirname(__FILE__), 'files', File.basename(__FILE__, '.rb'))
+  end
 
   context 'with valid module input' do
-    let(:component_dir){ File.join(files_dir, 'module') }
-    let(:info){ Simp::ComponentInfo.new(component_dir) }
+    let(:component_dir) { File.join(files_dir, 'module') }
+    let(:info) { described_class.new(component_dir) }
     let(:expected_release) { nil }
     let(:expected_changelog) do
       [
@@ -18,7 +20,7 @@ describe Simp::ComponentInfo do
           :release => '0',
           :content => [
             '* Wed Nov 15 2017 Mary Jones <mary.jones@simp.com> - 3.8.0-0',
-            '- Disable deprecation warnings by default'
+            '- Disable deprecation warnings by default',
           ]
         },
         {
@@ -27,17 +29,17 @@ describe Simp::ComponentInfo do
           :release => '0',
           :content => [
             '* Mon Nov 06 2017 Tom Smith <tom.smith@simp.com> - 3.8.0-0',
-            '- Fixes split failure when "findmnt" does not exist on Linux'
+            '- Fixes split failure when "findmnt" does not exist on Linux',
           ]
         },
         {
           :date => 'Thu Oct 26 2017',
           :version => '3.7.0',
           :release => '0',
-          :content => [  # +changelog_date+:: Date string of the form <weekday> <month> <day> <year>
+          :content => [ # +changelog_date+:: Date string of the form <weekday> <month> <day> <year>
 
             '* Thu Oct 26 2017 Mary Jones <mary.jones@simp.com> - 3.7.0-0',
-            '- Add Mod::Macaddress data type'
+            '- Add Mod::Macaddress data type',
           ]
         },
         {
@@ -49,31 +51,33 @@ describe Simp::ComponentInfo do
             "- Convert all 'sysctl' 'kernel.shm*' entries to Strings",
             '  - shmall and shmmax were causing Facter and newer versions of Puppet to crash',
             '  - See FACT-1732 for additional information',
-            '- Add Puppet function `mod::assert_metadata_os()`'
+            '- Add Puppet function `mod::assert_metadata_os()`',
           ]
-        }
+        },
       ]
     end
 
     shared_examples 'an instance with expected module data' do
-      it { expect( info.component_dir ).to eq component_dir }
-      it { expect( info.type ).to eq :module }
-      it { expect( info.version ).to eq '3.8.0' }
-      it { expect( info.release ).to eq expected_release }
+      it { expect(info.component_dir).to eq component_dir }
+      it { expect(info.type).to eq :module }
+      it { expect(info.version).to eq '3.8.0' }
+      it { expect(info.release).to eq expected_release }
       it { expect(info.changelog).to eq expected_changelog }
     end
 
     it_behaves_like 'an instance with expected module data'
 
     context 'with loads version and latest-version-only changelog info' do
-      let(:info){Simp::ComponentInfo.new(component_dir, true)}
-      let(:expected_changelog){ super()[0..1] }
+      let(:info) { described_class.new(component_dir, true) }
+      let(:expected_changelog) { super()[0..1] }
+
       it_behaves_like 'an instance with expected module data'
     end
 
     context 'with a module version containing a prerelease suffix (3.8.0-rc0)' do
-      let(:component_dir){ File.join(files_dir, 'module_with_prerelease_dash_in_version') }
-      let(:expected_release){ 'rc0' }
+      let(:component_dir) { File.join(files_dir, 'module_with_prerelease_dash_in_version') }
+      let(:expected_release) { 'rc0' }
+
       it_behaves_like 'an instance with expected module data'
     end
   end
@@ -81,37 +85,42 @@ describe Simp::ComponentInfo do
   context 'with invalid module input' do
     it 'fails when metadata.json is malformed' do
       component_dir = File.join(files_dir, 'module_with_malformed_metadata')
-      expect{ Simp::ComponentInfo.new(component_dir) }.to raise_error(
-        JSON::ParserError)
+      expect { described_class.new(component_dir) }.to raise_error(
+        JSON::ParserError,
+      )
     end
 
     it 'fails when version is missing from metadata.json' do
       component_dir = File.join(files_dir, 'module_missing_version_metadata')
-      expect{ Simp::ComponentInfo.new(component_dir) }.to raise_error(
-        /Version missing from .*module_missing_version_metadata\/metadata.json/)
+      expect { described_class.new(component_dir) }.to raise_error(
+        %r{Version missing from .*module_missing_version_metadata/metadata.json},
+      )
     end
 
     it 'fails when module CHANGELOG is missing' do
       component_dir = File.join(files_dir, 'module_without_changelog')
-      expect{ Simp::ComponentInfo.new(component_dir) }.to raise_error(
-        /No CHANGELOG file found in .*module_without_changelog/)
+      expect { described_class.new(component_dir) }.to raise_error(
+        %r{No CHANGELOG file found in .*module_without_changelog},
+      )
     end
 
     it 'fails when any changelog entry version is > top-most version' do
       component_dir = File.join(files_dir, 'module_with_version_misordered_entries')
-      expect{ Simp::ComponentInfo.new(component_dir) }.to raise_error(
-        /ERROR:  Changelog entries are not properly version ordered/)
+      expect { described_class.new(component_dir) }.to raise_error(
+        %r{ERROR:  Changelog entries are not properly version ordered},
+      )
     end
 
     it 'fails when changelog entry dates are not ordered newest to oldest' do
       component_dir = File.join(files_dir, 'module_with_date_misordered_entries')
-      expect{ Simp::ComponentInfo.new(component_dir) }.to raise_error(
-        /ERROR:  Changelog entries are not properly date ordered/)
+      expect { described_class.new(component_dir) }.to raise_error(
+        %r{ERROR:  Changelog entries are not properly date ordered},
+      )
     end
 
     it 'stops processing upon first malformed changelog signature' do
       component_dir = File.join(files_dir, 'module_with_invalid_entries')
-      info = Simp::ComponentInfo.new(component_dir)
+      info = described_class.new(component_dir)
       expected_changelog = [
         {
           :date => 'Wed Nov 15 2017',
@@ -119,16 +128,16 @@ describe Simp::ComponentInfo do
           :release => '0',
           :content => [
             '* Wed Nov 15 2017 Mary Jones <mary.jones@simp.com> - 3.8.0-0',
-            '- Disable deprecation warnings by default'
+            '- Disable deprecation warnings by default',
           ]
-        }
+        },
       ]
       expect(info.changelog).to eq expected_changelog
     end
 
     it 'stops processing upon first invalid changelog weekday' do
       component_dir = File.join(files_dir, 'module_with_invalid_weekday_entry')
-      info = Simp::ComponentInfo.new(component_dir)
+      info = described_class.new(component_dir)
       expected_changelog = [
         {
           :date => 'Thu Nov 16 2017',
@@ -136,22 +145,22 @@ describe Simp::ComponentInfo do
           :release => '0',
           :content => [
             '* Thu Nov 16 2017 Mary Jones <mary.jones@simp.com> - 3.8.0-0',
-            '- Disable deprecation warnings by default'
+            '- Disable deprecation warnings by default',
           ]
-        }
+        },
       ]
       expect(info.changelog).to eq expected_changelog
     end
   end
 
   context 'with valid asset input' do
-   it 'loads version, release and changelog info from a single-package spec file' do
+    it 'loads version, release and changelog info from a single-package spec file' do
       component_dir = File.join(files_dir, 'asset_with_single_package')
-      info = Simp::ComponentInfo.new(component_dir, true)
-      expect( info.component_dir ).to eq component_dir
-      expect( info.type ).to eq :asset
-      expect( info.version ).to eq '1.0.0'
-      expect( info.release ).to eq '1'
+      info = described_class.new(component_dir, true)
+      expect(info.component_dir).to eq component_dir
+      expect(info.type).to eq :asset
+      expect(info.version).to eq '1.0.0'
+      expect(info.release).to eq '1'
       expected_changelog = [
         {
           :date => 'Wed Oct 18 2017',
@@ -159,20 +168,20 @@ describe Simp::ComponentInfo do
           :release => '1',
           :content => [
             '* Wed Oct 18 2017 Jane Doe <jane.doe@simp.com> - 1.0.0-1',
-            '- Fix installed file permissions'
+            '- Fix installed file permissions',
           ]
-        }
+        },
       ]
       expect(info.changelog).to eq expected_changelog
     end
 
     it 'loads version, release, and changelog info for primary package from a multi-package spec file' do
       component_dir = File.join(files_dir, 'asset_with_multiple_packages')
-      info = Simp::ComponentInfo.new(component_dir)
-      expect( info.component_dir ).to eq component_dir
-      expect( info.type ).to eq :asset
-      expect( info.version ).to eq '4.0.3'
-      expect( info.release ).to eq '0'
+      info = described_class.new(component_dir)
+      expect(info.component_dir).to eq component_dir
+      expect(info.type).to eq :asset
+      expect(info.version).to eq '4.0.3'
+      expect(info.release).to eq '0'
       expected_changelog = [
         {
           :date => 'Thu Aug 31 2017',
@@ -181,7 +190,7 @@ describe Simp::ComponentInfo do
           :content => [
             '* Thu Aug 31 2017 Jane Doe <jane.doe@simp.com> - 4.0.3',
             '- Fix bug Z',
-            '  - Thanks to Lilia Smith for the PR!'
+            '  - Thanks to Lilia Smith for the PR!',
           ]
         },
         {
@@ -190,7 +199,7 @@ describe Simp::ComponentInfo do
           :release => nil,
           :content => [
             '* Mon Jun 12 2017 Jane Doe <jane.doe@simp.com> - 4.0.3',
-            '- Prompt user for new input'
+            '- Prompt user for new input',
           ]
         },
         {
@@ -200,20 +209,20 @@ describe Simp::ComponentInfo do
           :content => [
             '* Fri Jun 02 2017 Jim Jones <jim.jones@simp.com> - 4.0.2-0',
             '- Expand X',
-            '- Fix Y'
+            '- Fix Y',
           ]
-        }
+        },
       ]
       expect(info.changelog).to eq expected_changelog
     end
 
     it 'loads version, release, and changelog info when release includes distribution' do
       component_dir = File.join(files_dir, 'asset_with_dist_in_release')
-      info = Simp::ComponentInfo.new(component_dir)
-      expect( info.component_dir ).to eq component_dir
-      expect( info.type ).to eq :asset
-      expect( info.version ).to eq '1.0.0'
-      expect( info.release ).to match(/0/)
+      info = described_class.new(component_dir)
+      expect(info.component_dir).to eq component_dir
+      expect(info.type).to eq :asset
+      expect(info.version).to eq '1.0.0'
+      expect(info.release).to match(%r{0})
       expected_changelog = [
         {
           :date => 'Wed Oct 18 2017',
@@ -221,52 +230,56 @@ describe Simp::ComponentInfo do
           :release => '0',
           :content => [
             '* Wed Oct 18 2017 Jane Doe <jane.doe@simp.com> - 1.0.0-0',
-            '- Package with distribution in release tag'
+            '- Package with distribution in release tag',
           ]
-        }
+        },
       ]
       expect(info.changelog).to eq expected_changelog
     end
   end
 
- # Since same changelog parsing code is used for module and
- # RPM changelog content, only focus on the errors not already
- # tested above.
+  # Since same changelog parsing code is used for module and
+  # RPM changelog content, only focus on the errors not already
+  # tested above.
   context 'with invalid asset input' do
     it 'fails when asset RPM spec file is missing' do
       component_dir = File.join(files_dir, 'asset_without_spec_file')
-      expect{ Simp::ComponentInfo.new(component_dir) }.to raise_error(
-        /No RPM spec file found in .*asset_without_spec_file\/build/)
-   end
+      expect { described_class.new(component_dir) }.to raise_error(
+        %r{No RPM spec file found in .*asset_without_spec_file/build},
+      )
+    end
 
-   it 'fails when more than 1 asset RPM spec file is found' do
-     component_dir = File.join(files_dir, 'asset_with_two_spec_files')
-     expect{ Simp::ComponentInfo.new(component_dir) }.to raise_error(
-       /More than 1 RPM spec file found:/)
-   end
+    it 'fails when more than 1 asset RPM spec file is found' do
+      component_dir = File.join(files_dir, 'asset_with_two_spec_files')
+      expect { described_class.new(component_dir) }.to raise_error(
+        %r{More than 1 RPM spec file found:},
+      )
+    end
 
-   it 'fails when version is missing from asset RPM spec file' do
-     component_dir = File.join(files_dir, 'asset_missing_version')
-     expect{ Simp::ComponentInfo.new(component_dir) }.to raise_error(
-       /Could not extract version and release from /)
-   end
+    it 'fails when version is missing from asset RPM spec file' do
+      component_dir = File.join(files_dir, 'asset_missing_version')
+      expect { described_class.new(component_dir) }.to raise_error(
+        %r{Could not extract version and release from },
+      )
+    end
 
-   it 'fails when release is missing from asset RPM spec file' do
-     component_dir = File.join(files_dir, 'asset_missing_release')
-     expect{ Simp::ComponentInfo.new(component_dir) }.to raise_error(
-       /Could not extract version and release from /)
-   end
+    it 'fails when release is missing from asset RPM spec file' do
+      component_dir = File.join(files_dir, 'asset_missing_release')
+      expect { described_class.new(component_dir) }.to raise_error(
+        %r{Could not extract version and release from },
+      )
+    end
 
-   it 'fails when changelog cannot be read from asset RPM spec file' do
-     skip(
-       <<~SKIP.strip.split("\n").join(' ')
+    it 'fails when changelog cannot be read from asset RPM spec file' do
+      skip(
+        <<~SKIP.strip.split("\n").join(' '),
          This has to be a case in which version and release can be read from
          spec file but the changelog (which is optional) can't.
 
          It *could* be mocked, but is probably not worth the LOE unless we
          encounter a real-world test case."
-       SKIP
-     )
-   end
+        SKIP
+      )
+    end
   end
 end

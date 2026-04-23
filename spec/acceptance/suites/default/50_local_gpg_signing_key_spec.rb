@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'spec_helper_acceptance'
 require_relative 'support/build_user_helpers'
 
@@ -14,8 +16,7 @@ end
 # It should be possible manage GPG keys using this logic from many OSes,
 # but it's silly to try to mock them all directly in RSpec.
 describe 'local_gpg_signing_key unit test' do
-
-  def hf_cmd( hosts, cmd, env_str=nil, opts={})
+  def hf_cmd(hosts, cmd, env_str = nil, opts = {})
     if ENV['PUPPET_VERSION']
       env_str ||= %(export PUPPET_VERSION='#{ENV['PUPPET_VERSION']}';)
     end
@@ -28,11 +29,10 @@ describe 'local_gpg_signing_key unit test' do
     # If the build environment of user executing this test has a newer
     # version of bundler than provided by the published docker container,
     # the Gemfile.lock will cause problems. So, make sure to remove it!
-    hf_cmd(hosts, 'rm Gemfile.lock; bundle --local || bundle', nil, {run_in_parallel: true})
+    hf_cmd(hosts, 'rm Gemfile.lock; bundle --local || bundle', nil, { run_in_parallel: true })
   end
 
   it 'can run the os-dependent Simp::LocalGpgSigningKey spec tests' do
-    hf_cmd( hosts, 'bundle exec rspec spec/lib/simp/local_gpg_signing_key_spec.rb.beaker-only' );
+    hf_cmd(hosts, 'bundle exec rspec spec/lib/simp/local_gpg_signing_key_spec.rb.beaker-only')
   end
 end
-

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'puppetlabs_spec_helper/rake_tasks'
 require 'puppet/version'
 require 'puppet-syntax/tasks/puppet-syntax'
@@ -8,9 +10,9 @@ require 'parallel_tests/cli'
 require 'simp/rake/fixtures'
 
 if Puppet.version.to_f >= 4.9
-    require 'semantic_puppet'
+  require 'semantic_puppet'
 elsif Puppet.version.to_f >= 3.6 && Puppet.version.to_f < 4.9
-    require 'puppet/vendor/semantic/lib/semantic'
+  require 'puppet/vendor/semantic/lib/semantic'
 end
 
 module Simp; end
@@ -20,33 +22,32 @@ module Simp::Rake::Pupmod; end
 # From http://dan.doezema.com/2012/04/recursively-sort-ruby-hash-by-key/
 class Hash
   def sort_by_key(recursive = false, &block)
-    self.keys.sort(&block).reduce({}) do |seed, key|
+    keys.sort(&block).each_with_object({}) do |key, seed|
       seed[key] = self[key]
       if recursive && seed[key].is_a?(Hash)
         seed[key] = seed[key].sort_by_key(true, &block)
       end
-      seed
     end
   end
 end
 
 # Rake tasks for SIMP Puppet modules
-class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
+class Simp::Rake::Pupmod::Helpers < Rake::TaskLib
   # See https://fedoraproject.org/wiki/Packaging:Guidelines?rd=Packaging/Guidelines#Changelogs
-  CHANGELOG_ENTRY_REGEX = /^\*\s+((?:Mon|Tue|Wed|Thu|Fri|Sat|Sun) (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{1,2} \d{4})\s+(.+<.+>)(?:\s+|\s*-\s*)?(\d+\.\d+\.\d+)/
+  CHANGELOG_ENTRY_REGEX = %r{^\*\s+((?:Mon|Tue|Wed|Thu|Fri|Sat|Sun) (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{1,2} \d{4})\s+(.+<.+>)(?:\s+|\s*-\s*)?(\d+\.\d+\.\d+)}.freeze
 
-  def initialize( base_dir = Dir.pwd )
+  def initialize(base_dir = Dir.pwd)
     @base_dir = base_dir
-    @temp_fixtures_path = File.join(base_dir,'spec','fixtures','simp_rspec')
+    @temp_fixtures_path = File.join(base_dir, 'spec', 'fixtures', 'simp_rspec')
 
     FileUtils.mkdir_p(@temp_fixtures_path)
 
-    Dir[ File.join(File.dirname(__FILE__),'*.rb') ].each do |rake_file|
+    Dir[File.join(File.dirname(__FILE__), '*.rb')].sort.each do |rake_file|
       next if rake_file == __FILE__
+
       require rake_file
     end
     define_tasks
-
   end
 
   def define_tasks
@@ -55,18 +56,18 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
     begin
       require 'puppet_blacksmith/rake_tasks'
       Blacksmith::RakeTask.new do |t|
-        t.tag_pattern = "%s" # Use tag format "X.Y.Z" instead of "vX.Y.Z"
+        t.tag_pattern = '%s' # Use tag format "X.Y.Z" instead of "vX.Y.Z"
       end
     rescue LoadError
     end
 
     # Lint & Syntax exclusions
     exclude_paths = [
-      "bundle/**/*",
-      "pkg/**/*",
-      "dist/**/*",
-      "vendor/**/*",
-      "spec/**/*",
+      'bundle/**/*',
+      'pkg/**/*',
+      'dist/**/*',
+      'vendor/**/*',
+      'spec/**/*',
     ]
     PuppetSyntax.exclude_paths = exclude_paths
 
@@ -77,16 +78,16 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
       config.ignore_paths = PuppetLint.configuration.ignore_paths
     end
 
-    Simp::Rake::Fixtures.new( @base_dir )
+    Simp::Rake::Fixtures.new(@base_dir)
 
-    Simp::Rake::Pkg.new( @base_dir ) do | t |
+    Simp::Rake::Pkg.new(@base_dir) do |t|
       t.clean_list << "#{t.base_dir}/spec/fixtures/hieradata/hiera.yaml"
       t.clean_list << @temp_fixtures_path
     end
 
-    Simp::Rake::Beaker.new( @base_dir )
+    Simp::Rake::Beaker.new(@base_dir)
 
-    desc "Run acceptance tests"
+    desc 'Run acceptance tests'
     RSpec::Core::RakeTask.new(:acceptance) do |t|
       t.pattern = 'spec/acceptance'
     end
@@ -97,17 +98,17 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
     end
 
     desc 'lint metadata.json'
-    Rake::Task[:metadata].clear if Rake::Task.tasks.any?{ |x| x.name == 'metadata' }
+    Rake::Task[:metadata].clear if Rake::Task.tasks.any? { |x| x.name == 'metadata' }
     task :metadata => :metadata_lint
 
     # Read the metadata.json as a data structure
-    def metadata( file_path = nil )
+    def metadata(file_path = nil)
       require 'json'
       _file = file_path || File.join(@base_dir, 'metadata.json')
-      fail "ERROR: file not found: '#{_file}'" unless File.exist? _file
-      @metadata ||= JSON.parse( File.read(_file) )
-    end
+      raise "ERROR: file not found: '#{_file}'" unless File.exist? _file
 
+      @metadata ||= JSON.parse(File.read(_file))
+    end
 
     # Generate an appropriate annotated tag entry from the modules' CHANGELOG
     #
@@ -118,23 +119,23 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
     #       4.0.0-2
     #       - Improved test stubs.
     #
-    def changelog_annotation( quiet = false, file = nil )
-      result         = ""
+    def changelog_annotation(quiet = false, file = nil)
+      result         = ''
       changelog_file = file || File.join(@base_dir, 'CHANGELOG')
       module_version = metadata['version']
-      changelogs      = {}
+      changelogs = {}
 
       _entry = {} # current log entry's metadata (empty unless valid entry)
       File.read(changelog_file).each_line do |line|
-        if line =~ /^\*/
+        if line =~ %r{^\*}
           if CHANGELOG_ENTRY_REGEX.match(line).nil?
-             warn %Q[WARNING: invalid changelogs entry: "#{line}"] unless quiet
-             _entry = {}
+            warn %(WARNING: invalid changelogs entry: "#{line}") unless quiet
+            _entry = {}
           else
             _entry = {
-              :date    => $1,
-              :user    => $2,
-              :release => $3,
+              :date => ::Regexp.last_match(1),
+              :user => ::Regexp.last_match(2),
+              :release => ::Regexp.last_match(3)
             }
             changelogs[_entry[:release]] ||= []
             changelogs[_entry[:release]] << line
@@ -146,29 +147,29 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
         changelogs[_entry[:release]] << "  #{line}" if _entry.fetch(:release, false)
       end
 
-      fail "Did not find any changelogs entries for version #{module_version}" if changelogs[module_version].nil?
+      raise "Did not find any changelogs entries for version #{module_version}" if changelogs[module_version].nil?
 
       result += "\nRelease of #{module_version}\n\n"
-      result += changelogs[module_version].join
+      result + changelogs[module_version].join
     end
 
     def custom_fixtures_hook(opts = {
-      :short_name          => nil,
-      :puppetfile          => nil,
-      :modulepath          => nil,
-      :local_fixtures_mods => nil,
+      :short_name => nil,
+      :puppetfile => nil,
+      :modulepath => nil,
+      :local_fixtures_mods => nil
     })
       short_name          = opts[:short_name]
       puppetfile          = opts[:puppetfile]
       modulepath          = opts[:modulepath]
       local_fixtures_mods = opts[:local_fixtures_mods] || []
 
-      fail('You must pass a short module name') unless short_name
+      raise('You must pass a short module name') unless short_name
 
       fixtures_hash = {
         'fixtures' => {
           'symlinks' => {
-            short_name => '#{source_dir}'
+            short_name => source_dir.to_s
           }
         }
       }
@@ -177,20 +178,20 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
 
       if modulepath
         unless File.directory?(modulepath)
-          fail("Could not find a module directory at #{modulepath}")
+          raise("Could not find a module directory at #{modulepath}")
         end
 
         # Grab all of the local modules and convert them into something
         # that can be turned into a Hash easily
-        local_modules = Hash[Dir.glob(File.join(modulepath, '*', 'metadata.json')).map do |m|
+        local_modules = Dir.glob(File.join(modulepath, '*', 'metadata.json')).to_h do |m|
           [File.basename(File.dirname(m)), File.absolute_path(File.dirname(m))]
-        end]
+        end
 
         local_modules.delete(short_name)
       end
 
       if puppetfile
-        fail("Could not find Puppetfile at #{puppetfile}") unless File.exist?(puppetfile)
+        raise("Could not find Puppetfile at #{puppetfile}") unless File.exist?(puppetfile)
 
         require 'simp/rake/build/deps'
 
@@ -220,7 +221,7 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
 
             fixtures_hash['fixtures']['repositories'][pupmod[:name]] = {
               'repo' => pupmod[:remote],
-              'ref'  => pupmod[:desired_ref]
+              'ref' => pupmod[:desired_ref]
             }
           end
         end
@@ -235,11 +236,11 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
         end
       end
 
-      if local_fixtures_mods.empty?
-        custom_fixtures_path = File.join(@temp_fixtures_path, 'fixtures.yml')
-      else
-        custom_fixtures_path = File.join(@temp_fixtures_path, 'fixtures_tmp.yml')
-      end
+      custom_fixtures_path = if local_fixtures_mods.empty?
+                               File.join(@temp_fixtures_path, 'fixtures.yml')
+                             else
+                               File.join(@temp_fixtures_path, 'fixtures_tmp.yml')
+                             end
 
       if puppetfile || modulepath
         File.open(custom_fixtures_path, 'w') do |fh|
@@ -251,15 +252,15 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
         errmsg = [
           '===',
           'The following modules in .fixtures.yml were not found in the Puppetfile:',
-          %{  * #{local_fixtures_mods.join("\n  * ")}},
-          %{A temporary fixtures file has been written to #{custom_fixtures_path}},
-          '==='
+          %(  * #{local_fixtures_mods.join("\n  * ")}),
+          %(A temporary fixtures file has been written to #{custom_fixtures_path}),
+          '===',
         ]
 
-        fail(errmsg.join("\n"))
+        raise(errmsg.join("\n"))
       end
 
-      return custom_fixtures_path
+      custom_fixtures_path
     end
 
     desc <<-EOM
@@ -286,10 +287,10 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
     #   `rpm -q --specfile dist/tmp/*.spec --changelog`
     # That will give Travis a way of warning us if the changelog
     # will prevent the rpm from building.
-    task :changelog_annotation, [:quiet] do |t,args|
+    task :changelog_annotation, [:quiet] do |_t, args|
       warn('DEPRECATED: use pkg:create_tag_changelog')
       quiet = true if args[:quiet].to_s == 'true'
-      puts changelog_annotation( quiet )
+      puts changelog_annotation(quiet)
     end
 
     desc <<-EOM
@@ -329,7 +330,7 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
       - spec directory
       - doc directory
     EOM
-    task :compare_latest_tag, [:tags_source, :ignore_owner, :verbose] do |t,args|
+    task :compare_latest_tag, [:tags_source, :ignore_owner, :verbose] do |_t, args|
       warn('DEPRECATED: use pkg:compare_latest_tag')
       require 'json'
 
@@ -338,24 +339,24 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
       verbose = true if args[:verbose].to_s == 'true'
 
       module_version = metadata['version']
-      owner =  metadata['name'].split('-')[0]
+      owner = metadata['name'].split('-')[0]
 
-      if (owner == 'simp') or ignore_owner
+      if (owner == 'simp') || ignore_owner
         # determine last tag
         `git fetch -t #{tags_source} 2>/dev/null`
         tags = `git tag -l`.split("\n")
         puts "Available tags from #{tags_source} = #{tags}" if verbose
-        tags.delete_if { |tag| tag.include?('-') or (tag =~ /^v/) }
+        tags.delete_if { |tag| tag.include?('-') or (tag =~ %r{^v}) }
 
         if tags.empty?
           puts "No tags exist from #{tags_source}"
         else
-          last_tag = (tags.sort { |a,b| Gem::Version.new(a) <=> Gem::Version.new(b) })[-1]
+          last_tag = tags.max { |a, b| Gem::Version.new(a) <=> Gem::Version.new(b) }
 
           # determine mission-impacting files that have changed
           files_changed = `git diff tags/#{last_tag} --name-only`.strip.split("\n")
           files_changed.delete_if do |file|
-            file[0] ==  '.' || file =~ /^Gemfile/ || file == 'Rakefile' || file =~/^spec\// || file =~/^doc\// || file =~/^rakelib\//
+            file[0] ==  '.' || file =~ %r{^Gemfile} || file == 'Rakefile' || file =~ %r{^spec/} || file =~ %r{^doc/} || file =~ %r{^rakelib/}
           end
 
           if files_changed.empty?
@@ -364,15 +365,15 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
             unless ignore_owner
               # determine latest version from CHANGELOG, which will present
               # for all SIMP Puppet modules
-              line = IO.readlines('CHANGELOG')[0]
-              match = line.match(/^\*\s+((?:Mon|Tue|Wed|Thu|Fri|Sat|Sun) (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{2} \d{4})\s+(.+<.+>)(?:\s+|\s*-\s*)?(\d+\.\d+\.\d+)/)
+              line = File.readlines('CHANGELOG')[0]
+              match = line.match(%r{^\*\s+((?:Mon|Tue|Wed|Thu|Fri|Sat|Sun) (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{2} \d{4})\s+(.+<.+>)(?:\s+|\s*-\s*)?(\d+\.\d+\.\d+)})
               unless match
-                fail("ERROR: Invalid CHANGELOG entry. Unable to extract version from '#{line}'")
+                raise("ERROR: Invalid CHANGELOG entry. Unable to extract version from '#{line}'")
               end
 
               changelog_version = match[3]
               unless module_version == changelog_version
-                fail("ERROR: Version mismatch.  module version=#{module_version}  changelog version=#{changelog_version}")
+                raise("ERROR: Version mismatch.  module version=#{module_version}  changelog version=#{changelog_version}")
               end
             end
 
@@ -380,9 +381,9 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
             last_tag_version = Gem::Version.new(last_tag)
 
             if curr_module_version < last_tag_version
-              fail("ERROR: Version regression. '#{module_version}' < last tag '#{last_tag}'")
+              raise("ERROR: Version regression. '#{module_version}' < last tag '#{last_tag}'")
             elsif curr_module_version == last_tag_version
-              fail("ERROR: Version update beyond last tag '#{last_tag}' is required for #{files_changed.count} changed files:\n  * #{files_changed.join("\n  * ")}")
+              raise("ERROR: Version update beyond last tag '#{last_tag}' is required for #{files_changed.count} changed files:\n  * #{files_changed.join("\n  * ")}")
             else
               puts "NOTICE: New tag of version '#{module_version}' is required for #{files_changed.count} changed files:\n  * #{files_changed.join("\n  * ")}"
             end
@@ -393,7 +394,7 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
       end
     end
 
-    desc "Run syntax, lint, and spec tests."
+    desc 'Run syntax, lint, and spec tests.'
     task :test => [
       :syntax,
       :lint,
@@ -411,7 +412,7 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
       if ENV['SIMP_PARALLEL_TARGETS']
         test_targets += ENV['SIMP_PARALLEL_TARGETS'].split
       end
-      test_targets.delete_if{|dir| !File.directory?(dir)}
+      test_targets.delete_if { |dir| !File.directory?(dir) }
       Rake::Task[:spec_prep].invoke
       ParallelTests::CLI.new.run('--type test -t rspec'.split + test_targets)
       if ENV.fetch('SPEC_clean', 'no') == 'yes'
@@ -450,8 +451,8 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
 
           puppetfile_tgt = File.join(@temp_fixtures_path, 'Puppetfile')
 
-          if puppetfile =~ %r{://}
-            %x{curl -k -s -o #{puppetfile_tgt} #{puppetfile}}
+          if puppetfile.include?('://')
+            `curl -k -s -o #{puppetfile_tgt} #{puppetfile}`
           else
             FileUtils.cp(File.absolute_path(puppetfile), puppetfile_tgt)
           end
@@ -465,13 +466,13 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
 
         if opts[:puppetfile] || opts[:modulepath]
           unless @custom_fixtures_hook_override_fixtures
-            fail("Could not find '.fixtures.yml' at #{Dir.pwd}") unless File.exist?('.fixtures.yml')
+            raise("Could not find '.fixtures.yml' at #{Dir.pwd}") unless File.exist?('.fixtures.yml')
 
             opts[:local_fixtures_mods] = []
 
             require 'yaml'
             _fixtures = YAML.load_file('.fixtures.yml')['fixtures']
-            _fixtures.keys.each do |subset|
+            _fixtures.each_key do |subset|
               _fixtures[subset].each_pair do |_mod, _extra|
                 opts[:local_fixtures_mods] << _mod
               end
@@ -488,9 +489,9 @@ class Simp::Rake::Pupmod::Helpers < ::Rake::TaskLib
     end
 
     Rake::Task['spec_prep'].enhance [:custom_fixtures_hook] do
-      Dir.glob(File.join('spec','fixtures','modules','*')).each do |dir|
-        if @custom_fixtures_hook_override_fixtures
-          FileUtils.remove_entry_secure(dir) unless File.exist?(File.join(dir, 'metadata.json'))
+      Dir.glob(File.join('spec', 'fixtures', 'modules', '*')).each do |dir|
+        if @custom_fixtures_hook_override_fixtures && !File.exist?(File.join(dir, 'metadata.json'))
+          FileUtils.remove_entry_secure(dir)
         end
       end
     end

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Simp::BeakerHelpers::SimpRakeHelpers::BuildProjectHelpers
   # Scaffolds _just_ enough of a super-release project to run `bundle exec rake
   #   -T` using this repository's source code as the simp-rake-helper source
@@ -40,15 +42,15 @@ module Simp::BeakerHelpers::SimpRakeHelpers::BuildProjectHelpers
     return @distribution_dirs[host.to_s] if @distribution_dirs.key?(host.to_s)
 
     result = on(host, %(#{run_cmd} 'facter --yaml'), opts.merge(silent: true))
-    facts_string = result.stdout.lines[1..-1].join
-    facts = YAML.load(facts_string)
+    facts_string = result.stdout.lines[1..].join
+    facts = YAML.safe_load(facts_string)
 
     # This logic should work regardless of the version of facter
     name = facts['operatingsystem'] || facts['os']['name']
     maj_rel = facts['operatingsystemmajrelease'] ||
               facts.fetch('os', {}).fetch('release', {})['major'] ||
               facts['operatingsystemrelease'].split('.').first
-    architecture = facts['architecture'] || facts.dig('os','architecture')
+    architecture = facts['architecture'] || facts.dig('os', 'architecture')
 
     dir = "#{proj_dir}/build/distributions/#{name}/#{maj_rel}/#{architecture}"
     @distribution_dirs[host.to_s] = dir
@@ -66,6 +68,7 @@ module Simp::BeakerHelpers::SimpRakeHelpers::BuildProjectHelpers
     res = on(host, %(#{run_cmd} "gpg --with-colons --fingerprint --homedir='#{key_dir}' 'SIMP Development'"), opts)
     pub_lines = res.stdout.lines.select { |x| x.start_with?('pub') }
     raise "No 'SIMP Development' GPG keys found in '#{key_dir}'" if pub_lines.empty?
+
     pub_lines.first.split(':')[4].downcase
   end
 
@@ -75,7 +78,6 @@ module Simp::BeakerHelpers::SimpRakeHelpers::BuildProjectHelpers
   # @param [Host, String, Symbol] host Beaker host
   # @param [String] gpg_homedir Absolute path to GPG home dir
   def gpg_agent_running?(host, gpg_homedir)
-
     # This check is being used in tests to verify no gpg-agent for gpg_homedir
     # is running.  On slow VMs, the gpg-agent can take some time to shutdown.
     # So wait up to 20 seconds for gpg-agent to shutdown before finalizing
@@ -83,10 +85,11 @@ module Simp::BeakerHelpers::SimpRakeHelpers::BuildProjectHelpers
 
     retries = 20
     agent_exists = true
-    while (agent_exists || (retries > 0))
+    while agent_exists || (retries > 0)
       result = on(host, "pgrep -c -f 'gpg-agent.*homedir.*#{gpg_homedir}'", :accept_all_exit_codes => true)
-      agent_exists  = (result.stdout.strip != '0')
+      agent_exists = (result.stdout.strip != '0')
       break unless agent_exists
+
       sleep 1
       retries -= 1
     end
