@@ -40,3 +40,15 @@ jobs:
         run: bundle exec rake pkg:install_gem
         continue-on-error: ${{matrix.puppet.experimental}}
 
+  ruby-style:
+    name: 'Ruby Style'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v6
+      - name: 'Install Ruby 4.0'
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '4.0'
+          bundler-cache: true
+      - run: bundle exec rubocop

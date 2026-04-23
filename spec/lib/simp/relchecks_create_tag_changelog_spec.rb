@@ -1,10 +1,12 @@
+# frozen_string_literal: true
+
 require 'simp/relchecks'
 require 'spec_helper'
 
 describe 'Simp::RelChecks.create_tag_changelog' do
-  let(:files_dir) {
-    File.join( File.dirname(__FILE__), 'files', File.basename(__FILE__, '.rb'))
-  }
+  let(:files_dir) do
+    File.join(File.dirname(__FILE__), 'files', File.basename(__FILE__, '.rb'))
+  end
 
   describe '.create_tag_changelog' do
     context 'with valid module input' do
@@ -45,26 +47,30 @@ EOM
     context 'with invalid module input' do
       it 'fails when module info cannot be loaded' do
         component_dir = File.join(files_dir, 'module_without_changelog')
-        expect{ Simp::RelChecks.create_tag_changelog(component_dir) }.to raise_error(
-          /No CHANGELOG file found in .*module_without_changelog/)
+        expect { Simp::RelChecks.create_tag_changelog(component_dir) }.to raise_error(
+          %r{No CHANGELOG file found in .*module_without_changelog},
+        )
       end
 
       it 'fails if no valid entry for the version can be found' do
         component_dir = File.join(files_dir, 'module_with_no_entry_for_version')
-        expect{ Simp::RelChecks.create_tag_changelog(component_dir) }.to raise_error(
-          /No valid changelog entry for version 4.0.0 found/)
+        expect { Simp::RelChecks.create_tag_changelog(component_dir) }.to raise_error(
+          %r{No valid changelog entry for version 4.0.0 found},
+        )
       end
 
       it 'fails if entry with newer version than metadata.json is found' do
         component_dir = File.join(files_dir, 'module_with_newer_changelog_entry')
-        expect{ Simp::RelChecks.create_tag_changelog(component_dir) }.to raise_error(
-          /Changelog entry for version > 3.8.0 found:/)
+        expect { Simp::RelChecks.create_tag_changelog(component_dir) }.to raise_error(
+          %r{Changelog entry for version > 3.8.0 found:},
+        )
       end
 
       it "fails if dates are out of order for the version's changelog entries" do
         component_dir = File.join(files_dir, 'module_with_misordered_entries')
-        expect{ Simp::RelChecks.create_tag_changelog(component_dir) }.to raise_error(
-          /ERROR:  Changelog entries are not properly date ordered/)
+        expect { Simp::RelChecks.create_tag_changelog(component_dir) }.to raise_error(
+          %r{ERROR:  Changelog entries are not properly date ordered},
+        )
       end
     end
 
@@ -117,26 +123,28 @@ EOM
     end
 
     context 'with invalid asset input' do
-
       it 'fails when asset info cannot be loaded' do
         component_dir = File.join(files_dir, 'asset_without_spec_file')
-        expect{ Simp::RelChecks.create_tag_changelog(component_dir) }.to raise_error(
-          /No RPM spec file found in .*asset_without_spec_file\/build/)
+        expect { Simp::RelChecks.create_tag_changelog(component_dir) }.to raise_error(
+          %r{No RPM spec file found in .*asset_without_spec_file/build},
+        )
       end
 
       it 'fails when changelog is missing from asset RPM spec file' do
-        #NOTE:  %changelog is optional in a spec file.  So this error
+        # NOTE:  %changelog is optional in a spec file.  So this error
         #       is not found when the changelog is read from the spec
         #       file, but, instead, during post-validation
         component_dir = File.join(files_dir, 'asset_missing_changelog')
-        expect{ Simp::RelChecks.create_tag_changelog(component_dir) }.to raise_error(
-          /No valid changelog entry for version 1.0.0 found/)
+        expect { Simp::RelChecks.create_tag_changelog(component_dir) }.to raise_error(
+          %r{No valid changelog entry for version 1.0.0 found},
+        )
       end
 
       it 'fails when release tag and release in changelog from asset RPM spec file are mismatched' do
         component_dir = File.join(files_dir, 'asset_mismatched_release')
-        expect{ Simp::RelChecks.create_tag_changelog(component_dir) }.to raise_error(
-          /Version release does not match/)
+        expect { Simp::RelChecks.create_tag_changelog(component_dir) }.to raise_error(
+          %r{Version release does not match},
+        )
       end
     end
   end

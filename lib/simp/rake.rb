@@ -1,4 +1,7 @@
+# frozen_string_literal: true
+
 module Simp; end
+
 module Simp::Rake
   require 'rubygems'
   require 'erb'
@@ -15,20 +18,18 @@ module Simp::Rake
 
   include Simp::CommandUtils
 
-  attr_reader(:puppetfile)
-  attr_reader(:module_paths)
+  attr_reader :puppetfile, :module_paths
 
-  def load_puppetfile(method='tracking')
-    unless @puppetfile
+  def load_puppetfile(method = 'tracking')
+    return if @puppetfile
 
-      # Pull the puppetfile from the top-level
-      @puppetfile = R10KHelper.new("#{@base_dir}/Puppetfile.#{method}")
-      @module_paths = []
+    # Pull the puppetfile from the top-level
+    @puppetfile = R10KHelper.new("#{@base_dir}/Puppetfile.#{method}")
+    @module_paths = []
 
-      @puppetfile.each_module do |mod|
-        path = mod[:path]
-        @module_paths.push(path)
-      end
+    @puppetfile.each_module do |mod|
+      path = mod[:path]
+      @module_paths.push(path)
     end
   end
 
@@ -36,9 +37,9 @@ module Simp::Rake
   def encode_line(line)
     if Gem::Version.new(RUBY_VERSION) < Gem::Version.new('1.9')
       require 'iconv'
-      line = Iconv.new('ISO-8859-1//IGNORE','UTF-8').iconv(line)
+      Iconv.new('ISO-8859-1//IGNORE', 'UTF-8').iconv(line)
     else
-      line = line.force_encoding(Encoding::ISO_8859_1).encode(Encoding::UTF_8,:replace => nil,:undef => :replace)
+      line.force_encoding(Encoding::ISO_8859_1).encode(Encoding::UTF_8, :replace => nil, :undef => :replace)
     end
   end
 
@@ -50,53 +51,57 @@ module Simp::Rake
     yaml_output = yaml_input
 
     # Had some issues with different versions of ruby giving different results
-    yaml_output.gsub!(%r(!ruby/sym(bol)? ), ':')
+    yaml_output.gsub!(%r{!ruby/sym(bol)? }, ':')
 
     # Also, some versions appear to dump out trailing whitespace
-    yaml_output.gsub!(/\s+$/, '')
+    yaml_output.gsub!(%r{\s+$}, '')
 
-    return yaml_output
+    yaml_output
   end
 
   # by default, we use all processors - 1
   def get_cpu_limit
     cpus = Parallel.processor_count
-    env_cpus = ENV.fetch( 'SIMP_RAKE_LIMIT_CPUS', '-1' ).strip.to_i
+    env_cpus = ENV.fetch('SIMP_RAKE_LIMIT_CPUS', '-1').strip.to_i
 
-    env_cpus  = 1          if env_cpus == 0
-    env_cpus += cpus       if env_cpus < 0
+    env_cpus  = 1          if env_cpus.zero?
+    env_cpus += cpus       if env_cpus.negative?
     # sanitize huge numbers
     env_cpus  = (cpus - 1) if env_cpus >= cpus
-    env_cpus  = 1          if env_cpus < 0
+    env_cpus  = 1          if env_cpus.negative?
 
     env_cpus
   end
 
   # Snarfed from http://nex-3.com/posts/73-git-style-automatic-paging-in-ruby
   def run_pager
-    return if RUBY_PLATFORM =~ /win32/
-    return unless STDOUT.tty?
+    return if RUBY_PLATFORM.include?('win32')
+    return unless $stdout.tty?
 
     read, write = IO.pipe
 
     unless Kernel.fork # Child process
-      STDOUT.reopen(write)
-      STDERR.reopen(write) if STDERR.tty?
+      $stdout.reopen(write)
+      $stderr.reopen(write) if $stderr.tty?
       read.close
       write.close
       return
     end
 
     # Parent process, become pager
-    STDIN.reopen(read)
+    $stdin.reopen(read)
     read.close
     write.close
 
     ENV['LESS'] = 'FSRX' # Don't page if the input is short enough
 
-    Kernel.select [STDIN] # Wait until we have input before we start the pager
+    Kernel.select [$stdin] # Wait until we have input before we start the pager
     pager = ENV['PAGER'] || 'less'
-    exec pager rescue exec "/bin/sh", "-c", pager
+    begin
+      exec pager
+    rescue StandardError
+      exec '/bin/sh', '-c', pager
+    end
   end
 
   def help
@@ -138,8 +143,8 @@ If you are space limited, set SIMP_RAKE_LIMIT_CPUS=1 at build time.
   - This is particularly valuable when using Jenkins.
 
 ********************
-EOM
+    EOM
 
-    sh %{rake -D}
+    sh %(rake -D)
   end
 end

@@ -1,10 +1,12 @@
 ---
-require:
+plugins:
+- rubocop-performance
+- rubocop-rake
 - rubocop-rspec
-- rubocop-i18n
 AllCops:
   DisplayCopNames: true
-  TargetRubyVersion: '2.6'
+  NewCops: enable
+  TargetRubyVersion: '2.7'
   Include:
   - "**/*.rb"
   Exclude:
@@ -18,6 +20,9 @@ AllCops:
   - "**/Puppetfile"
   - "**/Vagrantfile"
   - "**/Guardfile"
+  - lib/simp/ci/**/*
+  - lib/simp/rake/ci.rb
+  - spec/lib/simp/ci/**/*
 Layout/EmptyLinesAroundAttributeAccessor:
   Enabled: true
 Layout/LineLength:
@@ -29,21 +34,12 @@ Lint/RaiseException:
   Enabled: true
 Lint/StructNewOverride:
   Enabled: false
-I18n/GetText:
-  Enabled: false
-I18n/GetText/DecorateString:
-  Description: We don't want to decorate test output.
-  Exclude:
-  - spec/**/*
-  Enabled: false
-Naming/AccessorMethodName:
-  Exclude:
-  - spec/**/*
 RSpec/BeforeAfterAll:
   Description: Beware of using after(:all) as it may cause state to leak between tests.
     A necessary evil in acceptance testing.
   Exclude:
   - spec/acceptance/**/*.rb
+  - spec/lib/**/*.rb
 RSpec/ExpectInHook:
   Exclude:
   - spec/unit/**/*.rb
@@ -54,13 +50,13 @@ RSpec/NamedSubject:
   Exclude:
   - spec/classes/**/*
   - spec/defines/**/*
+  - spec/lib/**/*
 Style/BlockDelimiters:
   Description: Prefer braces for chaining. Mostly an aesthetical choice. Better to
     be consistent then.
   EnforcedStyle: braces_for_chaining
 Style/ClassAndModuleChildren:
-  Description: Compact style reduces the required amount of indentation.
-  EnforcedStyle: compact
+  Enabled: false
 Style/EmptyElse:
   Description: Enforce against empty else clauses, but allow `nil` for clarity.
   EnforcedStyle: empty
@@ -84,9 +80,6 @@ Style/HashTransformValues:
 Style/Lambda:
   Description: Prefer the keyword for easier discoverability.
   EnforcedStyle: literal
-Style/MixinUsage:
-  Exclude:
-  - spec/**/*
 Style/RedundantBegin:
   Enabled: false
 Style/RegexpLiteral:
@@ -112,10 +105,6 @@ Style/SymbolArray:
   EnforcedStyle: brackets
 RSpec/MessageSpies:
   EnforcedStyle: receive
-Style/Documentation:
-  Exclude:
-  - lib/puppet/parser/functions/**/*
-  - spec/**/*
 Style/WordArray:
   EnforcedStyle: brackets
 Style/CollectionMethods:
@@ -124,12 +113,6 @@ Style/MethodCalledOnDoEndBlock:
   Enabled: true
 Style/StringMethods:
   Enabled: true
-I18n/GetText/DecorateFunctionMessage:
-  Enabled: false
-I18n/GetText/DecorateStringFormattingUsingInterpolation:
-  Enabled: false
-I18n/GetText/DecorateStringFormattingUsingPercent:
-  Enabled: false
 Layout/EndOfLine:
   Enabled: false
 Layout/HeredocIndentation:
@@ -164,7 +147,80 @@ RSpec/NestedGroups:
   Enabled: false
 Style/AsciiComments:
   Enabled: false
+Style/ClassVars:
+  Enabled: false
+Style/Documentation:
+  Enabled: false
+Style/GlobalVars:
+  Enabled: false
 Style/IfUnlessModifier:
   Enabled: false
+Style/OptionalBooleanParameter:
+  Enabled: false
 Style/SymbolProc:
+  Enabled: false
+Lint/DuplicateBranch:
+  Enabled: false
+Lint/DuplicateMethods:
+  Enabled: false
+Lint/MissingSuper:
+  Enabled: false
+Lint/MixedRegexpCaptureTypes:
+  Enabled: false
+Lint/NestedMethodDefinition:
+  Enabled: false
+Lint/RescueException:
+  Enabled: false
+Lint/SuppressedException:
+  Enabled: false
+Lint/UnderscorePrefixedVariableName:
+  Enabled: false
+Metrics/BlockNesting:
+  Enabled: false
+Naming/AccessorMethodName:
+  Enabled: false
+Naming/HeredocDelimiterNaming:
+  Enabled: false
+Naming/MethodParameterName:
+  Enabled: false
+Naming/PredicateMethod:
+  Enabled: false
+Naming/PredicatePrefix:
+  Enabled: false
+Performance/CollectionLiteralInLoop:
+  Enabled: false
+RSpec/ContextWording:
+  Enabled: false
+RSpec/ExpectActual:
+  Enabled: false
+RSpec/InstanceVariable:
+  Enabled: false
+RSpec/LeakyConstantDeclaration:
+  Enabled: false
+RSpec/LeakyLocalVariable:
+  Enabled: false
+RSpec/LetSetup:
+  Enabled: false
+RSpec/MultipleDescribes:
+  Enabled: false
+RSpec/NoExpectationExample:
+  Enabled: false
+RSpec/SpecFilePathFormat:
+  Enabled: false
+RSpec/Output:
+  Exclude:
+  - spec/acceptance/**/*
+RSpec/StubbedMock:
+  Enabled: false
+Style/FileOpen:
+  Enabled: false
+Style/MixinUsage:
+  Enabled: false
+Style/MultilineBlockChain:
+  Enabled: false
+Style/OneClassPerFile:
+  Enabled: false
+Style/StringConcatenation:
+  Enabled: false
+Lint/ConstantDefinitionInBlock:
   Enabled: false

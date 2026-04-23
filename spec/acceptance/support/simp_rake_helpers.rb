@@ -1,7 +1,9 @@
+# frozen_string_literal: true
+
 module Simp::BeakerHelpers::SimpRakeHelpers
   # Add RSpec log comments within examples ("it blocks")
   def comment(msg, indent = 10)
-    logger.optionally_color(Beaker::Logger::MAGENTA, ' ' * indent + msg)
+    logger.optionally_color(Beaker::Logger::MAGENTA, (' ' * indent) + msg)
   end
 
   # basic command + arguments for executing `runuser` within an SUT

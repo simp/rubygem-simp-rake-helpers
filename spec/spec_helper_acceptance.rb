@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'beaker-rspec'
 require 'tmpdir'
 require 'yaml'
@@ -5,7 +7,7 @@ require 'simp/beaker_helpers'
 include Simp::BeakerHelpers
 
 require 'acceptance/support/simp_rake_helpers'
-$LOAD_PATH.unshift(File.expand_path('../acceptance/support',__FILE__))
+$LOAD_PATH.unshift(File.expand_path('acceptance/support', __dir__))
 
 unless ENV['BEAKER_provision'] == 'no'
   hosts.each do |host|
@@ -17,7 +19,6 @@ unless ENV['BEAKER_provision'] == 'no'
     end
   end
 end
-
 
 RSpec.configure do |c|
   # provide helper methods to individual examples AND example groups
@@ -33,7 +34,4 @@ RSpec.configure do |c|
 
   # Readable test descriptions
   c.formatter = :documentation
-
-  c.before :suite do
-  end
 end

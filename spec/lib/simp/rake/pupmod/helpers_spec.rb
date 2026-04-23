@@ -1,23 +1,25 @@
+# frozen_string_literal: true
+
 require 'simp/rake/pupmod/helpers'
 require 'spec_helper'
 
 describe Simp::Rake::Pupmod::Helpers do
   before :each do
-    fixtures_dir = File.expand_path( '../fixtures', __FILE__ )
-    @simpmod = Simp::Rake::Pupmod::Helpers.new(File.join(fixtures_dir, 'simpmod'))
-    @othermod = Simp::Rake::Pupmod::Helpers.new(File.join(fixtures_dir, 'othermod'))
+    fixtures_dir = File.expand_path('fixtures', __dir__)
+    @simpmod = described_class.new(File.join(fixtures_dir, 'simpmod'))
+    @othermod = described_class.new(File.join(fixtures_dir, 'othermod'))
   end
 
   describe '#initialize' do
     it 'initialized (smoke test)' do
-      expect( @simpmod.class ).to eq Simp::Rake::Pupmod::Helpers
+      expect(@simpmod.class).to eq described_class
     end
   end
 
   describe '#metadata' do
     it 'reads a valid metadata.json (simp)' do
-      expect( @simpmod.send( :metadata )['name'] ).to eq 'simp-simpmod'
-      expect( @othermod.send( :metadata )['name'] ).to eq 'other-othermod'
+      expect(@simpmod.send(:metadata)['name']).to eq 'simp-simpmod'
+      expect(@othermod.send(:metadata)['name']).to eq 'other-othermod'
     end
   end
 
@@ -36,32 +38,31 @@ describe Simp::Rake::Pupmod::Helpers do
     end
 
     it "doesn't match invalid one-line CHANGELOG entries" do
-      expect("* Foo Jan 1 1970 First Last <email@domain.com> - 0.0.1\n").to_not match @rgx
-      expect("* Mon Xxn 1 1970 First Last <email@domain.com> - 0.0.1\n").to_not match @rgx
-      expect("* Mon Jan 111 1970 First Last <email@domain.com> - 0.0.1\n").to_not match @rgx
-      expect("* Mon Jan 1 1970 <email@domain.com> - 0.0.1\n").to_not match @rgx
+      expect("* Foo Jan 1 1970 First Last <email@domain.com> - 0.0.1\n").not_to match @rgx
+      expect("* Mon Xxn 1 1970 First Last <email@domain.com> - 0.0.1\n").not_to match @rgx
+      expect("* Mon Jan 111 1970 First Last <email@domain.com> - 0.0.1\n").not_to match @rgx
+      expect("* Mon Jan 1 1970 <email@domain.com> - 0.0.1\n").not_to match @rgx
     end
 
     it 'matches valid two-line CHANGELOG entries' do
-      skip "Not worth implementing right now"
+      skip 'Not worth implementing right now'
     end
   end
 
-  describe "#changelog_annotation" do
+  describe '#changelog_annotation' do
     it "generates a tag annotation from a valid SIMP module's CHANGELOG" do
-      _log = @simpmod.send( :changelog_annotation )
-      expect( _log.class ).to be String
-      expect( _log.size ).to be > 0
-      expect( _log.scan( /^Release of/ ).size ).to eq 1
+      _log = @simpmod.send(:changelog_annotation)
+      expect(_log.class).to be String
+      expect(_log.size).to be > 0
+      expect(_log.scan(%r{^Release of}).size).to eq 1
     end
 
     it 'handles multiple CHANGELOG entries for the same release' do
-      _log = @simpmod.send( :changelog_annotation )
-      expect( _log.scan(/^\*.*\d+\.\d+\.\d+$/) ).to eq [
+      _log = @simpmod.send(:changelog_annotation)
+      expect(_log.scan(%r{^\*.*\d+\.\d+\.\d+$})).to eq [
         '* Tue Jan 2 1970 Second Author <email1@domain.com> - 0.1.0',
         '* Mon Jan 1 1970 First Author <email2@domain.com> - 0.1.0',
       ]
     end
   end
 end
-

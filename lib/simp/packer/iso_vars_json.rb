@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'simp/rake/helpers/version'
 require 'digest'
 require 'json'
@@ -9,7 +11,7 @@ module Simp
       # SemVer data version of file
       #
       #   (Starting at 1.0.0, because earlier formats didn't include versions)
-      VARS_FORMAT_VERSION = '1.0.0'.freeze
+      VARS_FORMAT_VERSION = '1.0.0'
 
       # @param file           [String] path to iso file
       # @param target_release [String] SIMP release to build (e.g., '6.X')
@@ -47,21 +49,21 @@ module Simp
         sum = sha256sum(@iso)
         box_distro_release = "SIMP-#{@target_release}-#{@target_data['flavor']}-#{@target_data['os_version']}"
         {
-          'simp_vars_version'   => VARS_FORMAT_VERSION,
-          'box_simp_release'    => @target_release,
-          'box_distro_release'  => box_distro_release,
-          'iso_url'             => @iso,
-          'iso_checksum'        => sum,
-          'iso_checksum_type'   => 'sha256',
-          'new_password'        => 'suP3rP@ssw0r!suP3rP@ssw0r!suP3rP@ssw0r!',
-          'output_directory'    => './OUTPUT',
-          'dist_os_flavor'      => @target_data['flavor'],
-          'dist_os_version'     => @target_data['os_version'],
+          'simp_vars_version' => VARS_FORMAT_VERSION,
+          'box_simp_release' => @target_release,
+          'box_distro_release' => box_distro_release,
+          'iso_url' => @iso,
+          'iso_checksum' => sum,
+          'iso_checksum_type' => 'sha256',
+          'new_password' => 'suP3rP@ssw0r!suP3rP@ssw0r!suP3rP@ssw0r!',
+          'output_directory' => './OUTPUT',
+          'dist_os_flavor' => @target_data['flavor'],
+          'dist_os_version' => @target_data['os_version'],
           'dist_os_maj_version' => @target_data['os_version'].split('.').first,
-          'dist_source_isos'    => @target_data['isos'].map { |x| File.basename(x) }.join(':'),
-          'git_commit'          => %x(git rev-parse --verify HEAD).strip,
-          'packer_src_type'     => 'simp-iso',
-          'iso_builder'         => 'rubygem-simp-rake-helpers',
+          'dist_source_isos' => @target_data['isos'].map { |x| File.basename(x) }.join(':'),
+          'git_commit' => `git rev-parse --verify HEAD`.strip,
+          'packer_src_type' => 'simp-iso',
+          'iso_builder' => 'rubygem-simp-rake-helpers',
           'iso_builder_version' => Simp::Rake::Helpers::VERSION
         }
       end

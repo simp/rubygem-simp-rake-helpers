@@ -1,150 +1,147 @@
+# frozen_string_literal: true
+
 require 'simp/rake'
 require 'simp/rake/build/constants'
 
 module Simp; end
 module Simp::Rake; end
-module Simp::Rake::Build
 
-  class Code < ::Rake::TaskLib
-    include Simp::Rake
-    include Simp::Rake::Build::Constants
+class Simp::Rake::Build::Code < Rake::TaskLib
+  include Simp::Rake
+  include Simp::Rake::Build::Constants
 
-    def initialize( base_dir )
-      init_member_vars( base_dir )
-      define_tasks
-    end
+  def initialize(base_dir)
+    init_member_vars(base_dir)
+    define_tasks
+  end
 
-    def define_tasks
-      namespace :code do
-        desc "Show some basic stats. Uses git to figure out what has changed.
+  def define_tasks
+    namespace :code do
+      desc "Show some basic stats. Uses git to figure out what has changed.
        * :since - Do not include any stats before this date.
        * :until - Do not include any stats after this date."
-        task :stats,[:since,:until] do |t,args|
-          cur_branch = %x{git rev-parse --abbrev-ref HEAD}.chomp
+      task :stats, [:since, :until] do |_t, args|
+        cur_branch = `git rev-parse --abbrev-ref HEAD`.chomp
 
-          if cur_branch.empty?
-            fail "Error: Could not find branch ID!"
-          end
+        if cur_branch.empty?
+          raise 'Error: Could not find branch ID!'
+        end
 
-          changed = 0
-          new = 0
-          removed = 0
+        changed = 0
+        new = 0
+        removed = 0
 
-          cmd = "git log --shortstat --reverse --pretty=oneline"
+        cmd = 'git log --shortstat --reverse --pretty=oneline'
 
-          if args.since
-            cmd = cmd + " --since=#{args.since}"
-          end
-          if args.until
-            cmd = cmd + " --until=#{args.until}"
-          end
+        if args.since
+          cmd += " --since=#{args.since}"
+        end
+        if args.until
+          cmd += " --until=#{args.until}"
+        end
 
-          %x{#{cmd}}.each_line do |line|
-            if encode_line(line) =~ /(\d+) files changed, (\d+) insertions\(\+\), (\d+) del.*/
-              changed = changed + $1.to_i
-              new = new + $2.to_i
-              removed = removed + $3.to_i
-            end
-          end
+        `#{cmd}`.each_line do |line|
+          next unless encode_line(line) =~ %r{(\d+) files changed, (\d+) insertions\(\+\), (\d+) del.*}
 
-          cmd = "git submodule foreach git log --shortstat --reverse --pretty=oneline"
+          changed += ::Regexp.last_match(1).to_i
+          new += ::Regexp.last_match(2).to_i
+          removed += ::Regexp.last_match(3).to_i
+        end
 
-          if args.since
-            cmd = cmd + " --since=#{args.since}"
-          end
-          if args.until
-            cmd = cmd + " --until=#{args.until}"
-          end
+        cmd = 'git submodule foreach git log --shortstat --reverse --pretty=oneline'
 
-          %x{#{cmd}}.each_line do |line|
-            if encode_line(line) =~ /(\d+) files changed, (\d+) insertions\(\+\), (\d+) del.*/
-              changed = changed + $1.to_i
-              new = new + $2.to_i
-              removed = removed + $3.to_i
-            end
-          end
+        if args.since
+          cmd += " --since=#{args.since}"
+        end
+        if args.until
+          cmd += " --until=#{args.until}"
+        end
 
-          puts "Code Stats for #{cur_branch}:"
-          printf "  Files Changed: %6d\n", changed
-          printf "  New Lines:     %6d\n", new
-          printf "  Removed Lines: %6d\n", removed
-        end # End of :stats task.
+        `#{cmd}`.each_line do |line|
+          next unless encode_line(line) =~ %r{(\d+) files changed, (\d+) insertions\(\+\), (\d+) del.*}
 
-        desc "Show line count. Prints a report of the lines of code in the source.
+          changed += ::Regexp.last_match(1).to_i
+          new += ::Regexp.last_match(2).to_i
+          removed += ::Regexp.last_match(3).to_i
+        end
+
+        puts "Code Stats for #{cur_branch}:"
+        printf "  Files Changed: %6d\n", changed
+        printf "  New Lines:     %6d\n", new
+        printf "  Removed Lines: %6d\n", removed
+      end
+
+      desc "Show line count. Prints a report of the lines of code in the source.
        * :show_unknown - Flag for displaying any file extensions not expected."
-        task :count,[:show_unknown] do |t,args|
-          require 'find'
+      task :count, [:show_unknown] do |_t, args|
+        require 'find'
 
-          loc = Hash.new
-          loc["rake"] = 0
-          loc["pp"] = 0
-          loc["rb"] = 0
-          loc["erb"] = 0
-          loc["sh"] = 0
-          loc["csh"] = 0
-          loc["html"] = 0
-          loc["spec"] = 0
-          loc["other"] = 0
+        loc = {}
+        loc['rake'] = 0
+        loc['pp'] = 0
+        loc['rb'] = 0
+        loc['erb'] = 0
+        loc['sh'] = 0
+        loc['csh'] = 0
+        loc['html'] = 0
+        loc['spec'] = 0
+        loc['other'] = 0
 
-          File.open("#{@base_dir}/Rakefile","r").each do |line|
-            if encode_line(line) !~ /^\s*$/
-              loc["rake"] = loc["rake"] + 1
-            end
-          end.close
+        File.open("#{@base_dir}/Rakefile", 'r').each { |line|
+          unless %r{^\s*$}.match?(encode_line(line))
+            loc['rake'] = loc['rake'] + 1
+          end
+        }.close
 
-          other_ext = Array.new
+        other_ext = []
 
-          Find.find(@src_dir) do |path|
-            if (
-              ( File.basename(path)[0] == ?. ) or
-              ( path =~ /src\/rsync/ ) or
-              ( path[-3..-1] =~ /\.gz|pem|pub/ ) or
-              ( path =~ /developers_guide\/rdoc/ )
-            )
-              Find.prune
-            else
-              next if FileTest.symlink?(path) or FileTest.directory?(path)
-            end
-
-            ext = File.extname(path)[1..-1]
-            ext ||= 'none'
-
-            unless loc[ext]
-              other_ext.push(ext) unless other_ext.include?(ext)
-              ext = 'other'
-            end
-
-            File.open(path,'r').each do |line|
-              if encode_line(line) !~ /^\s*$/
-                loc[ext] = loc[ext] + 1
-              end
-            end
+        Find.find(@src_dir) do |path|
+          if (File.basename(path)[0] == '.') ||
+             path.include?('src/rsync') ||
+             (path[-3..] =~ %r{\.gz|pem|pub}) ||
+             path.include?('developers_guide/rdoc')
+            Find.prune
+          elsif FileTest.symlink?(path) || FileTest.directory?(path)
+            next
           end
 
-          puts "Code Count Report:"
-          printf "  %-6s %6s\n", "Ext", "Count"
-          puts "  " + ("-" * 13)
+          ext = File.extname(path)[1..]
+          ext ||= 'none'
 
-          total_loc = 0
-          loc.sort.each do |key,val|
-            printf "  %-6s %6d\n", key, val
-            total_loc = total_loc + val
+          unless loc[ext]
+            other_ext.push(ext) unless other_ext.include?(ext)
+            ext = 'other'
           end
 
-          puts "  " + ("-" * 13)
-          printf "  %-6s %6d\n", "Total", "#{total_loc}"
-          puts
-          puts "Unknown Extension Count: #{other_ext.length}"
-
-          if args.show_unknown
-            puts "Unknown Extensions:"
-            other_ext.sort.each do |ext|
-              puts "  #{ext}"
+          File.open(path, 'r').each do |line|
+            unless %r{^\s*$}.match?(encode_line(line))
+              loc[ext] = loc[ext] + 1
             end
           end
-        end # End of :count task.
+        end
 
-      end # End of :code namespace.
+        puts 'Code Count Report:'
+        printf "  %-6s %6s\n", 'Ext', 'Count' # rubocop:disable Style/FormatStringToken
+        puts "  #{'-' * 13}"
+
+        total_loc = 0
+        loc.sort.each do |key, val|
+          printf "  %-6s %6d\n", key, val
+          total_loc += val
+        end
+
+        puts "  #{'-' * 13}"
+        printf "  %-6s %6d\n", 'Total', total_loc.to_s
+        puts
+        puts "Unknown Extension Count: #{other_ext.length}"
+
+        if args.show_unknown
+          puts 'Unknown Extensions:'
+          other_ext.sort.each do |ext|
+            puts "  #{ext}"
+          end
+        end
+      end
     end
   end
 end

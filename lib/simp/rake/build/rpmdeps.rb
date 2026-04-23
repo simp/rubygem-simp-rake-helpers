@@ -1,11 +1,13 @@
+# frozen_string_literal: true
+
 class SIMPRpmDepException < StandardError; end
 class SIMPRpmDepVersionException < StandardError; end
 
 module Simp; end
 module Simp::Rake; end
 module Simp::Rake::Build; end
-module Simp::Rake::Build::RpmDeps
 
+module Simp::Rake::Build::RpmDeps
   # returns array of RPM spec file 'Requires' lines derived
   # from a 'metadata.json' dependency version specification.
   #
@@ -16,27 +18,25 @@ module Simp::Rake::Build::RpmDeps
   #   string cannot be parsed
   def self.get_version_requires(pkg, dep_version)
     return ["Requires: #{pkg}"] if dep_version.nil?
-    return ["Requires: #{pkg} = #{$1}"] if dep_version =~ /^\s*(\d+\.\d+\.\d+)\s*$/
+    return ["Requires: #{pkg} = #{::Regexp.last_match(1)}"] if dep_version =~ %r{^\s*(\d+\.\d+\.\d+)\s*$}
 
     requires = []
 
     if dep_version.include?('x')
       dep_parts = dep_version.split('.')
 
-      if dep_parts.count == 3
-        dep_version = ">= #{dep_parts[0]}.#{dep_parts[1]}.0 < #{dep_parts[0].to_i + 1}.0.0"
-      else
-        dep_version = ">= #{dep_parts[0]}.0.0 < #{dep_parts[0].to_i + 1}.0.0"
-      end
+      dep_version = if dep_parts.count == 3
+                      ">= #{dep_parts[0]}.#{dep_parts[1]}.0 < #{dep_parts[0].to_i + 1}.0.0"
+                    else
+                      ">= #{dep_parts[0]}.0.0 < #{dep_parts[0].to_i + 1}.0.0"
+                    end
     end
 
     # metadata.json is a LOT more forgiving than the RPM spec file
-    if dep_version =~ /^\s*(?:(?:([<>]=?)\s*(\d+\.\d+\.\d+))\s*(?:(<)\s*(\d+\.\d+\.\d+))?)\s*$/
-      requires << "Requires: #{pkg} #{$1} #{$2}"
-      requires << "Requires: #{pkg} #{$3} #{$4}" if $3
-    else
-      raise SIMPRpmDepVersionException.new
-    end
+    raise SIMPRpmDepVersionException unless dep_version =~ %r{^\s*(?:(?:([<>]=?)\s*(\d+\.\d+\.\d+))\s*(?:(<)\s*(\d+\.\d+\.\d+))?)\s*$}
+
+    requires << "Requires: #{pkg} #{::Regexp.last_match(1)} #{::Regexp.last_match(2)}"
+    requires << "Requires: #{pkg} #{::Regexp.last_match(3)} #{::Regexp.last_match(4)}" if ::Regexp.last_match(3)
 
     requires
   end
@@ -59,15 +59,15 @@ module Simp::Rake::Build::RpmDeps
       # We don't want to add this if we're building an older
       # version or the RPM will be malformed
       main_version, release = version.split('-')
-      release = '0' unless release
+      release ||= '0'
 
       if Gem::Version.new(module_version) > Gem::Version.new(main_version)
         rpm_metadata_content << "Obsoletes: #{pkg} < #{main_version}-#{release}.obsolete"
         rpm_metadata_content << "Provides: #{pkg} = #{main_version}-#{release}.obsolete"
       else
-        puts "Ignoring 'obsoletes' for #{pkg}: module version" +
-         " #{module_version} from metadata.json is not >" +
-         " obsolete version #{version}"
+        puts "Ignoring 'obsoletes' for #{pkg}: module version " \
+             "#{module_version} from metadata.json is not > " \
+             "obsolete version #{version}"
       end
     end
     rpm_metadata_content
@@ -105,7 +105,7 @@ module Simp::Rake::Build::RpmDeps
   # +module_metadata+:: Hash containing the contents of the
   #   module's 'metadata.json' file
   # +ignores+:: Array of package names to ignore during processing
-  def self.generate_custom_rpm_requires(requires_list, module_metadata, ignores=[])
+  def self.generate_custom_rpm_requires(requires_list, module_metadata, ignores = [])
     rpm_metadata_content = []
 
     requires_list.each do |pkg_to_modify|
@@ -117,7 +117,7 @@ module Simp::Rake::Build::RpmDeps
 
       next if ignores.include?(pkg)
 
-      rpm_version_chars = ['<','>','=']
+      rpm_version_chars = ['<', '>', '=']
 
       if min_version && rpm_version_chars.none? { |x| min_version.include?(x) }
         min_version = ">= #{min_version}"
@@ -126,25 +126,25 @@ module Simp::Rake::Build::RpmDeps
         max_version = "< #{max_version}"
       end
 
-      pkg_parts = pkg.split(%r(-|/))[-2..-1]
+      pkg_parts = pkg.split(%r{-|/})[-2..]
 
       # Need to cover all base cases
       short_names = [pkg_parts.join('/'), pkg_parts.join('-')]
 
-      dep_info = module_metadata['dependencies'].select{ |dep|
+      dep_info = module_metadata['dependencies'].select do |dep|
         short_names.include?(dep['name'])
-      }
+      end
 
       if dep_info.empty? && module_metadata['simp'] &&
-        module_metadata['simp']['optional_dependencies']
-        dep_info = module_metadata['simp']['optional_dependencies'].select{ |dep|
+         module_metadata['simp']['optional_dependencies']
+        dep_info = module_metadata['simp']['optional_dependencies'].select do |dep|
           short_names.include?(dep['name'])
-        }
+        end
       end
 
       if dep_info.empty?
         err_msg = "Could not find '#{short_names.first}' dependency"
-        raise SIMPRpmDepException.new(err_msg)
+        raise SIMPRpmDepException, err_msg
       else
         dep_version = dep_info.first['version_requirement']
       end
@@ -157,9 +157,9 @@ module Simp::Rake::Build::RpmDeps
         begin
           rpm_metadata_content << get_version_requires(pkg, dep_version)
         rescue SIMPRpmDepVersionException
-          err_msg = "Unable to parse '#{short_names.first}' dependency" +
-            " version '#{dep_version}'"
-          raise SIMPRpmDepException.new(err_msg)
+          err_msg = "Unable to parse '#{short_names.first}' dependency " \
+                    "version '#{dep_version}'"
+          raise SIMPRpmDepException, err_msg
         end
       end
     end
@@ -178,7 +178,7 @@ module Simp::Rake::Build::RpmDeps
   #   [ 'package1' => { :min => '1.0.0' },
   #     'package2' => { :min => '3.1-1', :max => '4.0' } ]
   # +ignores+:: Array of package names to ignore during processing
-  def self.generate_external_rpm_requires(ext_deps_list, ignores=[])
+  def self.generate_external_rpm_requires(ext_deps_list, ignores = [])
     requires = []
 
     ext_deps_list.each do |pkg_name, options|
@@ -205,7 +205,7 @@ module Simp::Rake::Build::RpmDeps
   # +module_metadata+:: Hash containing the contents of the
   #   module's 'metadata.json' file
   # +ignores+:: Array of package names to ignore during processing
-  def self.generate_module_rpm_requires(module_metadata, ignores=[])
+  def self.generate_module_rpm_requires(module_metadata, ignores = [])
     rpm_metadata_content = []
 
     deps = []
@@ -214,14 +214,14 @@ module Simp::Rake::Build::RpmDeps
     end
 
     if module_metadata['simp'] &&
-      module_metadata['simp']['optional_dependencies']
+       module_metadata['simp']['optional_dependencies']
 
       deps += module_metadata['simp']['optional_dependencies']
     end
 
-    deps.sort! { |x,y| x['name'] <=> y['name'] }
+    deps.sort_by! { |a| a['name'] }
     deps.each do |dep|
-      pkg = "pupmod-#{dep['name'].gsub('/', '-')}"
+      pkg = "pupmod-#{dep['name'].tr('/', '-')}"
 
       next if ignores.include?(pkg)
 
@@ -230,9 +230,9 @@ module Simp::Rake::Build::RpmDeps
       begin
         rpm_metadata_content << get_version_requires(pkg, dep_version)
       rescue SIMPRpmDepVersionException
-        err_msg = "Unable to parse '#{dep['name']}' dependency" +
-          " version '#{dep_version}'"
-        raise SIMPRpmDepException.new(err_msg)
+        err_msg = "Unable to parse '#{dep['name']}' dependency " \
+                  "version '#{dep_version}'"
+        raise SIMPRpmDepException, err_msg
       end
     end
 
@@ -248,7 +248,7 @@ module Simp::Rake::Build::RpmDeps
 
     rpm_requires_content = File.read(rpm_requires_file).lines.map(&:strip) - ['']
 
-    return (new_requires.flatten - rpm_requires_content).empty?
+    (new_requires.flatten - rpm_requires_content).empty?
   end
 
   # Generate 'build/rpm_metadata/requires' file containing
@@ -287,38 +287,38 @@ module Simp::Rake::Build::RpmDeps
 
     ignores = module_rpm_meta ? Array(module_rpm_meta[:ignores]) : []
 
-    if module_rpm_meta and module_rpm_meta[:obsoletes]
+    if module_rpm_meta && module_rpm_meta[:obsoletes]
       rpm_metadata_content = generate_custom_rpm_obsoletes(
         module_rpm_meta[:obsoletes],
-        module_metadata
-      )
-    end
-
-    if module_rpm_meta and module_rpm_meta[:requires]
-      rpm_metadata_content += generate_custom_rpm_requires(
-        module_rpm_meta[:requires],
         module_metadata,
-        ignores
       )
-    else
-      rpm_metadata_content += generate_module_rpm_requires(module_metadata, ignores)
     end
 
-    if module_rpm_meta and module_rpm_meta[:external_dependencies]
+    rpm_metadata_content += if module_rpm_meta && module_rpm_meta[:requires]
+                              generate_custom_rpm_requires(
+                                module_rpm_meta[:requires],
+                                module_metadata,
+                                ignores,
+                              )
+                            else
+                              generate_module_rpm_requires(module_metadata, ignores)
+                            end
+
+    if module_rpm_meta && module_rpm_meta[:external_dependencies]
       rpm_metadata_content += generate_external_rpm_requires(
         module_rpm_meta[:external_dependencies],
-        ignores
+        ignores,
       )
     end
 
     rpm_metadata_file = File.join(dir, 'build', 'rpm_metadata', 'requires')
 
-    unless rpm_requires_up_to_date?(rpm_metadata_content, rpm_metadata_file)
-      FileUtils.mkdir_p(File.dirname(rpm_metadata_file))
-      File.open(rpm_metadata_file, 'w') do |fh|
-        fh.puts(rpm_metadata_content.flatten.join("\n"))
-        fh.flush
-      end
+    return if rpm_requires_up_to_date?(rpm_metadata_content, rpm_metadata_file)
+
+    FileUtils.mkdir_p(File.dirname(rpm_metadata_file))
+    File.open(rpm_metadata_file, 'w') do |fh|
+      fh.puts(rpm_metadata_content.flatten.join("\n"))
+      fh.flush
     end
   end
 
@@ -330,12 +330,12 @@ module Simp::Rake::Build::RpmDeps
     return false unless File.exist?(rpm_release_file)
 
     # remove comments like "# release set by simp-core dependencies.yaml"
-    release_file_content = File.readlines(rpm_release_file).reject{|x| x =~ /^ *#/}.join("\n").strip
+    release_file_content = File.readlines(rpm_release_file).grep_v(%r{^ *#}).join("\n").strip
 
     # sanitize numerics, etc.
-    new_release_content = "#{new_release_info}".strip
+    new_release_content = new_release_info.to_s.strip
 
-    return release_file_content == new_release_content
+    release_file_content == new_release_content
   end
 
   # Generate 'build/rpm_metadata/release' file containing release qualifier
@@ -345,17 +345,17 @@ module Simp::Rake::Build::RpmDeps
   # +module_rpm_meta+:: module entry from the top-level
   #   'dependencies.yaml' file or nil, if no entry exists
   def self.generate_rpm_release_file(dir, module_rpm_meta)
-   return unless (module_rpm_meta and module_rpm_meta[:release])
+    return unless module_rpm_meta && module_rpm_meta[:release]
 
     rpm_release_file = File.join(dir, 'build', 'rpm_metadata', 'release')
 
-    unless release_file_up_to_date?(module_rpm_meta[:release], rpm_release_file)
-      FileUtils.mkdir_p(File.dirname(rpm_release_file))
-      File.open(rpm_release_file, 'w') do |fh|
-        fh.puts('# release set by simp-core dependencies.yaml')
-        fh.puts(module_rpm_meta[:release])
-        fh.flush
-      end
+    return if release_file_up_to_date?(module_rpm_meta[:release], rpm_release_file)
+
+    FileUtils.mkdir_p(File.dirname(rpm_release_file))
+    File.open(rpm_release_file, 'w') do |fh|
+      fh.puts('# release set by simp-core dependencies.yaml')
+      fh.puts(module_rpm_meta[:release])
+      fh.flush
     end
   end
 
@@ -379,13 +379,13 @@ module Simp::Rake::Build::RpmDeps
 
     metadata_json_file = File.join(dir, 'metadata.json')
     module_metadata = JSON.parse(File.read(metadata_json_file))
-    module_name = module_metadata['name'].split(%r(-|/)).last
+    module_name = module_metadata['name'].split(%r{-|/}).last
     module_rpm_meta = rpm_metadata[module_name]
 
     begin
       generate_rpm_requires_file(dir, module_metadata, module_rpm_meta)
     rescue SIMPRpmDepException => e
-      fail "#{e.message} in #{metadata_json_file}"
+      raise "#{e.message} in #{metadata_json_file}"
     end
 
     generate_rpm_release_file(dir, module_rpm_meta)

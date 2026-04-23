@@ -1,3 +1,6 @@
+# frozen_string_literal: true
+
+require 'English'
 require 'find'
 require 'parallel'
 require 'simp/rpm'
@@ -12,7 +15,7 @@ class Simp::RpmSigner
 
   extend Simp::CommandUtils
 
-  @@gpg_keys = Hash.new
+  @@gpg_keys = {}
 
   # Kill the GPG agent operating with the specified key dir, if
   # rpm version 4.13.0 or later.
@@ -22,19 +25,19 @@ class Simp::RpmSigner
   def self.kill_gpg_agent(gpg_keydir)
     return if Gem::Version.new(Simp::RPM.version) < Gem::Version.new('4.13.0')
 
-    %x(gpg-agent --homedir #{gpg_keydir} -q >& /dev/null)
-    if $? && ($?.exitstatus == 0)
-      # gpg-agent is running for specified keydir, so query it for its pid
-      output = %x{echo 'GETINFO pid' | gpg-connect-agent --homedir=#{gpg_keydir}}
-      if $? && ($?.exitstatus == 0)
-        pid = output.lines.first[1..-1].strip.to_i
-        begin
-          Process.kill(0, pid)
-          Process.kill(15, pid)
-        rescue Errno::ESRCH
-          # No longer running, so nothing to do!
-        end
-      end
+    `gpg-agent --homedir #{gpg_keydir} -q >& /dev/null`
+    return unless $CHILD_STATUS&.exitstatus&.zero?
+
+    # gpg-agent is running for specified keydir, so query it for its pid
+    output = `echo 'GETINFO pid' | gpg-connect-agent --homedir=#{gpg_keydir}`
+    return unless $CHILD_STATUS&.exitstatus&.zero?
+
+    pid = output.lines.first[1..].strip.to_i
+    begin
+      Process.kill(0, pid)
+      Process.kill(15, pid)
+    rescue Errno::ESRCH
+      # No longer running, so nothing to do!
     end
   end
 
@@ -64,12 +67,12 @@ class Simp::RpmSigner
     gpg_password = nil
     begin
       File.read("#{gpg_keydir}/gengpgkey").each_line do |ln|
-        name_line = ln.split(/^\s*Name-Email:/)
+        name_line = ln.split(%r{^\s*Name-Email:})
         if name_line.length > 1
           gpg_name = name_line.last.strip
         end
 
-        passwd_line = ln.split(/^\s*Passphrase:/)
+        passwd_line = ln.split(%r{^\s*Passphrase:})
         if passwd_line.length > 1
           gpg_password = passwd_line.last.strip
         end
@@ -78,8 +81,8 @@ class Simp::RpmSigner
     end
 
     if gpg_name.nil?
-      puts "Warning: Could not find valid e-mail address for use with GPG."
-      puts "Please enter e-mail address to use:"
+      puts 'Warning: Could not find valid e-mail address for use with GPG.'
+      puts 'Please enter e-mail address to use:'
       gpg_name = $stdin.gets.strip
     end
 
@@ -90,7 +93,7 @@ class Simp::RpmSigner
 
       if gpg_password.nil?
         puts "Warning: Could not find a password in '#{gpg_keydir}/password'!"
-        puts "Please enter your GPG key password:"
+        puts 'Please enter your GPG key password:'
         system 'stty -echo'
         gpg_password = $stdin.gets.strip
         system 'stty echo'
@@ -101,18 +104,18 @@ class Simp::RpmSigner
     gpg_key_id = nil
     cmd = "gpg --with-colons --homedir=#{gpg_keydir} --list-keys '<#{gpg_name}>' 2>&1"
     puts "Executing: #{cmd}" if verbose
-    %x(#{cmd}).each_line do |line|
+    `#{cmd}`.each_line do |line|
       # See https://github.com/CSNW/gnupg/blob/master/doc/DETAILS
       # Index  Content
       #   0    record type
       #   2    key length
       #   4    keyID
       fields = line.split(':')
-      if fields[0] && (fields[0] == 'pub')
-        gpg_key_size = fields[2].to_i
-        gpg_key_id = fields[4]
-        break
-      end
+      next unless fields[0] && (fields[0] == 'pub')
+
+      gpg_key_size = fields[2].to_i
+      gpg_key_id = fields[4]
+      break
     end
 
     if !gpg_key_size || !gpg_key_id
@@ -120,9 +123,9 @@ class Simp::RpmSigner
     end
 
     @@gpg_keys[gpg_key] = {
-      :dir      => gpg_keydir,
-      :name     => gpg_name,
-      :key_id   => gpg_key_id,
+      :dir => gpg_keydir,
+      :name => gpg_name,
+      :key_id => gpg_key_id,
       :key_size => gpg_key_size,
       :password => gpg_password
     }
@@ -145,16 +148,16 @@ class Simp::RpmSigner
   # @raise RuntimeError if 'rpmsign' executable cannot be found, the 'gpg
   #   'executable cannot be found, the GPG key directory does not exist or
   #   the GPG key metadata cannot be determined via 'gpg'
-  def self.sign_rpm(rpm, gpg_keydir, options={})
+  def self.sign_rpm(rpm, gpg_keydir, options = {})
     # This may be a little confusing...Although we're using 'rpm --resign'
     # in lieu of 'rpmsign --addsign', they are equivalent and the presence
     # of 'rpmsign' is a legitimate check that the 'rpm --resign' capability
     # is available (i.e., rpm-sign package has been installed).
     which('rpmsign') || raise("ERROR: Cannot sign RPMs without 'rpmsign'.")
 
-    digest_algo = options.key?(:digest_algo) ?  options[:digest_algo] : 'sha256'
-    timeout_seconds = options.key?(:timeout_seconds) ?  options[:timeout_seconds] : 60
-    verbose = options.key?(:verbose) ?  options[:verbose] : false
+    digest_algo = options.key?(:digest_algo) ? options[:digest_algo] : 'sha256'
+    timeout_seconds = options.key?(:timeout_seconds) ? options[:timeout_seconds] : 60
+    verbose = options.key?(:verbose) ? options[:verbose] : false
 
     gpgkey = load_key(gpg_keydir, verbose)
 
@@ -171,7 +174,7 @@ class Simp::RpmSigner
       "--define '%_gpg_path #{gpgkey[:dir]}'",
       "--define '%_gpg_digest_algo #{digest_algo}'",
       gpg_sign_cmd_extra_args,
-      "--resign #{rpm}"
+      "--resign #{rpm}",
     ].compact.join(' ')
 
     success = false
@@ -184,18 +187,17 @@ class Simp::RpmSigner
       # With rpm-sign-4.14.2-11.el8_0 (EL 8.0), if rpm cannot start the
       # gpg-agent daemon, it will just hang. We need to be able to detect
       # the problem and report the failure.
-      Timeout::timeout(timeout_seconds) do
-
+      Timeout.timeout(timeout_seconds) do
         status = nil
         PTY.spawn(signcommand) do |read, write, pid|
           begin
-            while !read.eof? do
+            until read.eof?
               # rpm version >= 4.13.0 will stand up a gpg-agent and so the
               # prompt for the passphrase will only actually happen if this is
               # the first RPM to be signed with the key after the gpg-agent is
               # started and the key's passphrase has not been cleared from the
               # agent's cache.
-              read.expect(/(pass\s?phrase:|verwrite).*/) do |text|
+              read.expect(%r{(pass\s?phrase:|verwrite).*}) do |text|
                 if text.last.include?('verwrite')
                   write.puts('y')
                 else
@@ -212,7 +214,7 @@ class Simp::RpmSigner
           end
 
           Process.wait(pid)
-          status = $?
+          status = $CHILD_STATUS
         end
 
         if status && !status.success?
@@ -222,12 +224,11 @@ class Simp::RpmSigner
 
       puts "Successfully signed #{rpm}" if verbose
       success = true
-
     rescue Timeout::Error
-      $stderr.puts "Failed to sign #{rpm} in #{timeout_seconds} seconds."
+      warn "Failed to sign #{rpm} in #{timeout_seconds} seconds."
     rescue Exception => e
-      $stderr.puts "Error occurred while attempting to sign #{rpm}:"
-      $stderr.puts e
+      warn "Error occurred while attempting to sign #{rpm}:"
+      warn e
     end
 
     success
@@ -267,13 +268,13 @@ class Simp::RpmSigner
   #   operation failed
   #
   def self.sign_rpms(rpm_dir, gpg_keydir, options = {})
-   opts = {
-     :digest_algo        => 'sha256',
-     :force              => false,
-     :max_concurrent     => 1,
-     :progress_bar_title => 'sign_rpms',
-     :timeout_seconds    => 60,
-     :verbose            => false
+    opts = {
+      :digest_algo => 'sha256',
+      :force => false,
+      :max_concurrent => 1,
+      :progress_bar_title => 'sign_rpms',
+      :timeout_seconds => 60,
+      :verbose => false
     }.merge(options)
 
     rpm_dirs = Dir.glob(rpm_dir)
@@ -282,7 +283,8 @@ class Simp::RpmSigner
     rpm_dirs.each do |rpm_dir|
       Find.find(rpm_dir) do |rpm|
         next unless File.readable?(rpm)
-        to_sign << rpm if rpm =~ /\.rpm$/
+
+        to_sign << rpm if %r{\.rpm$}.match?(rpm)
       end
     end
 
@@ -293,22 +295,22 @@ class Simp::RpmSigner
       results = Parallel.map(
         to_sign,
         :in_processes => 1,
-        :progress => opts[:progress_bar_title]
+        :progress => opts[:progress_bar_title],
       ) do |rpm|
         _result = nil
 
         begin
           if opts[:force] || !Simp::RPM.new(rpm).signature
-            _result = [ rpm, sign_rpm(rpm, gpg_keydir, opts) ]
+            _result = [rpm, sign_rpm(rpm, gpg_keydir, opts)]
             _result[1] = _result[1] ? :signed : :unsigned
           else
             puts "Skipping signed package #{rpm}" if opts[:verbose]
-            _result = [ rpm, :skipped_already_signed ]
+            _result = [rpm, :skipped_already_signed]
           end
         rescue Exception => e
           # can get here if rpm is malformed and Simp::RPM.new fails
-          $stderr.puts "Failed to sign #{rpm}:\n#{e.message}"
-          _result = [ rpm, :unsigned ]
+          warn "Failed to sign #{rpm}:\n#{e.message}"
+          _result = [rpm, :unsigned]
         end
 
         _result

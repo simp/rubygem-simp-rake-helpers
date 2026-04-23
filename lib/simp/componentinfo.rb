@@ -1,3 +1,6 @@
+# frozen_string_literal: true
+
+require 'English'
 require 'date'
 
 module Simp; end
@@ -8,7 +11,7 @@ class Simp::ComponentInfo
   attr_accessor :component_dir, :type, :version, :release, :changelog
 
   # A helpful method for ensuring that the errors can be easily seen
-  ERR_MARKER = "WARNING: !!! "
+  ERR_MARKER = 'WARNING: !!! '
 
   # See https://fedoraproject.org/wiki/Packaging:Guidelines?rd=Packaging/Guidelines#Changelogs
   # When matched against this regex
@@ -16,7 +19,7 @@ class Simp::ComponentInfo
   #   match 2 = author of the form {name} <{email}>
   #   match 3 = version
   #   match 4 = optional release qualifier; nil when absent
-  CHANGELOG_ENTRY_REGEX = /^\*\s+((?:Mon|Tue|Wed|Thu|Fri|Sat|Sun) (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) [0-3]{1}[0-9]{1} \d{4})\s+(.+<.+>)(?:\s+|\s*-\s*)(\d+\.\d+\.\d+)(?:-(\S+))?\s*$/
+  CHANGELOG_ENTRY_REGEX = %r{^\*\s+((?:Mon|Tue|Wed|Thu|Fri|Sat|Sun) (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) [0-3]{1}[0-9]{1} \d{4})\s+(.+<.+>)(?:\s+|\s*-\s*)(\d+\.\d+\.\d+)(?:-(\S+))?\s*$}.freeze # rubocop:disable Layout/LineLength
 
   # Load component information from appropriate component files
   #
@@ -95,51 +98,52 @@ class Simp::ComponentInfo
   end
 
   private
+
   def load_module_info(latest_version_only, verbose)
     require 'json'
     metadata_file = File.join(@component_dir, 'metadata.json')
     metadata = JSON.parse(File.read(metadata_file))
-    fail("ERROR: Version missing from #{metadata_file}") if metadata['version'].nil?
+    raise("ERROR: Version missing from #{metadata_file}") if metadata['version'].nil?
 
     @version = metadata['version'].split('-').first
-    rel_bits = metadata['version'].split('-')[1..-1]
+    rel_bits = metadata['version'].split('-')[1..]
     @release = rel_bits.empty? ? nil : rel_bits.join('-')
-
 
     changelog_file = File.join(component_dir, 'CHANGELOG')
     unless File.exist?(changelog_file)
-      fail("ERROR: No CHANGELOG file found in #{component_dir}")
+      raise("ERROR: No CHANGELOG file found in #{component_dir}")
     end
-    @changelog = parse_changelog(IO.read(changelog_file), latest_version_only, verbose)
+
+    @changelog = parse_changelog(File.read(changelog_file), latest_version_only, verbose)
   end
 
   def load_asset_info(latest_version_only, verbose)
     rpm_spec_files = Dir.glob(File.join(@component_dir, 'build', '*.spec'))
     if rpm_spec_files.empty?
-      fail("No RPM spec file found in #{File.join(@component_dir, 'build')}")
+      raise("No RPM spec file found in #{File.join(@component_dir, 'build')}")
     elsif rpm_spec_files.size > 1
-      fail("More than 1 RPM spec file found: #{rpm_spec_files.join(' ')}")
+      raise("More than 1 RPM spec file found: #{rpm_spec_files.join(' ')}")
     end
 
     # Determine asset version, which we will ASSUME to be the main
     # package version.  The RPM query, below, will return the main
     # package followed by subpackages.
-    version_query = "rpm -q --queryformat '%{VERSION} %{RELEASE}\\n'" +
-      " --specfile #{rpm_spec_files[0]}"
+    version_query = "rpm -q --queryformat '%{VERSION} %{RELEASE}\\n' " \
+                    "--specfile #{rpm_spec_files[0]}"
 
     rpm_version_list = `#{version_query} 2> /dev/null`
-    if $?.exitstatus != 0
-      fail("Could not extract version and release from #{rpm_spec_files[0]}." +
-        " To debug, execute:\n   #{version_query}")
+    if $CHILD_STATUS.exitstatus != 0
+      raise("Could not extract version and release from #{rpm_spec_files[0]}. " \
+            "To debug, execute:\n   #{version_query}")
     end
     num_packages = rpm_version_list.strip.split("\n").length
     @version, @release = rpm_version_list.split("\n")[0].split
 
     changelog_query = "rpm -q --changelog --specfile #{rpm_spec_files[0]}"
     raw_changelog = `#{changelog_query} 2> /dev/null`
-    if $?.exitstatus != 0
-      fail("Could not extract changelog from #{rpm_spec_files[0]}." +
-        " To debug, execute:\n   #{changelog_query}")
+    if $CHILD_STATUS.exitstatus != 0
+      raise("Could not extract changelog from #{rpm_spec_files[0]}. " \
+            "To debug, execute:\n   #{changelog_query}")
     elsif raw_changelog.strip.empty?
       changelog_lines = []
 
@@ -147,13 +151,9 @@ class Simp::ComponentInfo
       File.read(rpm_spec_files[0]).lines.each do |line|
         changelog_lines << line if in_changelog
 
-        if line.start_with?('%')
-          if line.start_with?('%changelog')
-            in_changelog = true
-          else
-            in_changelog = false
-          end
-        end
+        next unless line.start_with?('%')
+
+        in_changelog = line.start_with?('%changelog') || false
       end
 
       raw_changelog = changelog_lines.join
@@ -162,10 +162,10 @@ class Simp::ComponentInfo
     # RPM 6+ outputs the changelog once per subpackage when querying a spec
     # file. Strip the duplicate sections so only the first copy is parsed.
     if num_packages > 1 && !raw_changelog.strip.empty?
-      first_entry = raw_changelog.match(/^\*.+$/)
+      first_entry = raw_changelog.match(%r{^\*.+$})
       if first_entry
         second_start = raw_changelog.index(
-          /^#{Regexp.escape(first_entry[0])}$/,
+          %r{^#{Regexp.escape(first_entry[0])}$},
           first_entry.begin(0) + 1,
         )
         raw_changelog = raw_changelog[0, second_start].rstrip + "\n" if second_start
@@ -184,7 +184,7 @@ class Simp::ComponentInfo
   #
   def parse_changelog(changelog, latest_version_only, verbose)
     # split on the entry-separating lines
-    changelog_entries = changelog.split(/\n\n+/)
+    changelog_entries = changelog.split(%r{\n\n+})
     latest_version = nil # 1st version found is latest version
     prev_entry_date = nil
     changelogs = []
@@ -206,21 +206,21 @@ class Simp::ComponentInfo
         current_version = Gem::Version.new(full_version)
         latest_version = current_version if latest_version.nil?
         if current_version > latest_version
-          fail("ERROR:  Changelog entries are not properly version ordered")
+          raise('ERROR:  Changelog entries are not properly version ordered')
         end
 
-        break if latest_version_only and (current_version < latest_version)
+        break if latest_version_only && (current_version < latest_version)
 
         # verify dates are appropriately ordered (newest to oldest)
         current_entry_date = Date.strptime(match[1], '%a %b %d %Y')
         prev_entry_date = current_entry_date if prev_entry_date.nil?
         if current_entry_date > prev_entry_date
-          fail("ERROR:  Changelog entries are not properly date ordered")
+          raise('ERROR:  Changelog entries are not properly date ordered')
         end
 
         if valid_date_weekday?(match[1], verbose)
           entry = {
-            :date    => match[1],
+            :date => match[1],
             :version => match[3],
             :release => match[4],
             :content => changelog_lines
@@ -250,12 +250,11 @@ class Simp::ComponentInfo
 
     valid = true
     if actual_weekday != expected_weekday
-      err_msg = ERR_MARKER + "'#{actual_weekday}' should be '#{expected_weekday}' for" +
-        " changelog timestamp '#{changelog_date}'"
+      err_msg = ERR_MARKER + "'#{actual_weekday}' should be '#{expected_weekday}' for " \
+                             "changelog timestamp '#{changelog_date}'"
       warn err_msg if verbose
       valid = false
     end
-    return valid
+    valid
   end
-
 end
