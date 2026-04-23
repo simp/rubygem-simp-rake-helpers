@@ -162,10 +162,10 @@ class Simp::ComponentInfo
     # RPM 6+ outputs the changelog once per subpackage when querying a spec
     # file. Strip the duplicate sections so only the first copy is parsed.
     if num_packages > 1 && !raw_changelog.strip.empty?
-      first_entry = raw_changelog.match(/^\*.+$/)
+      first_entry = raw_changelog.match(%r{^\*.+$})
       if first_entry
         second_start = raw_changelog.index(
-          /^#{Regexp.escape(first_entry[0])}$/,
+          %r{^#{Regexp.escape(first_entry[0])}$},
           first_entry.begin(0) + 1,
         )
         raw_changelog = raw_changelog[0, second_start].rstrip + "\n" if second_start
