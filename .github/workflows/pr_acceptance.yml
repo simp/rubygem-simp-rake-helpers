@@ -21,9 +21,6 @@ jobs:
           - label: 'AlmaLinux 9'
             experimental: false
             nodeset: almalinux9
-          - label: 'AlmaLinux 10'
-            experimental: false
-            nodeset: almalinux10
       fail-fast: false
     env:
       PUPPET_VERSION: '~> 8.0'
