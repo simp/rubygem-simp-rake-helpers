@@ -31,7 +31,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '4.0'
+          ruby-version: '3.4'
       - name: ensure entropy
         run: |
           sudo apt-get update -y
