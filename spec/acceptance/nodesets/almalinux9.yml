@@ -10,7 +10,7 @@ HOSTS:
     docker_cmd: '/usr/sbin/init'
     docker_preserve_image: true
     docker_image_commands:
-      - 'dnf -y group install rpm-development-tools'
+      - 'dnf -y group install rpm-development-tools development-tools'
       - 'dnf -y install openssh-server rsync gnupg2 pinentry-curses'
       - 'dnf -y install ruby ruby-devel rubygems'
       - 'gem install bundler'
