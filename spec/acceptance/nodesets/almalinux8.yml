@@ -11,14 +11,15 @@ HOSTS:
     docker_preserve_image: true
     docker_image_commands:
       - 'dnf -y group install rpm-development-tools development'
-      - 'dnf -y install openssh-server rsync gnupg2 pinentry-curses'
+      - 'dnf -y install openssh-server rsync gnupg2 pinentry-curses procps-ng'
       - 'dnf module enable ruby:3.1 -y && dnf -y install ruby ruby-devel rubygems'
       - 'gpg --keyserver keyserver.ubuntu.com --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3 7D2BAF1CF37B13E2069D6956105BD0E739499BDB'
       - 'curl -sSL https://get.rvm.io | bash -s stable'
       - '/bin/bash --login -c "rvm install ruby && rvm use ruby --default && gem install bundler"'
+      - 'echo "rvm_silence_path_mismatch_check_flag=1" > /etc/profile.d/00_rvm_silence.sh'
       - 'useradd -m build_user'
       - 'usermod -aG rvm build_user'
-      - 'echo "[[ -s /usr/local/rvm/scripts/rvm ]] && source /usr/local/rvm/scripts/rvm" >> /home/build_user/.bash_profile'
+      - 'echo "[[ -s /usr/local/rvm/scripts/rvm ]] && source /usr/local/rvm/scripts/rvm && rvm use default" >> /home/build_user/.bash_profile'
       - 'echo "root:root" | chpasswd'
       - 'sed -i "s/^#\?PermitRootLogin.*/PermitRootLogin yes/" /etc/ssh/sshd_config'
       - 'sed -i "s/^#\?PasswordAuthentication.*/PasswordAuthentication yes/" /etc/ssh/sshd_config'
