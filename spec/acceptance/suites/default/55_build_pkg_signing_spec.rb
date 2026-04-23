@@ -290,18 +290,17 @@ describe 'rake pkg:signrpms and pkg:checksig' do
 
   describe 'when some rpm signing fails' do
     include_context('a freshly-scaffolded test project', 'signing-failure')
-    it_behaves_like('it begins with unsigned RPMs')
+    # NOTE: include_examples (not it_behaves_like) is required here so that
+    # 'begins with unsigned RPMs' runs before the standalone it blocks below.
+    # it_behaves_like creates a nested group that runs *after* all standalone
+    # it blocks in the same describe, which would break test ordering.
+    include_examples('it begins with unsigned RPMs') # rubocop:disable RSpec/IncludeExamples
 
     it 'creates a malformed RPM' do
       on(hosts, %(#{run_cmd} "echo 'OOPS' > #{rpms_dir}/oops-test.rpm"))
     end
 
-    # TODO: investigate why this test fails on the add-rubocop branch — the
-    # signing result says "Failed to sign all RPMs" instead of "some RPMs",
-    # implying that the valid testpackage is not being signed. Root cause has
-    # not been identified; tracked separately from the RuboCop cleanup PR.
     it 'signs all valid RPMs before failing' do
-      pending('TODO: signing of valid RPM fails unexpectedly; investigate in a separate PR')
       hosts.each do |host|
         result = on(host,
                     %(#{run_cmd} "cd '#{test_dir}'; SIMP_PKG_verbose="yes" #{signrpm_cmd}"),
@@ -317,14 +316,17 @@ describe 'rake pkg:signrpms and pkg:checksig' do
 
   describe 'when wrong keyword password is specified' do
     include_context('a freshly-scaffolded test project', 'wrong-password')
-    it_behaves_like('it creates a new GPG dev signing key')
+    # NOTE: include_examples (not it_behaves_like) is required here so that
+    # shared examples run at their insertion point, before the standalone it
+    # blocks that depend on the state they set up.
+    include_examples('it creates a new GPG dev signing key') # rubocop:disable RSpec/IncludeExamples
 
     it 'corrupts the password of new key' do
       key_gen_file = File.join(dev_keydir, 'gengpgkey')
       on(hosts, "sed -ci -e \"s/^Passphrase: /Passphrase: OOPS/\" #{key_gen_file}")
     end
 
-    it_behaves_like('it begins with unsigned RPMs')
+    include_examples('it begins with unsigned RPMs') # rubocop:disable RSpec/IncludeExamples
 
     it 'fails to sign any rpms and notify user of each failure' do
       hosts.each do |host|
@@ -366,7 +368,8 @@ describe 'rake pkg:signrpms and pkg:checksig' do
           on(host, %(#{run_cmd} "cp -r #{source_dir}/* #{dev_keydir}"))
         end
 
-        it_behaves_like('it begins with unsigned RPMs')
+        # NOTE: include_examples (not it_behaves_like) required for ordering.
+        include_examples('it begins with unsigned RPMs') # rubocop:disable RSpec/IncludeExamples
 
         it 'fails to sign any rpms and notify user of each failure' do
           # For rpm-sign-4.14.2-11.el8_0, 'rpm --resign' hangs instead of failing
