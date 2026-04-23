@@ -1,3 +1,10 @@
+### 5.25.0 / 2026-04-23
+- Fixed
+  - Update bundler dependency constraint to allow < 5.0 (latest: 4.x)
+  - Update parallel dependency constraint to allow 2.x
+- Changed
+  - Removed GitLab CI configuration (managed by puppetsync)
+
 ### 5.24.0 / 2025-10-20
 - Fixed
   - Update gem dependencies to allow simp-rspec-puppet-facts 4.x
