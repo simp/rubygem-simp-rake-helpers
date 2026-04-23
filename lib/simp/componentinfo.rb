@@ -132,6 +132,7 @@ class Simp::ComponentInfo
       fail("Could not extract version and release from #{rpm_spec_files[0]}." +
         " To debug, execute:\n   #{version_query}")
     end
+    num_packages = rpm_version_list.strip.split("\n").length
     @version, @release = rpm_version_list.split("\n")[0].split
 
     changelog_query = "rpm -q --changelog --specfile #{rpm_spec_files[0]}"
@@ -157,6 +158,20 @@ class Simp::ComponentInfo
 
       raw_changelog = changelog_lines.join
     end
+
+    # RPM 6+ outputs the changelog once per subpackage when querying a spec
+    # file. Strip the duplicate sections so only the first copy is parsed.
+    if num_packages > 1 && !raw_changelog.strip.empty?
+      first_entry = raw_changelog.match(/^\*.+$/)
+      if first_entry
+        second_start = raw_changelog.index(
+          /^#{Regexp.escape(first_entry[0])}$/,
+          first_entry.begin(0) + 1,
+        )
+        raw_changelog = raw_changelog[0, second_start].rstrip + "\n" if second_start
+      end
+    end
+
     @changelog = parse_changelog(raw_changelog, latest_version_only, verbose)
   end
 
