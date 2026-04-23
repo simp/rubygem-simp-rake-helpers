@@ -1,0 +1,36 @@
+---
+HOSTS:
+  el8-build-server:
+    roles:
+      - default
+      - build_server
+    platform: el-8-x86_64
+    hypervisor: docker
+    image: almalinux:8
+    docker_cmd: '/usr/sbin/init'
+    docker_preserve_image: true
+    docker_image_commands:
+      - 'dnf -y group install rpm-development-tools'
+      - 'dnf -y install openssh-server rsync gnupg2 pinentry-curses'
+      - 'dnf module enable ruby:3.1 -y && dnf -y install ruby ruby-devel rubygems'
+      - 'gem install bundler'
+      - 'useradd -m build_user'
+      - 'echo "root:root" | chpasswd'
+      - 'sed -i "s/^#\?PermitRootLogin.*/PermitRootLogin yes/" /etc/ssh/sshd_config'
+      - 'sed -i "s/^#\?PasswordAuthentication.*/PasswordAuthentication yes/" /etc/ssh/sshd_config'
+      - 'ssh-keygen -A'
+      - 'systemctl enable sshd'
+
+CONFIG:
+  log_level: verbose
+  type: aio
+  puppet_collection: "<%= ENV.fetch('BEAKER_PUPPET_COLLECTION', 'puppet8') %>"
+  ssh:
+    password: root
+    auth_methods:
+      - password
+  docker_preserve_image: true
+  mount_folders:
+    host_files:
+      host_path: ./
+      container_path: /host_files
