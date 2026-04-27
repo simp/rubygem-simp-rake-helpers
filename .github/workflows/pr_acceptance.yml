@@ -14,27 +14,21 @@ jobs:
       - ubuntu-latest
     strategy:
       matrix:
-        puppet:
-          - label: 'Puppet 7.x [SIMP 6.6/PE 2021.7]'
-            puppet_version: '~> 7.0'
-            ruby_version: '2.7'
-            gem_install_bundler_flags: '-v 2.4.22'
+        platform:
+          - label: 'AlmaLinux 8'
             experimental: false
-            nodeset: default
-          - label: 'Puppet 8.x'
-            puppet_version: '~> 8.0'
-            ruby_version: 3.1
-            gem_install_bundler_flags: ''
+            nodeset: almalinux8
+          - label: 'AlmaLinux 9'
             experimental: false
-            nodeset: default_ruby3_1
+            nodeset: almalinux9
       fail-fast: false
     env:
-      PUPPET_VERSION: '${{matrix.puppet.puppet_version}}'
+      PUPPET_VERSION: '~> 8.0'
     steps:
       - uses: actions/checkout@v6
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: ${{matrix.puppet.ruby_version}}
+          ruby-version: '3.4'
       - name: ensure entropy
         run: |
           sudo apt-get update -y
@@ -42,7 +36,7 @@ jobs:
           sudo systemctl start rng-tools
       - name: install bundler
         run: |
-          gem install bundler ${{matrix.puppet.gem_install_bundler_flags}}
+          gem install bundler
           bundle update
       - name: install docker
         run: |
@@ -58,6 +52,6 @@ jobs:
           sudo systemctl start docker
       - name: beaker
         env:
-          NODESET: ${{matrix.puppet.nodeset}}
+          NODESET: ${{matrix.platform.nodeset}}
         run: bundle exec rake beaker:suites[default,$NODESET]
-        continue-on-error: ${{matrix.puppet.experimental}}
+        continue-on-error: ${{matrix.platform.experimental}}
