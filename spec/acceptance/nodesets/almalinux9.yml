@@ -1,12 +1,12 @@
 ---
 HOSTS:
-  el8-build-server:
+  el9-build-server:
     roles:
       - default
       - build_server
-    platform: el-8-x86_64
+    platform: el-9-x86_64
     hypervisor: docker
-    image: simpproject/simp_build_centos8
+    image: ghcr.io/simp/simp-el9-beaker:latest
     docker_cmd: '["/sbin/init"]'
     docker_preserve_image: true
 
