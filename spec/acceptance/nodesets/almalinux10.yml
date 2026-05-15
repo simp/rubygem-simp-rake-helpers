@@ -1,12 +1,12 @@
 ---
 HOSTS:
-  el9-build-server:
+  el10-build-server:
     roles:
       - default
       - build_server
-    platform: el-9-x86_64
+    platform: el-10-x86_64
     hypervisor: docker
-    image: ghcr.io/simp/simp-el9-beaker:latest
+    image: ghcr.io/simp/simp-el10-beaker:latest
     docker_cmd: '["/sbin/init"]'
     docker_preserve_image: true
 
