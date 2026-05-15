@@ -1,4 +1,8 @@
 ### 6.0.0 / 2026-06-23
+- Added
+  - `pupmod:build` rake task using `puppet-modulebuilder`, replacing `pdk build`
+    - Honours `.pdkignore` (dropped by puppet-modulebuilder 2.x)
+  - `puppet-modulebuilder` runtime dependency
 - Changed (**Breaking**)
   - Dropped support for Puppet/OpenVox 7
     - Narrowed `openvox` dependency to `>= 8.0, < 9.0`
