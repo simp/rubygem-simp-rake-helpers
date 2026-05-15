@@ -1,3 +1,11 @@
+### 5.26.0 / 2026-04-30
+- Added
+  - `pupmod:build` rake task using `puppet-modulebuilder`, replacing `pdk build`
+    - Honours `.pdkignore` (dropped by puppet-modulebuilder 2.x)
+- Changed
+  - Narrowed `openvox` dependency to `>= 8.0, < 9.0`
+  - Added `puppet-modulebuilder` runtime dependency
+
 ### 5.25.0 / 2026-04-23
 - Fixed
   - Update bundler dependency constraint to allow < 5.0 (latest: 4.x)
