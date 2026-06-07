@@ -98,6 +98,7 @@ describe 'rake pkg:signrpms and pkg:checksig' do
 
   shared_examples 'it verifies RPM signatures' do
     let(:public_gpgkeys_dir) { 'src/assets/gpgkeys/GPGKEYS' }
+
     it 'verifies RPM signatures' do
       hosts.each do |host|
         # mock out the simp-gpgkeys project checkout so that the pkg:checksig
@@ -198,7 +199,7 @@ describe 'rake pkg:signrpms and pkg:checksig' do
         ].join(' && ')
         on(host, %(#{run_cmd} "#{copy_expired_keydir_to_dev_cmds}"), run_opts)
         result = on(host, %(#{run_cmd} "gpg --list-keys --homedir='#{dev_keydir}'"), run_opts)
-        expect(result.stdout).to match(%r{expired: 2018-04-06})
+        expect(result.stdout).to include('expired: 2018-04-06')
       end
     end
 
