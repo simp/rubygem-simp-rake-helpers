@@ -1,3 +1,16 @@
+### 6.0.0 / 2026-06-23
+- Changed (**Breaking**)
+  - Dropped support for Puppet/OpenVox 7
+    - Narrowed `openvox` dependency to `>= 8.0, < 9.0`
+    - Raised the default `puppet`/`openvox` gem floor to `>= 8, < 9`
+  - Pin both the `openvox` and `puppet` gems to the same version
+    (`PUPPET_VERSION`, overridable via `OPENVOX_VERSION`) so the `puppet` gem
+    pulled in by the dependency chain no longer downgrades to 7.x
+- Changed
+  - CI now tests OpenVox 8 on Ruby 3.2 and Ruby 3.4
+    - Ruby 4.0 / OpenVox 9 support is deferred until the transitive `puppet`
+      gem dependency (via `puppet-syntax`) is removed from the test toolchain
+
 ### 5.25.0 / 2026-04-23
 - Fixed
   - Update bundler dependency constraint to allow < 5.0 (latest: 4.x)
