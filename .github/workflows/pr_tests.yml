@@ -15,14 +15,19 @@ jobs:
     strategy:
       matrix:
         puppet:
-          - label: 'Puppet 7.x [SIMP 6.6/PE 2021.7]'
-            puppet_version: '~> 7.0'
-            ruby_version: '2.7'
-            experimental: false
-          - label: 'Puppet 8.x'
+          - label: 'OpenVox 8.x (Ruby 3.2)'
             puppet_version: '~> 8.0'
-            ruby_version: 3.1
+            ruby_version: '3.2'
             experimental: false
+          - label: 'OpenVox 8.x (Ruby 3.4)'
+            puppet_version: '~> 8.0'
+            ruby_version: '3.4'
+            experimental: false
+          # NOTE: Ruby 4.0 / OpenVox 9 is not tested yet. OpenVox 9 is unreleased,
+          # and on Ruby 4.0 the transitive `puppet-syntax -> puppet -> facter`
+          # chain pulls a broken puppet 7.x (facter has no Ruby 4 support).
+          # Tracked as follow-up: migrate to the Vox Pupuli/OpenVox test tooling
+          # (voxpupuli-test, openfact, etc.) to drop the puppet gem dependency.
       fail-fast: false
     env:
       PUPPET_VERSION: '${{matrix.puppet.puppet_version}}'
@@ -46,9 +51,9 @@ jobs:
     continue-on-error: true
     steps:
       - uses: actions/checkout@v7
-      - name: 'Install Ruby 4.0'
+      - name: 'Install Ruby 3.4'
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '4.0.5'
+          ruby-version: '3.4'
           bundler-cache: true
       - run: bundle exec rubocop
