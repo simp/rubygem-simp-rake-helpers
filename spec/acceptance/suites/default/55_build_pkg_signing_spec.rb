@@ -36,7 +36,7 @@ describe 'rake pkg:signrpms and pkg:checksig' do
     digest__algo  = opts[:digest_algo] || nil
 
     hosts.each do |host|
-      dist_dir = distribution_dir(host, test__dir, run_opts)
+      dist_dir = distribution_dir(host, test__dir)
       host__dirs[host] = {
         test_dir: test__dir,
         dvd_dir: "#{dist_dir}/DVD"

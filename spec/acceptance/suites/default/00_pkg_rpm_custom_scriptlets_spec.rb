@@ -113,7 +113,7 @@ describe 'rake pkg:rpm with customized content' do
         ]
 
         testpackages.each do |package|
-          on hosts, "#{run_cmd} \"cd #{pkg_root_dir}/#{package}; rvm use default; bundle update --local || bundle update\""
+          on hosts, "#{run_cmd} \"cd #{pkg_root_dir}/#{package}; bundle update --local || bundle update\""
         end
       end
 
