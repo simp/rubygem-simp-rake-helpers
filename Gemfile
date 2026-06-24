@@ -13,21 +13,17 @@ gemspec
 
 gem 'simp-build-helpers'
 # renovate: datasource=rubygems versioning=ruby
-gem 'simp-beaker-helpers', ENV.fetch('SIMP_BEAKER_HELPERS_VERSION', '~> 2.0.0')
+gem 'simp-beaker-helpers', ENV.fetch('SIMP_BEAKER_HELPERS_VERSION', '~> 3.0')
 gem 'beaker_puppet_helpers'
 gem 'rake', '>= 12.3.3'
 gem 'beaker-docker'
 
-# Temporarily include both the openvox and puppet gems until the puppet
-# dependency is removed from the rest of the gem dependency chain.
-['openvox', 'puppet'].each do |gem_name|
-  gem gem_name, binding.local_variable_get(:"#{gem_name}_version")
-end
+gem 'openvox', openvox_version
 
 group :test do
-  gem 'rubocop',             '~> 1.88.0'
+  # rubocop, rubocop-rake, and rubocop-rspec are pulled in and version-pinned by
+  # voxpupuli-test; pinning them here conflicts with its constraints.
+  # rubocop-performance is not a voxpupuli-test dependency, so it stays explicit.
   gem 'rubocop-performance', '~> 1.26.0'
-  gem 'rubocop-rake',        '~> 0.7.0'
-  gem 'rubocop-rspec',       '~> 3.10.0'
 end
 

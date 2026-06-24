@@ -1,4 +1,4 @@
-### 6.0.0 / 2026-06-23
+### 6.0.0 / 2026-06-25
 - Added
   - `pupmod:build` rake task using `puppet-modulebuilder`, replacing `pdk build`
     - Honours `.pdkignore` (dropped by puppet-modulebuilder 2.x)
@@ -7,13 +7,22 @@
   - Dropped support for Puppet/OpenVox 7
     - Narrowed `openvox` dependency to `>= 8.0, < 9.0`
     - Raised the default `puppet`/`openvox` gem floor to `>= 8, < 9`
-  - Pin both the `openvox` and `puppet` gems to the same version
-    (`PUPPET_VERSION`, overridable via `OPENVOX_VERSION`) so the `puppet` gem
-    pulled in by the dependency chain no longer downgrades to 7.x
+  - Replaced `puppetlabs_spec_helper` with `voxpupuli-test`, enabling Ruby 4.0
+    support. `puppetlabs_spec_helper` caps `puppet-syntax` at < 5, which depends
+    on the `puppet` gem and its Ruby-4-incompatible `facter` dependency;
+    `voxpupuli-test` uses `puppet-syntax` >= 6 (which depends on `openvox`) and
+    `puppet_fixtures`/`openfact`, all of which support Ruby 4.0.
+  - Require `simp-beaker-helpers` ~> 3.0 (for its `puppet_fixtures` migration)
 - Changed
-  - CI now tests OpenVox 8 on Ruby 3.2 and Ruby 3.4
-    - Ruby 4.0 / OpenVox 9 support is deferred until the transitive `puppet`
-      gem dependency (via `puppet-syntax`) is removed from the test toolchain
+  - `helpers.rb` now loads rake tasks via `voxpupuli/test/rake` +
+    `puppet_fixtures`. The puppetlabs_spec_helper task names are preserved as
+    aliases (`spec_prep` -> `fixtures:prep`, `spec_clean` -> `fixtures:clean`,
+    `spec_standalone` -> `spec:standalone`) for backwards compatibility.
+  - `voxpupuli-test` manages the `rubocop`, `rubocop-rake`, and `rubocop-rspec`
+    versions instead of pinning them in the Gemfile (its constraints would
+    otherwise conflict); `rubocop-performance` stays explicit
+  - CI now tests OpenVox 8 on Ruby 3.2 and 3.4, plus a Ruby 4.0 / OpenVox 9
+    preview (OpenVox 8 gem on Ruby 4.0)
 
 ### 5.25.0 / 2026-04-23
 - Fixed
