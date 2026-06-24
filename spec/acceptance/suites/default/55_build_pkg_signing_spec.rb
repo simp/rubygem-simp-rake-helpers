@@ -36,7 +36,7 @@ describe 'rake pkg:signrpms and pkg:checksig' do
     digest__algo  = opts[:digest_algo] || nil
 
     hosts.each do |host|
-      dist_dir = distribution_dir(host, test__dir, run_opts)
+      dist_dir = distribution_dir(host, test__dir)
       host__dirs[host] = {
         test_dir: test__dir,
         dvd_dir: "#{dist_dir}/DVD"
@@ -73,6 +73,11 @@ describe 'rake pkg:signrpms and pkg:checksig' do
     let(:checksig_cmd) { "#{extra_env} bundle exec rake pkg:checksig[#{rpms_dir}]" }
   end
 
+  # The signature is read with `rpm -qp --qf 'Signature   : %{RSAHEADER:pgpsig}'`
+  # rather than `rpm -qi`.  rpm >= 4.19 (EL10) signs the package header only, so
+  # the legacy SIGPGP/SIGGPG tags backing the `rpm -qi` "Signature" field are
+  # empty there; RSAHEADER holds the header signature and renders the same
+  # "<algo>, <date>, Key ID <id>" string (or "(none)") on EL8/9/10.
   let(:rpm_unsigned_regex) do
     %r{^Signature\s+:\s+\(none\)$}
   end
@@ -125,7 +130,7 @@ describe 'rake pkg:signrpms and pkg:checksig' do
   shared_examples 'it begins with unsigned RPMs' do
     it 'begins with unsigned RPMs' do
       prep_rpms_dir(rpms_dir, [src_rpm], run_opts)
-      rpms_before_signing = on(hosts, "rpm -qip '#{test_rpm}' | grep ^Signature", run_opts)
+      rpms_before_signing = on(hosts, "rpm -qp --qf 'Signature   : %{RSAHEADER:pgpsig}\\n' '#{test_rpm}'", run_opts)
       rpms_before_signing.each do |result|
         expect(result.stdout).to match rpm_unsigned_regex
       end
@@ -139,7 +144,7 @@ describe 'rake pkg:signrpms and pkg:checksig' do
         on(hosts, %(#{run_cmd} "cd '#{test_dir}'; SIMP_PKG_verbose=yes #{signrpm_cmd}"), run_opts)
         expect(file_exists_on(host, "#{dirs[host][:dvd_dir]}/RPM-GPG-KEY-SIMP-Dev")).to be true
 
-        result = on(host, "rpm -qip '#{test_rpm}' | grep ^Signature", run_opts)
+        result = on(host, "rpm -qp --qf 'Signature   : %{RSAHEADER:pgpsig}\\n' '#{test_rpm}'", run_opts)
         expect(result.stdout).to match rpm_signed_regex
         signed_rpm_data = rpm_signed_regex.match(result.stdout)
         expect(signed_rpm_data[:key_id]).to eql dev_signing_key_id(host, dev_keydir, run_opts)
@@ -157,7 +162,7 @@ describe 'rake pkg:signrpms and pkg:checksig' do
 
         on(hosts, %(#{run_cmd} "cd '#{test_dir}'; #{signrpm_cmd}"), run_opts)
 
-        result = on(host, "rpm -qip '#{test_rpm}' | grep ^Signature", run_opts)
+        result = on(host, "rpm -qp --qf 'Signature   : %{RSAHEADER:pgpsig}\\n' '#{test_rpm}'", run_opts)
         expect(result.stdout).to match rpm_signed_regex
         signed_rpm_data = rpm_signed_regex.match(result.stdout)
         expect(signed_rpm_data[:key_id]).to eql existing_key_id
@@ -229,7 +234,7 @@ describe 'rake pkg:signrpms and pkg:checksig' do
           # force defaults to false
           on(host, %(#{run_cmd} "cd '#{test_dir}'; bundle exec rake pkg:signrpms[dev,'#{rpms_dir}']"), run_opts)
 
-          result = on(host, "rpm -qip '#{test_rpm}' | grep ^Signature", run_opts)
+          result = on(host, "rpm -qp --qf 'Signature   : %{RSAHEADER:pgpsig}\\n' '#{test_rpm}'", run_opts)
           expect(result.stdout).to match rpm_signed_regex
           signed_rpm_data = rpm_signed_regex.match(result.stdout)
 
@@ -263,7 +268,7 @@ describe 'rake pkg:signrpms and pkg:checksig' do
         hosts.each do |host|
           on(host, %(#{run_cmd} "cd '#{test_dir}'; bundle exec rake pkg:signrpms[dev,'#{rpms_dir}',true]"), run_opts)
 
-          result = on(host, "rpm -qip '#{test_rpm}' | grep ^Signature", run_opts)
+          result = on(host, "rpm -qp --qf 'Signature   : %{RSAHEADER:pgpsig}\\n' '#{test_rpm}'", run_opts)
           expect(result.stdout).to match rpm_signed_regex
           signed_rpm_data = rpm_signed_regex.match(result.stdout)
 
@@ -309,7 +314,7 @@ describe 'rake pkg:signrpms and pkg:checksig' do
 
         expect(result.stderr).to match('ERROR: Failed to sign some RPMs')
 
-        signature_check = on(host, "rpm -qip '#{test_rpm}' | grep ^Signature", run_opts)
+        signature_check = on(host, "rpm -qp --qf 'Signature   : %{RSAHEADER:pgpsig}\\n' '#{test_rpm}'", run_opts)
         expect(signature_check.stdout).to match rpm_signed_regex
       end
     end
@@ -338,7 +343,7 @@ describe 'rake pkg:signrpms and pkg:checksig' do
         err_msg = %r{Error occurred while attempting to sign #{test_rpm}}
         expect(result.stderr).to match(err_msg)
 
-        signature_check = on(host, "rpm -qip '#{test_rpm}' | grep ^Signature", run_opts)
+        signature_check = on(host, "rpm -qp --qf 'Signature   : %{RSAHEADER:pgpsig}\\n' '#{test_rpm}'", run_opts)
         expect(signature_check.stdout).to match rpm_unsigned_regex
       end
     end
@@ -384,7 +389,7 @@ describe 'rake pkg:signrpms and pkg:checksig' do
           err_msg = %r{Failed to sign}
           expect(result.stderr).to match(err_msg)
 
-          signature_check = on(host, "rpm -qip '#{test_rpm}' | grep ^Signature", run_opts)
+          signature_check = on(host, "rpm -qp --qf 'Signature   : %{RSAHEADER:pgpsig}\\n' '#{test_rpm}'", run_opts)
           expect(signature_check.stdout).to match rpm_unsigned_regex
         end
       end

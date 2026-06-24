@@ -14,21 +14,31 @@ jobs:
       - ubuntu-latest
     strategy:
       matrix:
-        puppet:
-          - label: 'OpenVox 8.x'
-            puppet_version: '~> 8.0'
-            ruby_version: 3.1
-            gem_install_bundler_flags: ''
+        platform:
+          - label: 'AlmaLinux 8'
             experimental: false
-            nodeset: default_ruby3_1
+            nodeset: almalinux8
+          - label: 'AlmaLinux 9'
+            experimental: false
+            nodeset: almalinux9
+          - label: 'AlmaLinux 10'
+            experimental: false
+            nodeset: almalinux10
       fail-fast: false
     env:
-      PUPPET_VERSION: '${{matrix.puppet.puppet_version}}'
+      PUPPET_VERSION: '~> 8.0'
+      # Install the OpenVox agent (not Puppet) on the SUT. simp-beaker-helpers'
+      # get_puppet_install_info resolves the agent version straight from
+      # PUPPET_VERSION and never consults the nodeset's puppet_collection, so it
+      # would otherwise default to the `puppet8` collection and pull from
+      # yum.puppet.com -- which has no EL10 release (404). Pinning the collection
+      # here routes the install through yum.voxpupuli.org, which ships EL8/9/10.
+      BEAKER_PUPPET_COLLECTION: openvox8
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v6
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: ${{matrix.puppet.ruby_version}}
+          ruby-version: '3.4'
       - name: ensure entropy
         run: |
           sudo apt-get update -y
@@ -36,7 +46,7 @@ jobs:
           sudo systemctl start rng-tools
       - name: install bundler
         run: |
-          gem install bundler ${{matrix.puppet.gem_install_bundler_flags}}
+          gem install bundler
           bundle update
       - name: install docker
         run: |
@@ -52,6 +62,6 @@ jobs:
           sudo systemctl start docker
       - name: beaker
         env:
-          NODESET: ${{matrix.puppet.nodeset}}
+          NODESET: ${{matrix.platform.nodeset}}
         run: bundle exec rake beaker:suites[default,$NODESET]
-        continue-on-error: ${{matrix.puppet.experimental}}
+        continue-on-error: ${{matrix.platform.experimental}}

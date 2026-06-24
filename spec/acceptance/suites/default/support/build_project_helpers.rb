@@ -21,7 +21,7 @@ module Simp::BeakerHelpers::SimpRakeHelpers::BuildProjectHelpers
     GEMFILE
     create_remote_file(hosts, "#{test_dir}/Gemfile", gemfile, opts)
     on(hosts, "chown build_user:build_user #{test_dir}/Gemfile", opts)
-    on(hosts, %(#{run_cmd} "cd '#{test_dir}'; rvm use default; bundle --local || bundle"), opts)
+    on(hosts, %(#{run_cmd} "cd '#{test_dir}'; bundle --local || bundle"), opts)
   end
 
   # Returns the distribution directory path appropriate for a given SUT
@@ -33,24 +33,24 @@ module Simp::BeakerHelpers::SimpRakeHelpers::BuildProjectHelpers
   # @param [Host, String, Symbol] host Beaker host
   # @param [String] proj_dir Absolute path to the parent project directory
   #   If this is set, the returned path will be absolute as well.
-  # @param [Hash{Symbol=>String}] opts Beaker options Hash for `#on` ({})
   # @return [String] distribution directory matching the SUT's properties
   #
-  def distribution_dir(host, proj_dir, opts = {})
-    opts ||= {}
+  def distribution_dir(host, proj_dir)
     @distribution_dirs ||= {}
     return @distribution_dirs[host.to_s] if @distribution_dirs.key?(host.to_s)
 
-    result = on(host, %(#{run_cmd} 'facter --yaml'), opts.merge(silent: true))
-    facts_string = result.stdout.lines[1..].join
-    facts = YAML.safe_load(facts_string)
-
-    # This logic should work regardless of the version of facter
-    name = facts['operatingsystem'] || facts['os']['name']
-    maj_rel = facts['operatingsystemmajrelease'] ||
-              facts.fetch('os', {}).fetch('release', {})['major'] ||
-              facts['operatingsystemrelease'].split('.').first
-    architecture = facts['architecture'] || facts.dig('os', 'architecture')
+    # Pull the OS facts straight from the SUT via Beaker rather than scraping
+    # `facter --yaml` through build_user's RVM login shell.  That login shell
+    # can prepend warnings to (or otherwise empty out) the captured stdout,
+    # which made `result.stdout.lines[1..]` return nil and blow up parsing.
+    #
+    # NOTE: `fact_on` takes no Beaker `#on` opts here on purpose -- it renders
+    # unrecognized opts (e.g. run_in_parallel) into the `puppet facts show`
+    # command line, which puppet then rejects as an invalid option.
+    os = fact_on(host, 'os')
+    name         = os['name']
+    maj_rel      = os.dig('release', 'major')
+    architecture = os['architecture']
 
     dir = "#{proj_dir}/build/distributions/#{name}/#{maj_rel}/#{architecture}"
     @distribution_dirs[host.to_s] = dir

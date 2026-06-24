@@ -36,7 +36,14 @@ class Simp::RelChecks
     result = $CHILD_STATUS
     raise("Unable to determine changelog for #{File.basename(component_dir)}") unless result
 
-    return unless result.exitstatus != 0
+    # Older rpm (EL8, rpm < 4.16) exits non-zero when the %changelog has a
+    # problem such as entries that are not in descending chronological order.
+    # Newer rpm (EL9+, rpm >= 4.16) still reports the same problem on stderr but
+    # exits 0, so the changelog must be considered invalid when rpm reports an
+    # error/warning about it, regardless of the exit status.
+    changelog_error = console.match?(%r{^(?:error|warning):.*changelog}i)
+
+    return if result.exitstatus.zero? && !changelog_error
 
     err_msg = ["ERROR: Invalid changelog for #{File.basename(component_dir)}:\n"]
     err_msg << console.split("\n").map { |line| "   #{line}" }

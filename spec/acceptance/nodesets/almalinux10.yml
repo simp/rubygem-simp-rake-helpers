@@ -1,19 +1,19 @@
 ---
 HOSTS:
-  el8-build-server:
+  el10-build-server:
     roles:
       - default
       - build_server
-    platform: el-8-x86_64
+    platform: el-10-x86_64
     hypervisor: docker
-    image: simpproject/simp_build_centos8
+    image: ghcr.io/simp/simp-el10-build:latest
     docker_cmd: '["/sbin/init"]'
     docker_preserve_image: true
 
 CONFIG:
   log_level: verbose
   type: aio
-  puppet_collection: "<%= ENV.fetch('BEAKER_PUPPET_COLLECTION', 'puppet8') %>"
+  puppet_collection: "<%= ENV.fetch('BEAKER_PUPPET_COLLECTION', 'openvox8') %>"
   ssh:
     password: root
     auth_methods:
