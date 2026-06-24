@@ -27,6 +27,13 @@ jobs:
       fail-fast: false
     env:
       PUPPET_VERSION: '~> 8.0'
+      # Install the OpenVox agent (not Puppet) on the SUT. simp-beaker-helpers'
+      # get_puppet_install_info resolves the agent version straight from
+      # PUPPET_VERSION and never consults the nodeset's puppet_collection, so it
+      # would otherwise default to the `puppet8` collection and pull from
+      # yum.puppet.com -- which has no EL10 release (404). Pinning the collection
+      # here routes the install through yum.voxpupuli.org, which ships EL8/9/10.
+      BEAKER_PUPPET_COLLECTION: openvox8
     steps:
       - uses: actions/checkout@v6
       - uses: ruby/setup-ruby@v1
