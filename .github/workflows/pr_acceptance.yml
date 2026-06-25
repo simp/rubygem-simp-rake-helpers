@@ -35,7 +35,7 @@ jobs:
       # here routes the install through yum.voxpupuli.org, which ships EL8/9/10.
       BEAKER_PUPPET_COLLECTION: openvox8
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.4'
