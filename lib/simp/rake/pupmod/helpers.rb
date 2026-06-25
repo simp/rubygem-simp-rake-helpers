@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
-require 'puppetlabs_spec_helper/rake_tasks'
+require 'voxpupuli/test/rake'
+require 'metadata-json-lint/rake_task'
 require 'puppet/version'
 require 'puppet-syntax/tasks/puppet-syntax'
 require 'puppet-lint/tasks/puppet-lint'
@@ -413,11 +414,25 @@ class Simp::Rake::Pupmod::Helpers < Rake::TaskLib
         test_targets += ENV['SIMP_PARALLEL_TARGETS'].split
       end
       test_targets.delete_if { |dir| !File.directory?(dir) }
-      Rake::Task[:spec_prep].invoke
+      Rake::Task['fixtures:prep'].invoke
       ParallelTests::CLI.new.run('--type test -t rspec'.split + test_targets)
       if ENV.fetch('SPEC_clean', 'no') == 'yes'
-        Rake::Task[:spec_clean].invoke
+        Rake::Task['fixtures:clean'].invoke
       end
+    end
+
+    # Backwards-compatible aliases for the task names that
+    # puppetlabs_spec_helper provided before the migration to voxpupuli-test.
+    # voxpupuli-test/puppet_fixtures namespace these under fixtures:/spec:.
+    {
+      'spec_prep' => 'fixtures:prep',
+      'spec_clean' => 'fixtures:clean',
+      'spec_standalone' => 'spec:standalone'
+    }.each do |old_name, new_name|
+      next if Rake::Task.task_defined?(old_name)
+
+      desc "Alias for #{new_name}"
+      task old_name => new_name
     end
 
     # This hidden task provides a way to create and use a fixtures.yml file
@@ -488,7 +503,7 @@ class Simp::Rake::Pupmod::Helpers < Rake::TaskLib
       end
     end
 
-    Rake::Task['spec_prep'].enhance [:custom_fixtures_hook] do
+    Rake::Task['fixtures:prep'].enhance [:custom_fixtures_hook] do
       Dir.glob(File.join('spec', 'fixtures', 'modules', '*')).each do |dir|
         if @custom_fixtures_hook_override_fixtures && !File.exist?(File.join(dir, 'metadata.json'))
           FileUtils.remove_entry_secure(dir)

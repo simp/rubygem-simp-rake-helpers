@@ -23,11 +23,12 @@ jobs:
             puppet_version: '~> 8.0'
             ruby_version: '3.4'
             experimental: false
-          # NOTE: Ruby 4.0 / OpenVox 9 is not tested yet. OpenVox 9 is unreleased,
-          # and on Ruby 4.0 the transitive `puppet-syntax -> puppet -> facter`
-          # chain pulls a broken puppet 7.x (facter has no Ruby 4 support).
-          # Tracked as follow-up: migrate to the Vox Pupuli/OpenVox test tooling
-          # (voxpupuli-test, openfact, etc.) to drop the puppet gem dependency.
+          # OpenVox 9 is unreleased; preview the future Ruby 4.0 / OpenVox 9
+          # combo by running the OpenVox 8 gem on Ruby 4.0.
+          - label: 'OpenVox 9.x preview (Ruby 4.0, OpenVox 8 gem)'
+            puppet_version: '~> 8.0'
+            ruby_version: '4.0'
+            experimental: false
       fail-fast: false
     env:
       PUPPET_VERSION: '${{matrix.puppet.puppet_version}}'
