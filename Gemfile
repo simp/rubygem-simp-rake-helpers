@@ -23,6 +23,6 @@ group :test do
   # rubocop, rubocop-rake, and rubocop-rspec are pulled in and version-pinned by
   # voxpupuli-test; pinning them here conflicts with its constraints.
   # rubocop-performance is not a voxpupuli-test dependency, so it stays explicit.
-  gem 'rubocop-performance', '~> 1.26.0'
+  gem 'rubocop-performance', '~> 1.27.0'
 end
 
