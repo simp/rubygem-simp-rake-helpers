@@ -17,7 +17,6 @@ module Simp::BeakerHelpers::SimpRakeHelpers::BuildProjectHelpers
       gem_sources = ENV.fetch('GEM_SERVERS','https://rubygems.org').split(/[, ]+/)
       gem_sources.each { |gem_source| source gem_source }
       gem 'simp-rake-helpers', :path => '#{build_user_host_files}'
-      gem 'simp-build-helpers', ENV.fetch('SIMP_BUILD_HELPERS_VERSION', '>= 0.1.0')
     GEMFILE
     create_remote_file(hosts, "#{test_dir}/Gemfile", gemfile, opts)
     on(hosts, "chown build_user:build_user #{test_dir}/Gemfile", opts)

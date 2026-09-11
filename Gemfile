@@ -11,7 +11,6 @@ gem_sources.each { |gem_source| source gem_source }
 
 gemspec
 
-gem 'simp-build-helpers'
 # renovate: datasource=rubygems versioning=ruby
 gem 'simp-beaker-helpers', ENV.fetch('SIMP_BEAKER_HELPERS_VERSION', '~> 3.0')
 gem 'beaker_puppet_helpers'
