@@ -17,18 +17,14 @@ jobs:
         puppet:
           - label: 'OpenVox 8.x (Ruby 3.2)'
             puppet_version: '~> 8.0'
-            ruby_version: '3.2'
+            ruby_version: '3.2.11'  # renovate: datasource=ruby-version depName=ruby
             experimental: false
-          - label: 'OpenVox 8.x (Ruby 3.4)'
-            puppet_version: '~> 8.0'
-            ruby_version: '3.4'
-            experimental: false
-          # OpenVox 9 is unreleased; preview the future Ruby 4.0 / OpenVox 9
-          # combo by running the OpenVox 8 gem on Ruby 4.0.
-          - label: 'OpenVox 9.x preview (Ruby 4.0, OpenVox 8 gem)'
-            puppet_version: '~> 8.0'
-            ruby_version: '4.0'
-            experimental: false
+          # OpenVox 9 release candidate; switch to '~> 9.0' and make blocking
+          # (experimental: false) once 9.0.0 is released.
+          - label: 'OpenVox 9.x RC (Ruby 4.0)'
+            puppet_version: '>= 9.0.0.pre.rc1'
+            ruby_version: '4.0.7'  # renovate: datasource=ruby-version depName=ruby
+            experimental: true
       fail-fast: false
     env:
       PUPPET_VERSION: '${{matrix.puppet.puppet_version}}'
@@ -52,7 +48,7 @@ jobs:
     continue-on-error: true
     steps:
       - uses: actions/checkout@v7
-      - name: 'Install Ruby 3.4'
+      - name: 'Install Ruby'
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: '4.0.7'

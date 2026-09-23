@@ -1,3 +1,12 @@
+### 6.2.0 / 2026-09-23
+- Added
+  - Support for OpenVox 9
+    - Widened the `openvox` dependency to `>= 8.0, < 10.0`
+    - Widened the default `puppet`/`openvox` gem range in the `Gemfile` to
+      `>= 8, < 10`
+    - The spec matrix now tests OpenVox 8 on Ruby 3.2 and the OpenVox 9
+      release candidate on Ruby 4.0 (non-blocking until OpenVox 9.0.0 ships)
+
 ### 6.1.0 / 2026-09-03
 - Added
   - Absorbed `Simp::Build::ReleaseMapper` from the unmaintained
