@@ -3,6 +3,8 @@
 # SIMP_GEM_SERVERS | a space/comma delimited list of rubygem servers
 # PUPPET_VERSION   | specifies the version of the puppet/openvox gems to load
 # OPENVOX_VERSION  | overrides the openvox gem version (defaults to PUPPET_VERSION)
+# OPENFACT_VERSION | pins the openfact gem version (e.g. to the openfact an
+#                  | OpenVox AIO release ships); unset or empty = unpinned
 puppet_version  = ENV.fetch('PUPPET_VERSION', ['>= 8', '< 10'])
 openvox_version = ENV.fetch('OPENVOX_VERSION', puppet_version)
 gem_sources     = ENV.key?('SIMP_GEM_SERVERS') ? ENV['SIMP_GEM_SERVERS'].split(/[, ]+/) : ['https://rubygems.org']
@@ -18,6 +20,8 @@ gem 'rake', '>= 12.3.3'
 gem 'beaker-docker'
 
 gem 'openvox', openvox_version
+openfact_version = ENV.fetch('OPENFACT_VERSION', '').strip
+gem 'openfact', openfact_version unless openfact_version.empty?
 
 group :test do
   # rubocop, rubocop-rake, and rubocop-rspec are pulled in and version-pinned by

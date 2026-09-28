@@ -6,6 +6,9 @@
       `>= 8, < 10`
     - The spec matrix now tests OpenVox 8 on Ruby 3.2 and the OpenVox 9
       release candidate on Ruby 4.0 (non-blocking until OpenVox 9.0.0 ships)
+    - `OPENFACT_VERSION` in the `Gemfile` pins the `openfact` gem; the OpenVox 8
+      spec row pins it to `~> 5.0`, the series OpenVox 8 AIO packages ship
+      (`openvox` 8 accepts `openfact` 6)
 
 ### 6.1.0 / 2026-09-03
 - Added
