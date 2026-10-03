@@ -32,8 +32,8 @@ class Simp::Rake::Build::Pkg < Rake::TaskLib
     # nil = default not set; use local preference
     @fetch_published_rpm_default = if ENV['SIMP_PKG_fetch_published_rpm']
                                      (
-                                           (ENV.fetch('SIMP_PKG_fetch_published_rpm', nil) =~ %r{\A(yes|true)\Z}i) ? true : false
-                                         )
+                                       (ENV.fetch('SIMP_PKG_fetch_published_rpm', nil) =~ %r{\A(yes|true)\Z}i) ? true : false
+                                     )
                                    else
                                      nil
                                    end

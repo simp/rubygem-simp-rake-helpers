@@ -318,9 +318,9 @@ class Simp::Rake::Pkg < Rake::TaskLib
             end
 
             if latest_rpm && (
-                Gem::Version.new(latest_rpm.full_version) >=
-                Gem::Version.new(@spec_info.full_version)
-              )
+              Gem::Version.new(latest_rpm.full_version) >=
+              Gem::Version.new(@spec_info.full_version)
+            )
               latest_rpm.rpm_name
             else
               "#{f}-#{@spec_info.full_version}-#{@spec_info.arch}.rpm"
