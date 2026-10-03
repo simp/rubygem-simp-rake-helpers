@@ -1,3 +1,15 @@
+### 6.3.0 / 2026-10-03
+- Changed
+  - Allow voxpupuli-test 15, which moves to rubocop 1.91, rubocop-rspec 3.10
+    and rspec-puppet 6
+  - The OpenVox 9 spec row tests the 9.0.0 release (`~> 9.0`, openfact
+    `~> 6.0`) and is blocking
+- Fixed
+  - Require `json` < 3. openvox's `Puppet::Util::Json` is incompatible with
+    json 3.0, which breaks every rspec-puppet catalog compilation; rubocop
+    1.85 used to keep json below 3, but the rubocop 1.91 that voxpupuli-test
+    15 brings does not
+
 ### 6.2.0 / 2026-09-23
 - Added
   - Support for OpenVox 9
