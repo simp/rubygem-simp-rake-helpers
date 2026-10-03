@@ -27,12 +27,18 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'bundler',                            '>= 1.14', '< 5.0'
   s.add_runtime_dependency 'rake',                               '>= 10.0', '< 14.0'
   s.add_runtime_dependency 'openvox',                            '>= 8.0', '< 10.0'
+  # openvox's Puppet::Util::Json.load passes options to JSON.parse as a
+  # positional Hash, which json 3.0 rejects, so every module's catalog
+  # compilation fails under json 3 (OpenVoxProject/openvox#654). rubocop
+  # 1.85 (voxpupuli-test 14) capped json below 3 for us; 1.91
+  # (voxpupuli-test 15) no longer does. Drop once openvox is fixed.
+  s.add_runtime_dependency 'json',                               '>= 2.3', '< 3'
   s.add_runtime_dependency 'puppet-modulebuilder',               '>= 1.0', '< 3.0'
   s.add_runtime_dependency 'puppet-lint',                        '>= 1.0', '< 6.0'
   s.add_runtime_dependency 'puppet-lint-optional_default-check', '>= 1.0', '< 4.0'
   s.add_runtime_dependency 'puppet-lint-params_empty_string-check', '>= 1.0', '< 4.0'
 
-  s.add_runtime_dependency 'voxpupuli-test',                     '>= 14.0', '< 15.0'
+  s.add_runtime_dependency 'voxpupuli-test',                     '>= 14.0', '< 16.0'
   s.add_runtime_dependency 'metadata-json-lint',                 '>= 1.2', '< 6.0'
   s.add_runtime_dependency 'parallel',                           '>= 1.0', '< 3.0'
   s.add_runtime_dependency 'simp-rspec-puppet-facts',            '>= 2.4.1', '< 5.0'
