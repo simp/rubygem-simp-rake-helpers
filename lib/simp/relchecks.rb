@@ -9,6 +9,13 @@ module Simp; end
 
 # Class that provide release-related checks
 class Simp::RelChecks
+  # Paths in a Puppet module that ship to users; a change to any of them
+  # requires a new version
+  MODULE_SIGNIFICANT_FILES = %r{
+    \A(?:CHANGELOG|LICENSE|README\.md|REFERENCE\.md|metadata\.json|hiera\.yaml)\z |
+    \A(?:SIMP|build|data|facts\.d|files|functions|lib|locales|manifests|plans|tasks|templates|types)/
+  }x.freeze
+
   # Check a component's RPM changelog using the 'rpm' command.
   #
   # This task will fail if 'rpm' detects any changelog problems,
@@ -63,16 +70,8 @@ class Simp::RelChecks
   # (2) A version bump is required but not recorded in both the
   #     CHANGELOG and metadata.json files.
   # (3) The latest version is < latest tag.
-
-  # Changes to the following files/directories are not considered
-  # significant:
-  # - Any hidden file/directory (entry that begins with a '.')
-  # - Gemfile
-  # - Gemfile.lock
-  # - Rakefile
-  # - rakelib directory
-  # - spec directory
-  # - doc directory
+  #
+  # Which changed files are significant is decided by significant_file?
   #
   # +component_dir+:: The root directory of the component project.
   # +tags_source+::   The remote from which the tags for this project
@@ -94,9 +93,7 @@ class Simp::RelChecks
 
         # determine mission-impacting files that have changed
         files_changed = `git diff tags/#{last_tag} --name-only`.strip.split("\n")
-        files_changed.delete_if do |file|
-          file[0] == '.' or file == 'Rakefile' or file =~ %r{^Gemfile|^spec/|^doc/|^rakelib/|.*\.md\Z} or file == 'renovate.json'
-        end
+        files_changed.select! { |file| significant_file?(file, info.type) }
 
         if files_changed.empty?
           puts "  No new tag required: No significant files have changed since '#{last_tag}' tag"
@@ -114,6 +111,27 @@ class Simp::RelChecks
         end
       end
     end
+  end
+
+  # Whether a change to a file requires a new version of the component
+  #
+  # A Puppet module lists the paths that ship (MODULE_SIGNIFICANT_FILES);
+  # any other path is not significant.
+  #
+  # For any other component, every path is significant except:
+  # - Any hidden file/directory (entry that begins with a '.')
+  # - Gemfile*
+  # - Rakefile
+  # - rakelib, spec and doc directories
+  # - Markdown (*.md) files
+  # - renovate.json
+  #
+  # +file+:: Path relative to the root of the component
+  # +type+:: The component type (:module or :asset), from Simp::ComponentInfo
+  def self.significant_file?(file, type)
+    return file.match?(MODULE_SIGNIFICANT_FILES) if type == :module
+
+    !(file[0] == '.' or file == 'Rakefile' or file =~ %r{^Gemfile|^spec/|^doc/|^rakelib/|.*\.md\Z} or file == 'renovate.json')
   end
 
   # Generate an appropriate changelog for an annotated tag from a

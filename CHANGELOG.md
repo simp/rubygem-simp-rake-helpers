@@ -1,3 +1,11 @@
+### 7.0.0 / 2026-10-05
+- Changed
+  - **BREAKING:** `pkg:compare_latest_tag` decides whether a Puppet module
+    needs a new version from a list of the paths that ship, instead of a
+    list of paths to ignore. Changes to `README.md` and `REFERENCE.md` now
+    require a version bump; other Markdown files and unlisted paths (such
+    as `examples/` and tooling config) no longer do
+
 ### 6.3.0 / 2026-10-03
 - Changed
   - Allow voxpupuli-test 15, which moves to rubocop 1.91, rubocop-rspec 3.10

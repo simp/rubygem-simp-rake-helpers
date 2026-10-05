@@ -550,15 +550,21 @@ class Simp::Rake::Pkg < Rake::TaskLib
               CHANGELOG and metadata.json files.
           (3) The latest version is < latest tag.
 
-          Changes to the following files/directories are not considered
+          For a Puppet module, only changes to the paths that ship are
           significant:
+          - CHANGELOG, LICENSE, README.md, REFERENCE.md, metadata.json and
+            hiera.yaml
+          - SIMP, build, data, facts.d, files, functions, lib, locales,
+            manifests, plans, tasks, templates and types directories
+
+          For any other component, changes to the following
+          files/directories are not considered significant:
           - Any hidden file/directory (entry that begins with a '.')
-          - Gemfile
-          - Gemfile.lock
+          - Gemfile*
           - Rakefile
-          - rakelib directory
-          - spec directory
-          - doc directory
+          - rakelib, spec and doc directories
+          - Markdown (*.md) files
+          - renovate.json
       EOM
       task :compare_latest_tag, [:tags_source, :verbose] do |_t, args|
         tags_source = args[:tags_source].nil? ? 'origin' : args[:tags_source]

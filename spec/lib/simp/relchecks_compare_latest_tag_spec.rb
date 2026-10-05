@@ -33,7 +33,8 @@ describe 'Simp::RelChecks.compare_latest_tag' do
       expect(Simp::RelChecks).to receive(:`).with('git fetch -t origin 2>/dev/null').and_return("\n")
       expect(Simp::RelChecks).to receive(:`).with('git tag -l').and_return("1.0.0\nv1.0.1\n1.1.0\n")
       expect(Simp::RelChecks).to receive(:`).with('git diff tags/1.1.0 --name-only').and_return(
-        ".travis.yml\nRakefile\nREFERENCE.md\nGemfile.lock\nspec/some_spec.rb\ndoc/index.html\nrakelib/mytasks.rake\nrenovate.json\n",
+        ".travis.yml\nRakefile\nAGENTS.md\nGemfile.lock\nspec/some_spec.rb\ndoc/index.html\nrakelib/mytasks.rake\nrenovate.json\n" \
+        ".github/workflows/pr_tests.yml\nexamples/init.pp\n",
       )
 
       msg = "  No new tag required: No significant files have changed since '1.1.0' tag\n"
@@ -45,14 +46,14 @@ describe 'Simp::RelChecks.compare_latest_tag' do
       expect(Simp::RelChecks).to receive(:`).with('git fetch -t origin 2>/dev/null').and_return("\n")
       expect(Simp::RelChecks).to receive(:`).with('git tag -l').and_return("1.0.0\n1.1.0-RC01\n")
       expect(Simp::RelChecks).to receive(:`).with('git diff tags/1.0.0 --name-only').and_return(
-        "CHANGELOG\nmetadata.json\nmanifest/init.pp\n",
+        "CHANGELOG\nmetadata.json\nmanifests/init.pp\n",
       )
 
       msg = <<-EOM
 NOTICE: New tag of version '1.1.0' is required for 3 changed files:
   * CHANGELOG
   * metadata.json
-  * manifest/init.pp
+  * manifests/init.pp
       EOM
 
       expect { Simp::RelChecks.compare_latest_tag(component_dir) }
@@ -65,7 +66,7 @@ NOTICE: New tag of version '1.1.0' is required for 3 changed files:
       expect(Simp::RelChecks).to receive(:`).with('git fetch -t origin 2>/dev/null').and_return("\n")
       expect(Simp::RelChecks).to receive(:`).with('git tag -l').and_return("1.0.0\n1.2.0\n")
       expect(Simp::RelChecks).to receive(:`).with('git diff tags/1.2.0 --name-only').and_return(
-        "CHANGELOG\nmetadata.json\nmanifest/init.pp\n",
+        "CHANGELOG\nmetadata.json\nmanifests/init.pp\n",
       )
 
       expect { Simp::RelChecks.compare_latest_tag(component_dir) }
@@ -76,11 +77,22 @@ NOTICE: New tag of version '1.1.0' is required for 3 changed files:
       expect(Simp::RelChecks).to receive(:`).with('git fetch -t origin 2>/dev/null').and_return("\n")
       expect(Simp::RelChecks).to receive(:`).with('git tag -l').and_return("1.0.0\n1.1.0\n")
       expect(Simp::RelChecks).to receive(:`).with('git diff tags/1.1.0 --name-only').and_return(
-        "manifest/init.pp\n",
+        "manifests/init.pp\n",
       )
 
       expect { Simp::RelChecks.compare_latest_tag(component_dir) }
         .to raise_error(%r{ERROR: Version update beyond last tag '1.1.0' is required for 1 changed files:})
+    end
+
+    it 'fails when shipped documentation changes need a version bump' do
+      expect(Simp::RelChecks).to receive(:`).with('git fetch -t origin 2>/dev/null').and_return("\n")
+      expect(Simp::RelChecks).to receive(:`).with('git tag -l').and_return("1.0.0\n1.1.0\n")
+      expect(Simp::RelChecks).to receive(:`).with('git diff tags/1.1.0 --name-only').and_return(
+        "README.md\nREFERENCE.md\nAGENTS.md\n",
+      )
+
+      expect { Simp::RelChecks.compare_latest_tag(component_dir) }
+        .to raise_error(%r{ERROR: Version update beyond last tag '1.1.0' is required for 2 changed files:})
     end
 
     # spot check just one of many failures handled by
