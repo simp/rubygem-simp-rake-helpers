@@ -5,6 +5,9 @@
     list of paths to ignore. Changes to `README.md` and `REFERENCE.md` now
     require a version bump; other Markdown files and unlisted paths (such
     as `examples/` and tooling config) no longer do
+  - **BREAKING:** Removed the `compare_latest_tag` and
+    `changelog_annotation` Rake tasks for Puppet modules, deprecated in
+    5.12.0; use `pkg:compare_latest_tag` and `pkg:create_tag_changelog`
 
 ### 6.3.0 / 2026-10-03
 - Changed
