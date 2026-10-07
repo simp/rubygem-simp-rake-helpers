@@ -1,3 +1,15 @@
+### 7.0.0 / 2026-10-05
+- Changed
+  - **BREAKING:** `pkg:compare_latest_tag` decides whether a Puppet module
+    needs a new version from a list of the paths Puppet and Bolt load plus
+    `README.md` and `REFERENCE.md`, instead of a list of paths to ignore.
+    Changes to those two files now require a version bump; other Markdown
+    files and unlisted paths (such as `examples/` and tooling config) no
+    longer do
+  - **BREAKING:** Removed the `compare_latest_tag` and
+    `changelog_annotation` Rake tasks for Puppet modules, deprecated in
+    5.12.0; use `pkg:compare_latest_tag` and `pkg:create_tag_changelog`
+
 ### 6.3.0 / 2026-10-03
 - Changed
   - Allow voxpupuli-test 15, which moves to rubocop 1.91, rubocop-rspec 3.10
