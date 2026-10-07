@@ -550,10 +550,10 @@ class Simp::Rake::Pkg < Rake::TaskLib
               CHANGELOG and metadata.json files.
           (3) The latest version is < latest tag.
 
-          For a Puppet module, only changes to the paths that ship are
-          significant:
-          - CHANGELOG, LICENSE, README.md, REFERENCE.md, metadata.json and
-            hiera.yaml
+          For a Puppet module, only changes to the paths Puppet or Bolt
+          load, plus the docs users read, are significant:
+          - CHANGELOG, LICENSE, README.md, REFERENCE.md, metadata.json,
+            hiera.yaml and bolt_plugin.json
           - SIMP, build, data, facts.d, files, functions, lib, locales,
             manifests, plans, tasks, templates and types directories
 

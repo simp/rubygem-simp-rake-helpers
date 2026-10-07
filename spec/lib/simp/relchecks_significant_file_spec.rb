@@ -6,7 +6,7 @@ require 'spec_helper'
 describe 'Simp::RelChecks.significant_file?' do
   context 'with a Puppet module' do
     [
-      'CHANGELOG', 'LICENSE', 'README.md', 'REFERENCE.md', 'metadata.json', 'hiera.yaml',
+      'CHANGELOG', 'LICENSE', 'README.md', 'REFERENCE.md', 'metadata.json', 'hiera.yaml', 'bolt_plugin.json',
       'SIMP/compliance_profiles/checks.yaml', 'build/rpm_metadata/requires', 'data/common.yaml',
       'facts.d/x.sh', 'files/x.conf', 'functions/x.pp', 'lib/facter/x.rb', 'locales/config.yaml',
       'manifests/init.pp', 'manifests/README.md', 'plans/x.pp', 'tasks/x.json', 'templates/x.epp', 'types/x.pp'

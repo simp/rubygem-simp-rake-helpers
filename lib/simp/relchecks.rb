@@ -9,10 +9,10 @@ module Simp; end
 
 # Class that provide release-related checks
 class Simp::RelChecks
-  # Paths in a Puppet module that ship to users; a change to any of them
-  # requires a new version
+  # Paths in a Puppet module that Puppet or Bolt load, plus the docs users
+  # read; a change to any of them requires a new version
   MODULE_SIGNIFICANT_FILES = %r{
-    \A(?:CHANGELOG|LICENSE|README\.md|REFERENCE\.md|metadata\.json|hiera\.yaml)\z |
+    \A(?:CHANGELOG|LICENSE|README\.md|REFERENCE\.md|metadata\.json|hiera\.yaml|bolt_plugin\.json)\z |
     \A(?:SIMP|build|data|facts\.d|files|functions|lib|locales|manifests|plans|tasks|templates|types)/
   }x.freeze
 
@@ -92,7 +92,7 @@ class Simp::RelChecks
         last_tag = tags.max { |a, b| Gem::Version.new(a) <=> Gem::Version.new(b) }
 
         # determine mission-impacting files that have changed
-        files_changed = `git diff tags/#{last_tag} --name-only --no-renames`.strip.split("\n")
+        files_changed = `git diff -z tags/#{last_tag} --name-only --no-renames`.split("\0")
         files_changed.select! { |file| significant_file?(file, info.type) }
 
         if files_changed.empty?
@@ -115,8 +115,8 @@ class Simp::RelChecks
 
   # Whether a change to a file requires a new version of the component
   #
-  # A Puppet module lists the paths that ship (MODULE_SIGNIFICANT_FILES);
-  # any other path is not significant.
+  # A Puppet module lists the paths Puppet or Bolt load, plus the docs users
+  # read (MODULE_SIGNIFICANT_FILES); any other path is not significant.
   #
   # For any other component, every path is significant except:
   # - Any hidden file/directory (entry that begins with a '.')

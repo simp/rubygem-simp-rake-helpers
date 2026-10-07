@@ -1,10 +1,11 @@
 ### 7.0.0 / 2026-10-05
 - Changed
   - **BREAKING:** `pkg:compare_latest_tag` decides whether a Puppet module
-    needs a new version from a list of the paths that ship, instead of a
-    list of paths to ignore. Changes to `README.md` and `REFERENCE.md` now
-    require a version bump; other Markdown files and unlisted paths (such
-    as `examples/` and tooling config) no longer do
+    needs a new version from a list of the paths Puppet and Bolt load plus
+    `README.md` and `REFERENCE.md`, instead of a list of paths to ignore.
+    Changes to those two files now require a version bump; other Markdown
+    files and unlisted paths (such as `examples/` and tooling config) no
+    longer do
   - **BREAKING:** Removed the `compare_latest_tag` and
     `changelog_annotation` Rake tasks for Puppet modules, deprecated in
     5.12.0; use `pkg:compare_latest_tag` and `pkg:create_tag_changelog`
