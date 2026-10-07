@@ -92,7 +92,7 @@ class Simp::RelChecks
         last_tag = tags.max { |a, b| Gem::Version.new(a) <=> Gem::Version.new(b) }
 
         # determine mission-impacting files that have changed
-        files_changed = `git diff -z tags/#{last_tag} --name-only --no-renames`.split("\0")
+        files_changed = `git diff -z tags/#{last_tag} --name-only --no-renames`.b.split("\0".b)
         files_changed.select! { |file| significant_file?(file, info.type) }
 
         if files_changed.empty?
