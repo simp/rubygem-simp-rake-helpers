@@ -1,3 +1,10 @@
+### 7.0.1 / 2026-10-14
+- Fixed
+  - RPM builds for SIMP 7 failed with `Could not find template for SIMP
+    version 7.0.0-...`, because the RPM spec template was looked up only
+    for the exact SIMP major. A SIMP major without its own template now uses
+    the newest older one (`simp6.spec` for SIMP 7)
+
 ### 7.0.0 / 2026-10-05
 - Changed
   - **BREAKING:** `pkg:compare_latest_tag` decides whether a Puppet module
