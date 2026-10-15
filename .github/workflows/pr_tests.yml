@@ -56,3 +56,21 @@ jobs:
           ruby-version: '4.0.7'
           bundler-cache: true
       - run: bundle exec rubocop
+
+  # The one check for branch protection to require: GitHub only blocks a
+  # merge on checks listed by name, and this job fails unless every job it
+  # needs succeeded. Add any new job in this workflow to `needs:`.
+  all-checks:
+    name: 'All checks'
+    if: always()
+    needs:
+      - spec
+      - ruby-style
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Fail unless every needed job succeeded'
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          jq -r 'to_entries[] | "\(.key): \(.value.result)"' <<< "$NEEDS"
+          jq -e 'all(.[]; .result == "success")' <<< "$NEEDS" > /dev/null
