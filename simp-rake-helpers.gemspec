@@ -32,7 +32,7 @@ Gem::Specification.new do |s|
   # compilation fails under json 3 (OpenVoxProject/openvox#654). rubocop
   # 1.85 (voxpupuli-test 14) capped json below 3 for us; 1.91
   # (voxpupuli-test 15) no longer does. Drop once openvox is fixed.
-  s.add_runtime_dependency 'json',                               '>= 2.3', '< 3'
+  s.add_runtime_dependency 'json',                               '>= 2.3', '< 4'
   s.add_runtime_dependency 'puppet-modulebuilder',               '>= 1.0', '< 3.0'
   s.add_runtime_dependency 'puppet-lint',                        '>= 1.0', '< 6.0'
   s.add_runtime_dependency 'puppet-lint-optional_default-check', '>= 1.0', '< 4.0'
