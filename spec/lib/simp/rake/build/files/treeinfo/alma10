@@ -1,0 +1,63 @@
+[checksums]
+images/boot.iso = sha256:d842df0dca98a3bf79c84cfcce49505ba7a7f56f03dcb02639b8377410154f4d
+images/eltorito.img = sha256:86ab1fb0659ae078f386c8f518596a41440d8540bde58b8873429779ddec8571
+images/install.img = sha256:24e6e36fd21697dcc04f9a795c9fe3f616a6879c5f91001c273f2960a92d056a
+images/pxeboot/initrd.img = sha256:0c3ce9606455cbabcece631322491da4640cb1b869e2fb2f0307365e7493bc26
+images/pxeboot/vmlinuz = sha256:3cfeda58301d7094e9298844f8818d94bca67b661ed0e18438f5c21e73ab55d0
+
+[general]
+arch = x86_64
+family = AlmaLinux
+name = AlmaLinux 10
+packagedir = Packages
+platforms = x86_64,xen
+repository = .
+timestamp = 1794586561
+variant = BaseOS
+variants = AppStream,BaseOS
+version = 10
+
+[header]
+type = productmd.treeinfo
+version = 1.2
+
+[images-x86_64]
+boot.iso = images/boot.iso
+eltorito.img = images/eltorito.img
+initrd = images/pxeboot/initrd.img
+kernel = images/pxeboot/vmlinuz
+
+[images-xen]
+initrd = images/pxeboot/initrd.img
+kernel = images/pxeboot/vmlinuz
+
+[release]
+name = AlmaLinux
+short = AlmaLinux
+version = 10
+
+[stage2]
+mainimage = images/install.img
+
+[tree]
+arch = x86_64
+build_timestamp = 1794586561
+platforms = x86_64,xen
+variants = AppStream,BaseOS
+
+[variant-AppStream]
+id = AppStream
+name = AppStream
+packages = ../../../AppStream/x86_64/os/Packages
+repository = ../../../AppStream/x86_64/os
+type = variant
+uid = AppStream
+
+[variant-BaseOS]
+id = BaseOS
+name = BaseOS
+packages = Packages
+repository = .
+type = variant
+uid = BaseOS
+
