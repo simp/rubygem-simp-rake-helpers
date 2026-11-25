@@ -9,6 +9,7 @@ describe Simp::Rake::Build::Media do
 
   describe '.read_treeinfo' do
     {
+      'alma8' => { 'family' => 'AlmaLinux', 'version' => '8', 'arch' => 'x86_64' },
       'alma9' => { 'family' => 'AlmaLinux', 'version' => '9', 'arch' => 'x86_64' },
       'alma10' => { 'family' => 'AlmaLinux', 'version' => '10', 'arch' => 'x86_64' },
       'rocky9' => { 'family' => 'Rocky Linux', 'version' => '9.9', 'arch' => 'x86_64' },
