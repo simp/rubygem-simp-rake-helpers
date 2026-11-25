@@ -2,6 +2,7 @@
 
 require 'simp/rake'
 require 'simp/rake/build/constants'
+require 'simp/rake/build/media'
 
 module Simp; end
 module Simp::Rake; end
@@ -143,36 +144,18 @@ class Simp::Rake::Build::Iso < Rake::TaskLib
 
           # Process each unpacked base OS ISO directory found
           iso_dirs.each do |dir|
-            baseosver = '???'
-            arch      = '???'
-
-            # read the .treeinfo file (INI format)
-            # ------------------------------------
-            require 'puppet'
-            require 'puppet/util/inifile'
-
             file = "#{dir}/.treeinfo"
             raise("ERROR: no file '#{file}'") unless File.file?(file)
 
-            ini = Puppet::Util::IniConfig::PhysicalFile.new(file)
-            ini.read
-            sections = ini.sections.map { |s| s.name }
-
-            # NOTE: RHEL7 discs claim [general] section is deprecated.
-            if sections.include?('general')
-              h = ini.get_section('general').entries.to_h { |k, v| [k, v] }
-              arch      = h.fetch('arch', arch).strip
-              baseosver = h.fetch('version', baseosver).strip
-              baseosver += '.0' if baseosver.count('.') < 1
-            end
-            # ------------------------------------
+            treeinfo  = Simp::Rake::Build::Media.read_treeinfo(file)
+            arch      = treeinfo['arch'] || '???'
+            baseosver = treeinfo['version'] || '???'
+            baseosver += '.0' if baseosver.count('.') < 1
 
             # Skip if SIMP version doesn't match target base OS version
             unless Array(vermap[simpver.split('.').first]).include?(baseosver.split('.').first)
-              if verbose
-                warn("Could not find SIMP version mapping for #{simpver} for Base OS #{baseosver}")
-                warn('Do you need to update vermap.yaml in the Gem?')
-              end
+              warn("Skipping #{dir}: could not find SIMP version mapping for #{simpver} for Base OS #{baseosver}")
+              warn('Do you need to update vermap.yaml in the Gem?')
 
               next
             end
@@ -426,37 +409,15 @@ class Simp::Rake::Build::Iso < Rake::TaskLib
             simp_output_name = "SIMP-#{simpver}-#{baseos}-#{baseosver}-#{arch}"
             @simp_output_iso = "#{simp_output_name}.iso"
 
-            mkisofs_cmd = [
-              'mkisofs',
-              "-A SIMP-#{simpver}",
-              "-V SIMP-#{simpver}",
-              "-volset SIMP-#{simpver}",
-              '-uid 0',
-              '-gid 0',
-              '-J',
-              '-joliet-long',
-              '-r',
-              '-v',
-              '-T',
-              '-b isolinux/isolinux.bin',
-              '-c boot.cat',
-              '-boot-load-size 4',
-              '-boot-info-table',
-              '-no-emul-boot',
-              '-eltorito-alt-boot',
-              '-e images/efiboot.img',
-              # This is apparently needed twice to get the lines above it to
-              # take. Not sure why.
-              '-no-emul-boot',
-              '-m TRANS.TBL',
-              '-x ./lost+found',
-              "-o #{@simp_output_iso}",
-              dir,
-            ].join(' ')
+            # xorriso's mkisofs emulation; genisoimage isn't in EL9+
+            mkisofs = ['xorrisofs', 'mkisofs'].find { |cmd| Facter::Core::Execution.which(cmd) }
+            raise('Error: Could not find xorrisofs or mkisofs. Please install xorriso.') unless mkisofs
 
-            $stdout.puts "Running: #{mkisofs_cmd}"
+            mkisofs_cmd = [mkisofs] + Simp::Rake::Build::Media.mkisofs_args(dir, "SIMP-#{simpver}", @simp_output_iso)
 
-            system(mkisofs_cmd)
+            $stdout.puts "Running: #{mkisofs_cmd.join(' ')}"
+
+            system(*mkisofs_cmd)
           end
         end
 

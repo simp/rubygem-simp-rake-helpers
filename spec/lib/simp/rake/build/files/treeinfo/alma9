@@ -1,0 +1,59 @@
+[checksums]
+images/efiboot.img = sha256:d1b35b4fb75ab53b7beaf0a0669d7570afeedc59df572adba6aea63f868e0f52
+images/install.img = sha256:994bc444770aadfc0c5f7c4a9210f2ace24cce6691aa62f91a4a63cf1725bea5
+images/pxeboot/initrd.img = sha256:0bdb97c249055d6b95d03b1fdd11d81852eef8b9675e390f0fae39b8f8a98dc1
+images/pxeboot/vmlinuz = sha256:7af4a31b2a63411c95859a7b655cff3462d45a9cbcde537723ebcd4347b8d47a
+
+[general]
+; WARNING.0 = This section provides compatibility with pre-productmd treeinfos.
+; WARNING.1 = Read productmd documentation for details about new format.
+arch = x86_64
+family = AlmaLinux
+name = AlmaLinux 9
+packagedir = Minimal/Packages
+platforms = x86_64,xen
+repository = Minimal
+timestamp = 1794591760
+variant = Minimal
+variants = Minimal
+version = 9
+
+[header]
+type = productmd.treeinfo
+version = 1.2
+
+[images-x86_64]
+efiboot.img = images/efiboot.img
+initrd = images/pxeboot/initrd.img
+kernel = images/pxeboot/vmlinuz
+
+[images-xen]
+initrd = images/pxeboot/initrd.img
+kernel = images/pxeboot/vmlinuz
+
+[media]
+discnum = 1
+totaldiscs = 1
+
+[release]
+name = AlmaLinux
+short = AlmaLinux
+version = 9
+
+[stage2]
+mainimage = images/install.img
+
+[tree]
+arch = x86_64
+build_timestamp = 1794591760
+platforms = x86_64,xen
+variants = Minimal
+
+[variant-Minimal]
+id = Minimal
+name = Minimal
+packages = Minimal/Packages
+repository = Minimal
+type = variant
+uid = Minimal
+

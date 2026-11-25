@@ -1,0 +1,82 @@
+[checksums]
+images/boot.iso = sha256:2fda244142dcf746dcbfb476acd66f3ca757081edfa560f907c125142c47617c
+images/efiboot.img = sha256:1ae51bd73c35ae5ef864004f592528845fc3f2fad347d468df7ac20a29742184
+images/install.img = sha256:abdcc6a8ecf0a4d32f2500d17a41d4961980eb8e19027ee0fca599b8054c5771
+images/pxeboot/initrd.img = sha256:6c20b39dc3815783bc348e6b756512fcffc096fb7b4d390aa4207cfdc32dbedc
+images/pxeboot/vmlinuz = sha256:d527e7002f40dfcf56e5e87481e8bed3439343e74a509aa68e9e78c248665a9a
+.discinfo = sha256:b7c5767f9f188a217872f12e3ce8d1604022e1c1e7fcfd2bad8fa087d9bee733
+EFI/BOOT/BOOTX64.EFI = sha256:1ff3f223c2fcf5b11615d042fcb5674c4651bbbc8505b5b2987d60da0cb65d1a
+EFI/BOOT/fonts/unicode.pf2 = sha256:d7d6e42700f0895de26d72f3036822e56708935542e60c8a7a108b45df9b0aad
+EFI/BOOT/grub.cfg = sha256:72a6380a6170a187658d5b51f4ba0d48629df05b89a637344b8dffe3659066a2
+EFI/BOOT/grubx64.efi = sha256:509b375e4977d4607445636d4fa8c0d9fdf6d386040a66f58b28f010253ea4bf
+EFI/BOOT/mmx64.efi = sha256:1a3687f923d077080fe49feb470e3932c2b1d3fd4c6439123aa0226246a24522
+isolinux/boot.msg = sha256:8630a42c892260c005a985c0f46b25c0200a5582463348c802b2965074b4ec99
+isolinux/grub.conf = sha256:e086e462a55d0c0dc0a5acb98a23f34d8e622d1a70abb1ad59a12bafa98c3d94
+isolinux/initrd.img = sha256:6c20b39dc3815783bc348e6b756512fcffc096fb7b4d390aa4207cfdc32dbedc
+isolinux/isolinux.bin = sha256:43a3b790f38c045764334e25b741a38ee44ce57970f459ae421132ddd037c8d0
+isolinux/isolinux.cfg = sha256:96818810dcf0032b1bc9b8b5f28ccb2919c3f820eeab7a4cbe1e64690b43cc8d
+isolinux/ldlinux.c32 = sha256:ac01a1cc963e8736ba799e0eaa6bb98e86bced1e0614e2ffb91ae72079799ce9
+isolinux/libcom32.c32 = sha256:8a5edec7c4b9b28c44806f5031caf4c7538a3223c1aea59e029968d257726b41
+isolinux/libutil.c32 = sha256:7b07609f08b5fbd948a50e8dbda5c807768147e45d25819a752cd78ec0d2e69a
+isolinux/memtest = sha256:c2b747a826a03082a13302cb119ddc51e6fb635090d1a3263d5671de813f0b5f
+isolinux/splash.png = sha256:a1345321b1ffe751f13f7b6547e7ea5cde99a4e4dbe95db4b1a123caacfdcb39
+isolinux/vesamenu.c32 = sha256:744f8d90b7a4848d2734344903787cd641bec3515b2f6f625ccd2608e189139b
+isolinux/vmlinuz = sha256:d527e7002f40dfcf56e5e87481e8bed3439343e74a509aa68e9e78c248665a9a
+media.repo = sha256:d9321bdf6952e89d466b3ac49a8110b7f9a6d5d00cc424423a17653b040859a0
+
+[general]
+arch = x86_64
+family = Rocky Linux
+name = Rocky Linux 9.9
+packagedir = Packages
+platforms = x86_64,xen
+repository = .
+timestamp = 1794528893
+variant = BaseOS
+variants = BaseOS
+version = 9.9
+
+[header]
+type = productmd.treeinfo
+version = 1.2
+
+[release]
+name = Rocky Linux
+short = Rocky
+version = 9.9
+
+[tree]
+arch = x86_64
+build_timestamp = 1794528893
+platforms = x86_64,xen
+variants = BaseOS,AppStream
+
+[variant-BaseOS]
+id = BaseOS
+name = BaseOS
+packages = Packages
+repository = .
+type = variant
+uid = BaseOS
+
+[variant-AppStream]
+id = AppStream
+name = AppStream
+type = variant
+uid = AppStream
+packages = ../../../AppStream/x86_64/os/Packages
+repository = ../../../AppStream/x86_64/os/
+
+[images-x86_64]
+boot.iso = images/boot.iso
+efiboot.img = images/efiboot.img
+initrd = images/pxeboot/initrd.img
+kernel = images/pxeboot/vmlinuz
+
+[images-xen]
+initrd = images/pxeboot/initrd.img
+kernel = images/pxeboot/vmlinuz
+
+[stage2]
+mainimage = images/install.img
+

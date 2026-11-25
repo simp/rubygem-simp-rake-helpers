@@ -2,6 +2,8 @@
 
 require 'ruby-progressbar'
 require 'simp/rake/build/constants'
+require 'simp/rake/build/media'
+require 'tmpdir'
 
 module Simp; end
 module Simp::Rake; end
@@ -18,8 +20,9 @@ class Simp::Rake::Build::Unpack < Rake::TaskLib
   def define_tasks
     # !/usr/bin/rake -T
 
-    #       desc "Unpack an ISO. Unpacks either a RHEL or CentOS ISO into
-    #       <targetdir>/<RHEL|CentOS><version>-<arch>.
+    #       desc "Unpack an ISO. Unpacks a RHEL-compatible ISO into
+    #       <targetdir>/RedHat<version>-<arch>, identifying it from its
+    #       .treeinfo (or, without one, from a rhel-server-* or CentOS-* name).
     #        * :iso_path - Full path to the ISO image to unpack.
     #        * :merge - If true, then automatically merge any existing
     #          directories. Defaults to prompting.
@@ -55,6 +58,14 @@ class Simp::Rake::Build::Unpack < Rake::TaskLib
       `file --keep-going '#{iso_path}'`.split(':')[1..].to_s.include?('ISO') or
         raise 'Error: The file provided is not a valid ISO.'
 
+      # Identify the media from its .treeinfo
+      treeinfo = Dir.mktmpdir do |tmp|
+        file = File.join(tmp, 'treeinfo')
+        system("#{iso_info} -R -x /.treeinfo -i '#{iso_path}' > '#{file}' 2>/dev/null")
+        Simp::Rake::Build::Media.read_treeinfo(file) unless File.empty?(file)
+      end
+      baseos = Simp::Rake::Build::Media.baseos(treeinfo && treeinfo['family'])
+
       pieces = File.basename(iso_path, '.iso').split('-')
 
       # Mappings of ISO name to target directory name.
@@ -77,7 +88,11 @@ class Simp::Rake::Build::Unpack < Rake::TaskLib
       }
 
       # Determine the target directory
-      map = dvd_map[pieces[0]]
+      map = if baseos
+              { 'baseos' => baseos, 'version' => version || treeinfo['version'], 'arch' => treeinfo['arch'] }
+            else
+              dvd_map[pieces[0]]
+            end
       map.nil? and raise "Error: Could not find a mapping for '#{iso_path}'."
       out_dir = "#{File.expand_path(targetdir)}/#{map['baseos']}#{map['version']}-#{map['arch']}"
 
@@ -119,7 +134,7 @@ class Simp::Rake::Build::Unpack < Rake::TaskLib
       end
 
       # The repodata directory needs to exist (but not be copied) for el7 distros
-      FileUtils.mkdir("#{out_dir}/repodata") if version.start_with?('7')
+      FileUtils.mkdir_p("#{out_dir}/repodata") if map['version'].to_s.start_with?('7')
     end
   end
 end

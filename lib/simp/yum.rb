@@ -26,10 +26,8 @@ module Simp
       tmp_dir = ENV['TMPDIR'] || '/tmp'
 
       # Ensure that yumdownloader uses a fresh cache directory for each run of a given platform
-      @@yum_cache ||= File.join(tmp_dir, 'yum_cache-' +
-        Facter.fact('operatingsystem').value + '-' +
-        Facter.fact('operatingsystemmajrelease').value + '-' +
-        Facter.fact('architecture').value)
+      os = Facter.value(:os)
+      @@yum_cache ||= File.join(tmp_dir, "yum_cache-#{os['name']}-#{os['release']['major']}-#{os['architecture']}")
 
       FileUtils.mkdir_p(@@yum_cache)
 

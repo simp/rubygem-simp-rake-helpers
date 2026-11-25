@@ -22,9 +22,12 @@ module Simp::Rake::Build::Constants
       distro, version, arch = ENV['SIMP_BUILD_distro'].split(%r{,|/})
     end
 
-    @build_distro = distro || Facter.fact('operatingsystem').value
-    @build_version = version || Facter.fact('operatingsystemmajrelease').value
-    @build_arch = arch || Facter.fact('architecture').value
+    # The OS family, not its name: simp-core builds every RHEL-compatible
+    # OS (RHEL, AlmaLinux, Rocky, ...) from `build/distributions/RedHat`
+    os = Facter.value(:os) || {}
+    @build_distro = distro || os['family']
+    @build_version = version || os.dig('release', 'major')
+    @build_arch = arch || os['architecture']
 
     # Working around the SIMP::RPM.system_dist workaround
     if ENV['SIMP_RPM_dist'].nil? && @build_distro =~ %r{CentOS|RedHat}i

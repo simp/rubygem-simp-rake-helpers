@@ -1,3 +1,21 @@
+### 7.1.0 / 2026-11-25
+- Added
+  - `build:auto` builds EL9 ISOs. SIMP 7 accepts EL8, EL9 and EL10 media;
+    EL10 media, which have no `isolinux` or `efiboot.img`, can't be built yet
+  - `unpack` identifies vendor media from its `.treeinfo`, so AlmaLinux,
+    Rocky, CentOS Stream and current RHEL ISOs unpack whatever their file
+    names
+- Changed
+  - The build distribution is the OS family (`RedHat`) rather than its name,
+    so the AlmaLinux and Rocky build containers use the `RedHat` tree without
+    `SIMP_BUILD_distro`
+  - ISOs are built with `xorrisofs`, falling back to `mkisofs`, and boot
+    with whichever of `isolinux` (BIOS) and `efiboot.img` (UEFI) the media has
+  - `iso:build` always warns when it skips media that `vermap.yaml` doesn't
+    map to the SIMP version, not only with `SIMP_ISO_verbose=yes`
+- Fixed
+  - `unpack` failed when no version was given
+
 ### 7.0.1 / 2026-10-14
 - Fixed
   - RPM builds for SIMP 7 failed with `Could not find template for SIMP
