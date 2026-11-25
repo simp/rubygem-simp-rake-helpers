@@ -27,7 +27,7 @@ module Simp::BeakerHelpers::SimpRakeHelpers::BuildProjectHelpers
   #
   # @example The distribution directory format looks like:
   #
-  #     `build/distributions/CentOS/6/x86_64
+  #     `build/distributions/RedHat/9/x86_64`
   #
   # @param [Host, String, Symbol] host Beaker host
   # @param [String] proj_dir Absolute path to the parent project directory
@@ -47,11 +47,11 @@ module Simp::BeakerHelpers::SimpRakeHelpers::BuildProjectHelpers
     # unrecognized opts (e.g. run_in_parallel) into the `puppet facts show`
     # command line, which puppet then rejects as an invalid option.
     os = fact_on(host, 'os')
-    name         = os['name']
+    family       = os['family']
     maj_rel      = os.dig('release', 'major')
     architecture = os['architecture']
 
-    dir = "#{proj_dir}/build/distributions/#{name}/#{maj_rel}/#{architecture}"
+    dir = "#{proj_dir}/build/distributions/#{family}/#{maj_rel}/#{architecture}"
     @distribution_dirs[host.to_s] = dir
   end
 
